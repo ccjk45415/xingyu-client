@@ -9,6 +9,8 @@
 - Flutter静态分析无问题，25项测试通过/3项可选网络测试默认跳过；另单独运行真实DLsite代理提取测试通过。覆盖来源DNS核实、域名关联、私网/混合解析和缓存，不降低HTTPS验证。
 - Android完成原签名覆盖升级包构建，Windows完成原生引擎发布构建；客户端修复，无需修改生产Worker和聊天数据。手机完整UI未取得真机验收。
 
+GitHub [v0.7.1](https://github.com/ccjk45415/xingyu-client/releases/tag/v0.7.1)和原更新入口已发布，Pages部署4d5fa226。两端公开下载与GitHub三项匿名资产下载均核对SHA256成功，源码提交 `9f875bb01d0b7732b5362cdf7c612c8e0882f64c`。
+
 ## Android 0.7.0 / Windows 0.2.0：AI投稿与手机工具栏
 
 - 服务端AI请求白名单、任务结构、来源、短正文、个人/全局额度、同UID并发、幂等重放与错误信息隔离通过；完整Node28组、真实Pages内部绑定/SQLite/300用户回归357项通过。
