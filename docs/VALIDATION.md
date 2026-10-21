@@ -13,6 +13,8 @@
 - APK0.6.3/code9，467584字节，SHA256 `2ae0400d19effdf2f500470c0cc73e146baea2f06857fdcfe4977ec19a0f3210`，完整构建和原签名一致验证通过。Windows0.1.2/build3真实引擎发布构建、中文路径DPAPI/篡改拒绝/健康自检通过；ZIP14238006字节，SHA256 `2dfe03b70dd000d587d386a791850018752cd28a36a101e562c29f38d9fee032`。
 - Pages部署 `5df20a4a`，两端更新清单、下载大小及SHA256核对通过；未改Worker、公告、数据库或官网资料/投稿。源码和发布包继续扫描排除网站凭据、Cloudflare/GitHub OAuth及公告密钥。
 
+GitHub v0.6.3已发布，公开源码提交 `1db58f5c9bd0e4385667c782e8af7c8ec35c9ab3`；匿名下载APK、Windows ZIP及校验文件后哈希核对通过，结果见github-release.json。
+
 结果见 `evidence/editor-android-validation.json`、`editor-device-validation.json`、`release-0.6.3.json`；Windows使用细节见desktop/README.md。
 
 ## Android 0.6.2 / Windows 0.1.1：二维码、作者搜索与投稿辅助

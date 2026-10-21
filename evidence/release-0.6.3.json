@@ -34,5 +34,7 @@
   "android_signing_certificate_matches_previous": true,
   "native_android_ui": "test APK installation timed out; no device UI pass claimed",
   "backend_changed": false,
-  "production_content_writes": 0
+  "production_content_writes": 0,
+  "github_release": "https://github.com/ccjk45415/xingyu-client/releases/tag/v0.6.3",
+  "github_unauthenticated_download_hashes": "pass"
 }
