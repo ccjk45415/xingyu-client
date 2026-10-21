@@ -15,6 +15,8 @@
 
 Worker `9790133f-877a-4f0c-aec2-e8c1eb0b9e10` 与 Pages `4f310474` 已部署。两端更新清单、公开下载SHA256及发现入口核对通过；原公告版本和正文hash一致，默认发现文案保留。Windows真实引擎、DPAPI、防篡改与健康自检通过。
 
+GitHub [v0.9.1](https://github.com/ccjk45415/xingyu-client/releases/tag/v0.9.1)已公开，源码提交 `369b2daa940eb05eddbd6eaa4c83a734b269f729`，338个源码文件；三项附件匿名下载SHA256全部核对通过，Release正文及两端更新notes均严格为9字。源码/交付包扫描排除官网账号密码、Cloudflare/GitHub OAuth及公告管理密钥。
+
 ## Android 0.9.0 / Windows 0.4.0：原生可视化投稿、图片和官网模板
 
 - 只读核对官网后台及当前脚本 SHA256：`4c80891d84d7b14a2e6fc2699abb2e2252f977d1d47d46befec13f45de9edf17`，与留存字节一致；确认图片响应 `data.url`、dlbox/iframe/collapse/poll/lottery 格式及权限条件。没有向官网创建测试投稿/投票、上传测试图或发送消息。
