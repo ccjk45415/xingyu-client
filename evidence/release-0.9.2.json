@@ -1,0 +1,45 @@
+{
+  "date": "2026-10-22",
+  "android": {
+    "available": true,
+    "package": "moe.cangku.reader",
+    "versionCode": 15,
+    "versionName": "0.9.2",
+    "notes": "优化了一些已知问题",
+    "minSdk": 26,
+    "url": "https://xingyu-chat-ccjk45415.pages.dev/releases/Cangku-Xingyu-0.9.2-debug.apk",
+    "size": 738002,
+    "sha256": "40c81703eadda4349ade23efb199cca10eba8be9a9a7b370b4cdba26468a3bc1"
+  },
+  "windows": {
+    "available": true,
+    "product": "moe.cangku.xingyu.desktop",
+    "platform": "windows-x64",
+    "versionCode": 8,
+    "versionName": "0.4.1",
+    "notes": "优化了一些已知问题",
+    "url": "https://xingyu-chat-ccjk45415.pages.dev/releases/Xingyu-Windows-0.4.1-x64.zip",
+    "size": 14476990,
+    "sha256": "54fca5d22d2b3935c178200eb7a74650033eb5488077ad60be295ca72f684b4e"
+  },
+  "windows_rebuilt": false,
+  "public_release_notes": "优化了一些已知问题",
+  "fix": "replace shared weighted GridLayout constraints with equal-width LinearLayout rows, adapt to width/font and independently scroll long pages",
+  "native_comment_rule_assertions": 61,
+  "android_build_and_signature": "pass",
+  "desktop_targeted_tests": 9,
+  "desktop_sticker_groups_verified": 5,
+  "desktop_widths_verified": [
+    1280,
+    430
+  ],
+  "desktop_analyze": "No issues found",
+  "desktop_same_bug_reproduced": false,
+  "native_full_ui_verified": false,
+  "isolated_device_install": "timed out; test package confirmed absent",
+  "worker_deployment_required": false,
+  "website_comments_or_uploads_written": 0,
+  "pages_deployment": "4f1335ba",
+  "public_android_download_verified": true,
+  "windows_manifest_unchanged": true
+}

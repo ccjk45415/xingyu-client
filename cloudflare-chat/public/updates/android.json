@@ -1,11 +1,11 @@
 {
   "available": true,
   "package": "moe.cangku.reader",
-  "versionCode": 14,
-  "versionName": "0.9.1",
+  "versionCode": 15,
+  "versionName": "0.9.2",
   "notes": "优化了一些已知问题",
   "minSdk": 26,
-  "url": "https://xingyu-chat-ccjk45415.pages.dev/releases/Cangku-Xingyu-0.9.1-debug.apk",
+  "url": "https://xingyu-chat-ccjk45415.pages.dev/releases/Cangku-Xingyu-0.9.2-debug.apk",
   "size": 738002,
-  "sha256": "792ec997a8a46951323397a226ff1008adfb4bc1259f6578ae6fb549c823b78f"
+  "sha256": "40c81703eadda4349ade23efb199cca10eba8be9a9a7b370b4cdba26468a3bc1"
 }

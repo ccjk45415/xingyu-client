@@ -4,13 +4,13 @@ cangku.moe 的非官方 Android 与 Flutter Windows 客户端。界面以淡紫�
 
 Android 0.6.1修复改名后聊天室资料不同步，并为作品详情页增加右侧滚动条。0.6.0加入统一设置、作者UID复制、首页实时公告轮播，以及仓库认证聊天室、聊天室/私信图片、@和引用回复；详细说明见[0.6.0修改说明](docs/PENDING_CHANGES.md)。
 
-当前版本：**Android 0.9.1 / Windows 0.4.1**。优化了一些已知问题。见[更新记录](CHANGELOG.md)。
+当前版本：**Android 0.9.2 / Windows 0.4.1**。优化了一些已知问题。见[更新记录](CHANGELOG.md)。
 
 ## 下载
 
 | 平台 | 版本 | GitHub下载 |
 | --- | --- | --- |
-| Android 8.0及以上 | 0.9.1 | [APK安装包](https://github.com/ccjk45415/xingyu-client/releases/download/v0.9.1/Cangku-Xingyu-0.9.1-debug.apk) |
+| Android 8.0及以上 | 0.9.2 | [APK安装包](https://github.com/ccjk45415/xingyu-client/releases/download/v0.9.2/Cangku-Xingyu-0.9.2-debug.apk) |
 | Windows x64 | 0.4.1 | [完整免安装ZIP](https://github.com/ccjk45415/xingyu-client/releases/download/v0.9.1/Xingyu-Windows-0.4.1-x64.zip) |
 
 [全部发布记录与校验文件](https://github.com/ccjk45415/xingyu-client/releases)。Android可覆盖前一版本；Windows完整解压后运行 `Xingyu.exe`，保留全部DLL和data文件夹。当前为自用测试发布，Android使用原测试签名，Windows尚未进行代码签名。
@@ -23,7 +23,7 @@ Flutter Desktop **0.4.1 / Windows x64** 已制作，采用原生 Windows 引擎�
 
 ## Android 安装
 
-安装包：`output/Cangku-Xingyu-0.9.1-debug.apk`。使用与上一版相同的测试签名，可覆盖升级。
+安装包：`output/Cangku-Xingyu-0.9.2-debug.apk`。使用与上一版相同的测试签名，可覆盖升级。
 
 安装后输入自己的仓库账号密码。项目、安装包与交付压缩包不包含预置账号、密码或登录 Cookie。默认仅在本次进程内保持会话；勾选“保持登录”后，会话通过 Android Keystore 的 AES-GCM 密钥加密保存。密码始终不写入磁盘。
 

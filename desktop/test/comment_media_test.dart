@@ -296,6 +296,52 @@ void main() {
         expect(find.text('粘贴'), findsOneWidget);
         expect(tester.takeException(), null);
         await capture(tester, key, 'desktop-comment-composer-${width.toInt()}');
+        // The mobile GridLayout bug must not also hide/crop a desktop category.
+        await tester.tap(find.text('收起预览'));
+        await tester.pumpAndSettle();
+        final editor = tester
+            .widget<TextField>(find.byType(TextField))
+            .controller!;
+        for (final group in siteStickerGroups) {
+          final chip = find.widgetWithText(ChoiceChip, group.name);
+          await tester.ensureVisible(chip);
+          await tester.tap(chip);
+          await tester.pumpAndSettle();
+          final grid = find.byType(GridView);
+          final scrollable = find.descendant(
+            of: grid,
+            matching: find.byType(Scrollable),
+          );
+          final position = tester.state<ScrollableState>(scrollable).position;
+          position.jumpTo(0);
+          await tester.pumpAndSettle();
+          final first = find.byTooltip(group.token(1));
+          await tester.ensureVisible(first);
+          await tester.pumpAndSettle();
+          final firstBounds = tester.getRect(first);
+          expect(firstBounds.width, greaterThan(30));
+          expect(firstBounds.width, lessThanOrEqualTo(56));
+          expect(firstBounds.height, lessThanOrEqualTo(56));
+          expect(tester.getRect(grid).contains(firstBounds.center), true);
+          await tester.tap(first);
+          await tester.pumpAndSettle();
+          expect(editor.text, endsWith(group.token(1)));
+          position.jumpTo(position.maxScrollExtent);
+          await tester.pumpAndSettle();
+          final last = find.byTooltip(group.token(group.count));
+          await tester.ensureVisible(last);
+          await tester.pumpAndSettle();
+          expect(
+            tester.getRect(grid).contains(tester.getRect(last).center),
+            true,
+          );
+          await tester.tap(last);
+          await tester.pumpAndSettle();
+          expect(editor.text, endsWith(group.token(group.count)));
+          expect(find.text('[图片暂时无法加载]'), findsNothing);
+          expect(tester.takeException(), null);
+        }
+
         await tester.tap(find.text('取消'));
         await tester.pumpAndSettle();
       }

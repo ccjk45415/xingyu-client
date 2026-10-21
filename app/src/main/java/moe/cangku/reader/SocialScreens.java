@@ -146,8 +146,45 @@ final class SocialScreens {
     }
     private void uploadPreview(ScrollView view,LinearLayout target,EditText input,TextView status){if(status.getText().toString().startsWith("图片已上传并加入")){target.removeAllViews();host.renderComment(target,input.getText().toString(),14);view.setVisibility(View.VISIBLE);}}
     private void emojiPicker(EditText input,long token){
-        if(!current(token))return;LinearLayout wrap=ui().column();ui().pad(wrap,12,6,12,12);HorizontalScrollView tabsScroll=new HorizontalScrollView(host);tabsScroll.setHorizontalScrollBarEnabled(false);LinearLayout tabs=ui().row();tabsScroll.addView(tabs);wrap.addView(tabsScroll);LinearLayout body=ui().column();wrap.addView(body);int[] group={1},page={0};Runnable[] render={null};AlertDialog picker=dialog().setTitle("官网表情").setView(wrap).setNegativeButton("关闭",null).create();
-        render[0]=()->{tabs.removeAllViews();for(int g=0;g<CommentMedia.GROUPS.length;g++){final int selected=g;tabs.addView(ui().chip(CommentMedia.NAMES[g],group[0]==g,()->{group[0]=selected;page[0]=0;render[0].run();}));}body.removeAllViews();ui().space(body,8);GridLayout grid=new GridLayout(host);grid.setColumnCount(6);for(int i=page[0]*24+1;i<=Math.min(CommentMedia.COUNTS[group[0]],(page[0]+1)*24);i++){final int id=i;String value=CommentMedia.token(group[0],id);LinearLayout cell=ui().column();cell.setGravity(Gravity.CENTER);ImageView image=new ImageView(host);image.setScaleType(ImageView.ScaleType.FIT_CENTER);image.setContentDescription(value);cell.addView(image,new LinearLayout.LayoutParams(ui().dp(34),ui().dp(34)));host.pictures().into(CommentMedia.emojiUrl(CommentMedia.GROUPS[group[0]],id),image);image.setContentDescription(value);TextView number=ui().text(String.valueOf(id),10,ui().muted,false);number.setGravity(Gravity.CENTER);cell.addView(number);cell.setContentDescription(CommentMedia.NAMES[group[0]]+"表情"+id);cell.setTooltipText(value);cell.setBackground(ui().round(ui().soft,10));ui().click(cell,()->{if(!current(token)||!input.isAttachedToWindow()){picker.dismiss();return;}int a=Math.max(0,input.getSelectionStart()),b=Math.max(a,input.getSelectionEnd());if(input.length()-(b-a)+value.length()>5000){host.toast("评论最多5000字，请先删减内容");return;}input.getText().replace(a,b,value);input.setSelection(a+value.length());picker.dismiss();});GridLayout.LayoutParams lp=new GridLayout.LayoutParams(GridLayout.spec((i-page[0]*24-1)/6),GridLayout.spec((i-1)%6,1f));lp.width=0;lp.height=ui().dp(56);lp.setMargins(ui().dp(3),ui().dp(3),ui().dp(3),ui().dp(3));grid.addView(cell,lp);}body.addView(grid,new LinearLayout.LayoutParams(-1,-2));ui().space(body,8);LinearLayout nav=ui().row();int total=(CommentMedia.COUNTS[group[0]]+23)/24;TextView prev=ui().button("上一页",false,()->{page[0]--;render[0].run();});prev.setEnabled(page[0]>0);nav.addView(prev,new LinearLayout.LayoutParams(0,-2,1));TextView number=ui().text("  "+(page[0]+1)+" / "+total+"  ",12,ui().muted,false);nav.addView(number);TextView next=ui().button("下一页",false,()->{page[0]++;render[0].run();});next.setEnabled(page[0]+1<total);nav.addView(next,new LinearLayout.LayoutParams(0,-2,1));body.addView(nav);};render[0].run();picker.show();
+        if(!current(token))return;
+        LinearLayout wrap=ui().column();ui().pad(wrap,12,6,12,12);
+        HorizontalScrollView tabsScroll=new HorizontalScrollView(host);tabsScroll.setHorizontalScrollBarEnabled(false);
+        LinearLayout tabs=ui().row();tabsScroll.addView(tabs);wrap.addView(tabsScroll);
+        LinearLayout body=ui().column();wrap.addView(body);
+        int[] group={1},page={0};Runnable[] render={null};
+        AlertDialog picker=dialog().setTitle("官网表情").setView(wrap).setNegativeButton("关闭",null).create();
+        render[0]=()->{
+            tabs.removeAllViews();
+            for(int g=0;g<CommentMedia.GROUPS.length;g++){
+                final int selected=g;
+                tabs.addView(ui().chip(CommentMedia.NAMES[g],group[0]==g,()->{group[0]=selected;page[0]=0;render[0].run();}));
+            }
+            body.removeAllViews();ui().space(body,8);
+            CommentEmojiGrid grid=new CommentEmojiGrid(host);ArrayList<View> cells=new ArrayList<>();
+            for(int i=page[0]*24+1;i<=Math.min(CommentMedia.COUNTS[group[0]],(page[0]+1)*24);i++){
+                final int id=i;String value=CommentMedia.token(group[0],id);
+                LinearLayout cell=ui().column();cell.setGravity(Gravity.CENTER);
+                ImageView image=new ImageView(host);image.setScaleType(ImageView.ScaleType.FIT_CENTER);
+                cell.addView(image,new LinearLayout.LayoutParams(ui().dp(34),ui().dp(34)));
+                host.pictures().into(CommentMedia.emojiUrl(CommentMedia.GROUPS[group[0]],id),image);image.setContentDescription(value);
+                TextView number=ui().text(String.valueOf(id),10,ui().muted,false);number.setGravity(Gravity.CENTER);number.setSingleLine(true);cell.addView(number);
+                cell.setContentDescription(CommentMedia.NAMES[group[0]]+"表情"+id);cell.setTooltipText(value);cell.setBackground(ui().round(ui().soft,10));
+                ui().click(cell,()->{
+                    if(!current(token)||!input.isAttachedToWindow()){picker.dismiss();return;}
+                    int start=Math.max(0,input.getSelectionStart()),end=Math.max(start,input.getSelectionEnd());
+                    if(input.length()-(end-start)+value.length()>5000){host.toast("评论最多5000字，请先删减内容");return;}
+                    input.getText().replace(start,end,value);input.setSelection(start+value.length());picker.dismiss();
+                });
+                cells.add(cell);
+            }
+            grid.setCells(cells);CommentEmojiGrid.Viewport viewport=new CommentEmojiGrid.Viewport(host);viewport.addView(grid,new ScrollView.LayoutParams(-1,-2));
+            body.addView(viewport,new LinearLayout.LayoutParams(-1,-2));ui().space(body,8);
+            LinearLayout nav=ui().row();int total=(CommentMedia.COUNTS[group[0]]+23)/24;
+            TextView prev=ui().button("上一页",false,()->{page[0]--;render[0].run();});prev.setEnabled(page[0]>0);prev.setAlpha(page[0]>0?1f:.45f);nav.addView(prev,new LinearLayout.LayoutParams(0,-2,1));
+            TextView number=ui().text("  "+(page[0]+1)+" / "+total+"  ",12,ui().muted,false);nav.addView(number);
+            TextView next=ui().button("下一页",false,()->{page[0]++;render[0].run();});next.setEnabled(page[0]+1<total);next.setAlpha(page[0]+1<total?1f:.45f);nav.addView(next,new LinearLayout.LayoutParams(0,-2,1));body.addView(nav);
+        };
+        render[0].run();picker.show();picker.getWindow().setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
     }
     private void delete(JSONObject c,Runnable refresh){
         if(!SocialRules.ownComment(uid(),c.optLong("user_id")))return;long token=generation;

@@ -1,0 +1,11 @@
+{
+  "isolated_test_package": "moe.cangku.reader.emojicheck",
+  "production_client_changed": false,
+  "internet_permission": false,
+  "synthetic_images_only": true,
+  "result": "Install timed out after 30 seconds; test package cleanup attempted; no device UI pass claimed",
+  "framework_shell_probe": "Native font initialization aborted; unsupported on the connected device, no layout result",
+  "device_ui_verified": false,
+  "isolated_test_package_absent": true,
+  "current_isolated_test_apk_build_and_signature": "pass"
+}

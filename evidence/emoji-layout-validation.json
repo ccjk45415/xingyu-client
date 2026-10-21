@@ -1,0 +1,20 @@
+{
+  "date": "2026-10-22",
+  "windows_rebuilt": false,
+  "public_release_notes": "优化了一些已知问题",
+  "fix": "replace shared weighted GridLayout constraints with equal-width LinearLayout rows, adapt to width/font and independently scroll long pages",
+  "native_comment_rule_assertions": 61,
+  "android_build_and_signature": "pass",
+  "desktop_targeted_tests": 9,
+  "desktop_sticker_groups_verified": 5,
+  "desktop_widths_verified": [
+    1280,
+    430
+  ],
+  "desktop_analyze": "No issues found",
+  "desktop_same_bug_reproduced": false,
+  "native_full_ui_verified": false,
+  "isolated_device_install": "timed out; test package confirmed absent",
+  "worker_deployment_required": false,
+  "website_comments_or_uploads_written": 0
+}
