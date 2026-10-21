@@ -100,14 +100,15 @@ Cloudflare 版本使用 Workers Free、SQLite Durable Objects、Pages 免费入�
 
 ## 构建
 
-项目不依赖第三方 Android 运行时库，UI、网络、图片解码均使用 Android 平台 API。提供标准 Android Gradle 工程，可直接在 Android Studio 中打开；插件版本 8.9.1、JDK 17、compileSdk 35。
+Android UI、网络、图片解码使用系统平台 API；二维码本机识别使用ZXing core 3.5.4，不内置浏览器或WebView。提供标准 Android Gradle 工程，可直接在 Android Studio 中打开；插件版本 8.9.1、JDK 17、compileSdk 35。
 
-本次安装包使用下面的可复现脚本构建，无需安装 Android Studio 或下载 Gradle 依赖：
+本次安装包使用下面的可复现脚本构建，无需安装 Android Studio 或 Gradle；构建脚本会从Maven Central下载并校验固定版本ZXing依赖：
 
 ```powershell
 # Python 3 + JDK 17；JAVA_HOME 可指向自己的 JDK。
 python tools/prepare_toolchain.py
 python tools/test_core.py
+python tools/test_qr.py
 python tools/test_chat_lifecycle.py
 python tools/build_apk.py
 ```

@@ -3,6 +3,7 @@
   "website_login": "pass",
   "website_reads": [
     "auth/me",
+    "user/list (author nickname search; expected UID matched)",
     "category/list",
     "post/list",
     "post/info",

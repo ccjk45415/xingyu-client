@@ -1,4 +1,4 @@
-"""Build a dependency-free native Android APK using the official SDK and JDK 17."""
+"""Build a native Android APK using the official SDK, JDK 17 and pinned ZXing."""
 import os, shutil, subprocess, sys, zipfile
 from prepare_qr import prepare
 from pathlib import Path

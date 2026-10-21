@@ -1,0 +1,16 @@
+{
+  "framework": "Flutter Desktop",
+  "tests_passed": 15,
+  "default_optional_tests_skipped": 2,
+  "analysis": "no issues",
+  "features": [
+    "offline UTF-8 QR and rotated/inverted PNG/JPEG/WebP",
+    "right-click result and explicit copy",
+    "enlarged viewer internal article navigation",
+    "author list and pagination",
+    "HTML example insertion",
+    "escaped C++ code block insertion"
+  ],
+  "website_writes": 0,
+  "production_messages_sent": 0
+}
