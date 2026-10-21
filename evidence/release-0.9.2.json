@@ -41,5 +41,8 @@
   "website_comments_or_uploads_written": 0,
   "pages_deployment": "4f1335ba",
   "public_android_download_verified": true,
-  "windows_manifest_unchanged": true
+  "windows_manifest_unchanged": true,
+  "github_release": "https://github.com/ccjk45415/xingyu-client/releases/tag/v0.9.2",
+  "github_source_commit": "5c082d2c8ebd0ec34942dde35b3cb3f7e38c937a",
+  "github_public_asset_hashes_verified": true
 }

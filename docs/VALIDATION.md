@@ -15,6 +15,8 @@
 
 Pages `4f1335ba` 已上线，Android15更新清单与公开APK下载SHA256核对通过。Windows清单与0.4.1包hash保持不变。
 
+GitHub [v0.9.2](https://github.com/ccjk45415/xingyu-client/releases/tag/v0.9.2)已公开，源码提交 `5c082d2c8ebd0ec34942dde35b3cb3f7e38c937a`，346个源码文件；APK、原Windows0.4.1包和校验文件匿名下载SHA256通过，发布正文严格为9字。
+
 ## Android 0.9.1 / Windows 0.4.1：验证记录
 
 - 只读核对当前官网脚本与公开表情资源。五组表情为1起始编号，QQ为GIF；各组首尾资源均为200。官网评论上传使用 `upload/image` 的 `image` 文件字段，不加type参数，单张最多1048576字节。未向官网发布测试评论或上传测试图片。

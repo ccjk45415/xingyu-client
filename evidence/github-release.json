@@ -1,33 +1,33 @@
 {
   "repository": "https://github.com/ccjk45415/xingyu-client",
-  "release_url": "https://github.com/ccjk45415/xingyu-client/releases/tag/v0.9.1",
-  "tag": "v0.9.1",
+  "release_url": "https://github.com/ccjk45415/xingyu-client/releases/tag/v0.9.2",
+  "tag": "v0.9.2",
   "public": true,
   "license": "MIT",
-  "source_files": 338,
-  "source_commit": "369b2daa940eb05eddbd6eaa4c83a734b269f729",
+  "source_files": 346,
+  "source_commit": "5c082d2c8ebd0ec34942dde35b3cb3f7e38c937a",
   "private_paths_excluded": true,
   "exact_release_notes": "优化了一些已知问题",
   "assets": [
     {
-      "name": "Cangku-Xingyu-0.9.1-debug.apk",
+      "name": "Cangku-Xingyu-0.9.2-debug.apk",
       "bytes": 738002,
-      "sha256": "792ec997a8a46951323397a226ff1008adfb4bc1259f6578ae6fb549c823b78f",
-      "download_url": "https://github.com/ccjk45415/xingyu-client/releases/download/v0.9.1/Cangku-Xingyu-0.9.1-debug.apk",
+      "sha256": "40c81703eadda4349ade23efb199cca10eba8be9a9a7b370b4cdba26468a3bc1",
+      "download_url": "https://github.com/ccjk45415/xingyu-client/releases/download/v0.9.2/Cangku-Xingyu-0.9.2-debug.apk",
       "unauthenticated_download": "pass"
     },
     {
       "name": "Release-SHA256SUMS.txt",
       "bytes": 193,
-      "sha256": "e39360c8412578fc22cf138570c7c7963a7c3e4c97901e7ab188a7d132b7e699",
-      "download_url": "https://github.com/ccjk45415/xingyu-client/releases/download/v0.9.1/Release-SHA256SUMS.txt",
+      "sha256": "c9f532d9abebe22f4502216d331ee13d0cf2f3739edaf24cc5c630e04d1d070c",
+      "download_url": "https://github.com/ccjk45415/xingyu-client/releases/download/v0.9.2/Release-SHA256SUMS.txt",
       "unauthenticated_download": "pass"
     },
     {
       "name": "Xingyu-Windows-0.4.1-x64.zip",
       "bytes": 14476990,
       "sha256": "54fca5d22d2b3935c178200eb7a74650033eb5488077ad60be295ca72f684b4e",
-      "download_url": "https://github.com/ccjk45415/xingyu-client/releases/download/v0.9.1/Xingyu-Windows-0.4.1-x64.zip",
+      "download_url": "https://github.com/ccjk45415/xingyu-client/releases/download/v0.9.2/Xingyu-Windows-0.4.1-x64.zip",
       "unauthenticated_download": "pass"
     }
   ]
