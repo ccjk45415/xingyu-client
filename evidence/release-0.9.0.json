@@ -46,5 +46,8 @@
   "complex_table_limitation": "Merged or nested table structure editing uses retained source; no merge/split GUI",
   "pages_deployment": "c227a102",
   "public_android_download_verified": true,
-  "public_windows_download_verified": true
+  "public_windows_download_verified": true,
+  "github_release": "https://github.com/ccjk45415/xingyu-client/releases/tag/v0.9.0",
+  "github_source_commit": "b02fd739a9b4a618a2cc742137298e1008a75b1c",
+  "github_public_asset_hashes_verified": true
 }

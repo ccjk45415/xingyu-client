@@ -14,6 +14,8 @@
 
 Pages 已部署 `c227a102`，两端更新清单及公开下载SHA256核对通过；Windows原生引擎/DPAPI/防篡改/健康检查通过。此次只更新客户端与静态入口，未修改生产Worker及聊天数据库。
 
+GitHub [v0.9.0](https://github.com/ccjk45415/xingyu-client/releases/tag/v0.9.0)已公开，源码提交 `b02fd739a9b4a618a2cc742137298e1008a75b1c`，312个源码文件；APK、完整Windows ZIP和校验文件三项匿名下载SHA256核对通过。源码与交付包扫描排除官网凭据及Cloudflare/GitHub/公告管理密钥。
+
 ## Android 0.8.0 / Windows 0.3.0：详细介绍、原图与逐段翻译
 
 - DLsite手机版链接改读同一作品的官方电脑版详细介绍；真实提取RJ01726046的完整介绍2344字符和4张正文图片。桌面、生产Android AiClient/DOM解析器在JVM的结果一致；发布前复查时当前出口被来源站地区限制，无法再次取得介绍与实测图片加载；已加入明确地区错误提示，未绕过限制。未保存真实介绍正文。
