@@ -2,6 +2,13 @@
 
 最新日期：2026-10-21。
 
+## Android 0.7.1 / Windows 0.2.1：代理DNS误判修复
+
+- 在当前真实代理环境复现www.dlsite.com被解析为198.18.5.104，旧版直接误判内网；经HTTPS公共DNS确认公开解析后，通过原代理提取用户提供的RJ01721474作品介绍和封面成功。测试不记录作品正文，也不调用AI。
+- Android SourceNetworkRules 原样JVM回归50项，覆盖公网、Fake-IP需要核实、私网/混合/空结果拒绝；生产AiClient.checkSourceHost原样在JVM进行真实HTTPS核实并成功，org.json仅为测试替换成SHA256固定的JSON-java jar，未执行Android界面或HTML解析。见ai-source-network-native、native-live及live报告。
+- Flutter静态分析无问题，25项测试通过/3项可选网络测试默认跳过；另单独运行真实DLsite代理提取测试通过。覆盖来源DNS核实、域名关联、私网/混合解析和缓存，不降低HTTPS验证。
+- Android完成原签名覆盖升级包构建，Windows完成原生引擎发布构建；客户端修复，无需修改生产Worker和聊天数据。手机完整UI未取得真机验收。
+
 ## Android 0.7.0 / Windows 0.2.0：AI投稿与手机工具栏
 
 - 服务端AI请求白名单、任务结构、来源、短正文、个人/全局额度、同UID并发、幂等重放与错误信息隔离通过；完整Node28组、真实Pages内部绑定/SQLite/300用户回归357项通过。

@@ -66,6 +66,35 @@ bool publicAddress(InternetAddress ip) {
   return b[0] >= 0x20 && b[0] <= 0x3f; // Global IPv6 unicast only; exclude loopback, local and mapped IPv4.
 }
 
+bool proxyAddress(InternetAddress ip) {
+  final b = ip.rawAddress;
+  return ip.type == InternetAddressType.IPv4 &&
+      b[0] == 198 &&
+      (b[1] == 18 || b[1] == 19);
+}
+
+bool publicDnsAnswer(String host, Json data) {
+  final q = rows(data['Question']), answers = rows(data['Answer']);
+  if (data['Status'] != 0 ||
+      data['TC'] == true ||
+      q.length != 1 ||
+      text(q.first['name']).replaceFirst(RegExp(r'\.$'), '').toLowerCase() !=
+          host.replaceFirst(RegExp(r'\.$'), '').toLowerCase() ||
+      q.first['type'] != 1 ||
+      answers.isEmpty ||
+      answers.length > 32) {
+    return false;
+  }
+  var found = false;
+  for (final record in answers) {
+    if (![1, 28].contains(record['type'])) continue;
+    final ip = InternetAddress.tryParse(text(record['data']));
+    if (ip == null || !publicAddress(ip)) return false;
+    found = true;
+  }
+  return found;
+}
+
 String pageText(String raw) {
   final doc = html.parse(raw);
   for (final e in doc.querySelectorAll(
@@ -189,8 +218,14 @@ class AiDraft {
 /// Separate connection pool: never shares website cookies or service identity with a provider.
 class AiTransport {
   final HttpClient client;
+  final Future<List<InternetAddress>> Function(String) resolver;
+  final Map<String, DateTime> _publicDns = {};
   bool closed = false;
-  AiTransport({HttpClient? http}) : client = http ?? HttpClient() {
+  AiTransport({
+    HttpClient? http,
+    Future<List<InternetAddress>> Function(String)? lookup,
+  }) : client = http ?? HttpClient(),
+       resolver = lookup ?? ((host) => InternetAddress.lookup(host)) {
     client.connectionTimeout = const Duration(seconds: 15);
   }
   void close() {
@@ -204,20 +239,22 @@ class AiTransport {
     String token = '',
     int max = 4 * 1024 * 1024,
     bool builtin = false,
+    Duration timeout = const Duration(seconds: 120),
+    String accept = 'application/json',
   }) async {
     if (closed) throw ApiFailure(499, '已取消');
     final req = await client
         .openUrl(body == null ? 'GET' : 'POST', uri)
         .timeout(const Duration(seconds: 20));
     req.followRedirects = false;
-    req.headers.set('Accept', 'application/json');
+    req.headers.set('Accept', accept);
     req.headers.set('User-Agent', 'Xingyu-AI/1');
     if (token.isNotEmpty) req.headers.set('Authorization', 'Bearer $token');
     if (body != null) {
       req.headers.contentType = ContentType.json;
       req.write(jsonEncode(body));
     }
-    final response = await req.close().timeout(const Duration(seconds: 120));
+    final response = await req.close().timeout(timeout);
     if (response.statusCode >= 300) {
       if (builtin &&
           uri.origin == serviceOrigin &&
@@ -245,6 +282,50 @@ class AiTransport {
     } catch (_) {
       throw ApiFailure(502, '服务没有返回JSON，请检查接口地址');
     }
+  }
+
+  Future<bool> confirmProxyDns(String host) async {
+    for (final endpoint in [
+      Uri.https('dns.google', '/resolve', {
+        'name': host,
+        'type': 'A',
+        'edns_client_subnet': '0.0.0.0/0',
+      }),
+      Uri.https('cloudflare-dns.com', '/dns-query', {
+        'name': host,
+        'type': 'A',
+      }),
+    ]) {
+      try {
+        return publicDnsAnswer(
+          host,
+          await json(
+            endpoint,
+            max: 16384,
+            timeout: const Duration(seconds: 12),
+            accept: 'application/dns-json',
+          ),
+        );
+      } catch (_) {
+        if (closed) rethrow;
+      }
+    }
+    return false;
+  }
+
+  Future<void> checkSourceHost(String host) async {
+    final ips = await resolver(host).timeout(const Duration(seconds: 10));
+    if (ips.isEmpty) throw ApiFailure(400, '来源域名不可用');
+    if (ips.any((ip) => !publicAddress(ip) && !proxyAddress(ip))) {
+      throw ApiFailure(400, '来源解析到内网地址，无法提取。请使用公开作品链接');
+    }
+    if (!ips.any(proxyAddress)) return;
+    if (_publicDns[host]?.isAfter(DateTime.now()) == true) return;
+    if (!await confirmProxyDns(host)) {
+      throw ApiFailure(400, '当前代理DNS无法确认公开网页，请重试或粘贴作品介绍；无需关闭代理');
+    }
+    if (closed) throw ApiFailure(499, '已取消');
+    _publicDns[host] = DateTime.now().add(const Duration(minutes: 1));
   }
 
   Future<Json> source(String raw) async {
@@ -278,11 +359,7 @@ class AiTransport {
       }
     }
     for (var redirects = 0; redirects < 4; redirects++) {
-      final ips = await InternetAddress.lookup(uri.host)
-          .timeout(const Duration(seconds: 10));
-      if (ips.isEmpty || ips.any((a) => !publicAddress(a))) {
-        throw ApiFailure(400, '无法提取内部网络地址');
-      }
+      await checkSourceHost(uri.host);
       final request = await client
           .getUrl(uri)
           .timeout(const Duration(seconds: 20));

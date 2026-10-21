@@ -1,0 +1,5 @@
+{
+  "policy": "exact Android SourceNetworkRules on JVM",
+  "result": "PASS 50 native source DNS rules: public, proxy confirmation and private/mixed rejection",
+  "device_or_proxy_settings_modified": false
+}

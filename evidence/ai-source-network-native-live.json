@@ -1,0 +1,7 @@
+{
+  "transport": "exact Android AiClient.checkSourceHost on JVM, Android platform org.json substituted with pinned JSON-java test jar",
+  "result": "PASS actual Android HTTPS source guard; proxy_fake_ip=true; TLS validation retained; no credentials or AI requests",
+  "device_ui_tested": false,
+  "ai_generations": 0,
+  "credentials_sent": false
+}

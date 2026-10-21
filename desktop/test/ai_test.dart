@@ -100,7 +100,113 @@ class Client implements HttpClient {
   dynamic noSuchMethod(Invocation i) => super.noSuchMethod(i);
 }
 
+class ProxyCheck extends AiTransport {
+  final bool confirm;
+  int confirmations = 0;
+  ProxyCheck(List<String> ips, {this.confirm = true})
+    : super(lookup: (_) async => ips.map(InternetAddress.new).toList());
+  @override
+  Future<bool> confirmProxyDns(String host) async {
+    confirmations++;
+    return confirm;
+  }
+}
+
 void main() {
+  test('proxy fake IP needs independent public DNS proof; private and mixed answers stay blocked', () async {
+    final good = ProxyCheck(['198.18.5.104', '104.18.2.173']);
+    await good.checkSourceHost('www.dlsite.com');
+    await good.checkSourceHost('www.dlsite.com');
+    expect(good.confirmations, 1);
+    good.close();
+    final failed = ProxyCheck(['198.18.5.104'], confirm: false);
+    await expectLater(
+      failed.checkSourceHost('www.dlsite.com'),
+      throwsA(isA<ApiFailure>()),
+    );
+    expect(failed.confirmations, 1);
+    failed.close();
+    for (final ips in [
+      <String>[],
+      ['127.0.0.1'],
+      ['198.18.5.104', '192.168.0.1'],
+      ['198.18.5.104', '::1'],
+    ]) {
+      final blocked = ProxyCheck(ips);
+      await expectLater(
+        blocked.checkSourceHost('www.dlsite.com'),
+        throwsA(isA<ApiFailure>()),
+      );
+      expect(blocked.confirmations, 0);
+      blocked.close();
+    }
+    final direct = ProxyCheck(['104.18.2.173']);
+    await direct.checkSourceHost('www.dlsite.com');
+    expect(direct.confirmations, 0);
+    direct.close();
+  });
+  test('public DNS evidence must match queried domain and contain only global address records', () {
+    Json answer(List<Json> records) => {
+      'Status': 0,
+      'Question': [
+        {'name': 'www.dlsite.com.', 'type': 1},
+      ],
+      'Answer': records,
+    };
+    expect(
+      publicDnsAnswer(
+        'www.dlsite.com',
+        answer([
+          {'type': 1, 'data': '104.18.2.173'},
+        ]),
+      ),
+      true,
+    );
+    for (final ip in [
+      '198.18.5.104',
+      '127.0.0.1',
+      '192.168.1.1',
+      'not-an-ip',
+    ]) {
+      expect(
+        publicDnsAnswer(
+          'www.dlsite.com',
+          answer([
+            {'type': 1, 'data': ip},
+          ]),
+        ),
+        false,
+      );
+    }
+    expect(
+      publicDnsAnswer(
+        'other.example',
+        answer([
+          {'type': 1, 'data': '104.18.2.173'},
+        ]),
+      ),
+      false,
+    );
+    expect(
+      publicDnsAnswer(
+        'www.dlsite.com',
+        answer([
+          {'type': 5, 'data': 'example.com'},
+        ]),
+      ),
+      false,
+    );
+    expect(
+      publicDnsAnswer(
+        'www.dlsite.com',
+        answer([
+          {'type': 1, 'data': '104.18.2.173'},
+          {'type': 1, 'data': '10.0.0.1'},
+        ]),
+      ),
+      false,
+    );
+  });
   test(
     'endpoint normalization, public source rules and private network rejection',
     () {

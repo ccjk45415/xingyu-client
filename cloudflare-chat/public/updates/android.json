@@ -1,11 +1,11 @@
 {
   "available": true,
   "package": "moe.cangku.reader",
-  "versionCode": 10,
-  "versionName": "0.7.0",
-  "notes": "新增AI投稿助手，支持内置与自定义API、Steam/DLsite/官网等公开来源提取、游戏/漫画/音声/动画模板、草稿预览及选择导入；内置服务端认证限额与预算保护。手机工具栏按常用/排版/插入/更多分组，每个按钮显示中文名称，长按查看说明。",
+  "versionCode": 11,
+  "versionName": "0.7.1",
+  "notes": "修复使用代理时DLsite等公开作品链接被误判为内网地址，增加Fake-IP公开DNS核实兼容，保持原代理与HTTPS证书验证；真正内网地址仍拦截。",
   "minSdk": 26,
-  "url": "https://xingyu-chat-ccjk45415.pages.dev/releases/Cangku-Xingyu-0.7.0-debug.apk",
-  "size": 483968,
-  "sha256": "266247b52bd4144f3035c411d96eeb11f98a9586aca3878731b27c84d7a5812e"
+  "url": "https://xingyu-chat-ccjk45415.pages.dev/releases/Cangku-Xingyu-0.7.1-debug.apk",
+  "size": 488064,
+  "sha256": "06cf1f7ee82a1614b7697b93ca59f4506f1468ed4d72207beebb9c0330da8b6f"
 }

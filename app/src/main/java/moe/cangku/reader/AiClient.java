@@ -23,7 +23,30 @@ final class AiClient {
     static URL sourceUrl(String raw)throws Exception{
         URI u=new URI(raw.trim());String host=u.getHost();if(!"https".equals(u.getScheme())||host==null||u.getRawUserInfo()!=null||u.getPort()!=-1&&u.getPort()!=443||!host.contains(".")||host.contains(":")||host.matches("[0-9.]+")||host.matches("(?i).*(^|\\.)(local|localhost|internal|test|invalid)$"))throw new IOException("请使用公开HTTPS作品链接");return new URI("https",null,host,u.getPort(),u.getPath(),u.getQuery(),null).toURL();
     }
-    static boolean publicAddress(InetAddress ip){byte[] b=ip.getAddress();if(b.length==16)return (b[0]&255)>=32&&(b[0]&255)<=63;int a=b[0]&255,c=b[1]&255;return !(a==0||a==10||a==127||a>=224||a==169&&c==254||a==172&&c>=16&&c<=31||a==192&&c==168||a==100&&c>=64&&c<=127||a==198&&(c==18||c==19));}
+    static boolean publicAddress(InetAddress ip){return SourceNetworkRules.publicAddress(ip);}
+    private final Map<String,Long> publicDns=new HashMap<>();
+    private void checkSourceHost(String host)throws Exception{
+        InetAddress[] ips=InetAddress.getAllByName(host);
+        if(!SourceNetworkRules.needsPublicConfirmation(ips))return;
+        if(publicDns.getOrDefault(host,0L)>System.currentTimeMillis())return;
+        // Confirm only the domain through fixed HTTPS resolvers. Continue through the user's
+        // original hostname/proxy with normal certificate and hostname validation intact.
+        for(String resolver:new String[]{"https://dns.google/resolve","https://cloudflare-dns.com/dns-query"}){
+            HttpURLConnection c=null;
+            try{
+                URL url=new URL(resolver+"?name="+URLEncoder.encode(host,"UTF-8")+"&type=A"+(resolver.contains("dns.google")?"&edns_client_subnet=0.0.0.0%2F0":""));
+                c=open(url,null,null,12000);c.setRequestProperty("Accept","application/dns-json");
+                if(c.getResponseCode()!=200)continue;
+                JSONObject answer=new JSONObject(ApiClient.read(c.getInputStream(),16384));JSONArray questions=answer.optJSONArray("Question"),records=answer.optJSONArray("Answer");
+                if(answer.optInt("Status",-1)!=0||answer.optBoolean("TC")||questions==null||questions.length()!=1||!questions.getJSONObject(0).optString("name").replaceFirst("\\.$","").equalsIgnoreCase(host.replaceFirst("\\.$",""))||questions.getJSONObject(0).optInt("type")!=1||records==null||records.length()>32)break;
+                boolean found=false,valid=true;
+                for(int i=0;i<records.length();i++){JSONObject record=records.getJSONObject(i);int type=record.optInt("type");if(type!=1&&type!=28)continue;String ip=record.optString("data");if(!ip.matches(type==1?"[0-9.]+":"[0-9a-fA-F:]+")||!publicAddress(InetAddress.getByName(ip))){valid=false;break;}found=true;}
+                if(found&&valid){if(closed)throw new IOException("已取消");publicDns.put(host,System.currentTimeMillis()+60000);return;}break;
+            }catch(Exception error){if(closed)throw new IOException("已取消");}
+            finally{if(c!=null){c.disconnect();if(connection==c)connection=null;}}
+        }
+        throw new IOException("当前代理DNS无法确认公开网页，请重试或粘贴作品介绍；无需关闭代理");
+    }
     private HttpURLConnection open(URL url,JSONObject body,String token,int timeout)throws Exception{
         if(closed)throw new IOException("已取消");HttpURLConnection c=(HttpURLConnection)url.openConnection();connection=c;c.setUseCaches(false);c.setInstanceFollowRedirects(false);c.setConnectTimeout(15000);c.setReadTimeout(timeout);c.setRequestProperty("User-Agent","Xingyu-AI/1");c.setRequestProperty("Accept",body==null?"application/json,text/html":"application/json");
         if(token!=null&&!token.isEmpty())c.setRequestProperty("Authorization","Bearer "+token);
@@ -41,7 +64,7 @@ final class AiClient {
         URL url=sourceUrl(raw);Matcher steam=Pattern.compile("^/app/(\\d+)").matcher(url.getPath());
         if(url.getHost().equals("store.steampowered.com")&&steam.find())try{String id=steam.group(1);JSONObject d=json(new URL("https://store.steampowered.com/api/appdetails?appids="+id+"&l=schinese"),null,null,false).getJSONObject(id).getJSONObject("data");return new JSONObject().put("url",raw).put("text",d.optString("name")+"\n"+pageText(d.optString("detailed_description"))+"\n开发商："+d.optJSONArray("developers")+"\n发行商："+d.optJSONArray("publishers")+"\n平台："+d.optJSONObject("platforms")+"\n语言："+pageText(d.optString("supported_languages"))).put("cover",d.optString("header_image"));}catch(Exception e){if(closed)throw e;}
         for(int i=0;i<4;i++){
-            InetAddress[] ips=InetAddress.getAllByName(url.getHost());if(ips.length==0)throw new IOException("来源域名不可用");for(InetAddress ip:ips)if(!publicAddress(ip))throw new IOException("无法提取内部网络地址");
+            checkSourceHost(url.getHost());
             HttpURLConnection c=open(url,null,null,25000);try{int code=c.getResponseCode();if(code>=300&&code<400){String to=c.getHeaderField("Location");if(to==null)throw new IOException("来源跳转无效");url=sourceUrl(new URL(url,to).toString());continue;}
                 String ct=c.getContentType();if(code!=200||ct==null||!ct.matches("(?is)(text/html|application/xhtml\\+xml|text/plain).*"))throw new IOException("网页无法直接提取，请粘贴公开作品介绍");
                 ByteArrayOutputStream out=new ByteArrayOutputStream();try(InputStream in=c.getInputStream()){byte[] buf=new byte[8192];int n;while((n=in.read(buf))!=-1){if(out.size()+n>1024*1024)throw new IOException("网页过大，请粘贴作品介绍");out.write(buf,0,n);}}

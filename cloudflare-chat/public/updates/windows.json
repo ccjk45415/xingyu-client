@@ -2,10 +2,10 @@
   "available": true,
   "product": "moe.cangku.xingyu.desktop",
   "platform": "windows-x64",
-  "versionCode": 4,
-  "versionName": "0.2.0",
-  "notes": "新增AI投稿助手，支持内置与自定义API、Steam/DLsite/官网等公开来源提取、游戏/漫画/音声/动画模板、草稿预览及选择导入；内置服务端认证限额与预算保护。手机工具栏按常用/排版/插入/更多分组，每个按钮显示中文名称，长按查看说明。",
-  "url": "https://xingyu-chat-ccjk45415.pages.dev/releases/Xingyu-Windows-0.2.0-x64.zip",
-  "size": 14301016,
-  "sha256": "e73cee60cd60d0e5de0191eb1319e90603c5b61d418e2299f80788b8a425a8aa"
+  "versionCode": 5,
+  "versionName": "0.2.1",
+  "notes": "修复使用代理时DLsite等公开作品链接被误判为内网地址，增加Fake-IP公开DNS核实兼容，保持原代理与HTTPS证书验证；真正内网地址仍拦截。",
+  "url": "https://xingyu-chat-ccjk45415.pages.dev/releases/Xingyu-Windows-0.2.1-x64.zip",
+  "size": 14303822,
+  "sha256": "8bb6f107f0f8f8012eaa001a595b658510a25a9f0b91d8125a6fa895d8f49cb0"
 }

@@ -1,0 +1,50 @@
+{
+  "android": {
+    "available": true,
+    "package": "moe.cangku.reader",
+    "versionCode": 11,
+    "versionName": "0.7.1",
+    "notes": "修复使用代理时DLsite等公开作品链接被误判为内网地址，增加Fake-IP公开DNS核实兼容，保持原代理与HTTPS证书验证；真正内网地址仍拦截。",
+    "minSdk": 26,
+    "url": "https://xingyu-chat-ccjk45415.pages.dev/releases/Cangku-Xingyu-0.7.1-debug.apk",
+    "size": 488064,
+    "sha256": "06cf1f7ee82a1614b7697b93ca59f4506f1468ed4d72207beebb9c0330da8b6f"
+  },
+  "windows": {
+    "available": true,
+    "product": "moe.cangku.xingyu.desktop",
+    "platform": "windows-x64",
+    "versionCode": 5,
+    "versionName": "0.2.1",
+    "notes": "修复使用代理时DLsite等公开作品链接被误判为内网地址，增加Fake-IP公开DNS核实兼容，保持原代理与HTTPS证书验证；真正内网地址仍拦截。",
+    "url": "https://xingyu-chat-ccjk45415.pages.dev/releases/Xingyu-Windows-0.2.1-x64.zip",
+    "size": 14303822,
+    "sha256": "8bb6f107f0f8f8012eaa001a595b658510a25a9f0b91d8125a6fa895d8f49cb0"
+  },
+  "change": "Proxy Fake-IP source extraction false-positive fix",
+  "worker_changed": false,
+  "flutter_tests": 25,
+  "default_optional_tests_skipped": 3,
+  "native_dns_rule_assertions": 50,
+  "actual_native_https_guard_on_jvm": "pass",
+  "dlsite_live_source": {
+    "source_host": "www.dlsite.com",
+    "source_id": "RJ01721474",
+    "proxy_fake_ip_observed": true,
+    "public_dns_confirmation": true,
+    "html_extracted": true,
+    "text_length": 2901,
+    "cover_found": true,
+    "ai_generations": 0,
+    "credentials_sent": false,
+    "tls_validation_disabled": false
+  },
+  "phone_ui_device_verified": false,
+  "public_messages_sent": 0,
+  "website_posts_created": 0,
+  "pages_deployment": "4d5fa226",
+  "public_downloads": {
+    "android": "pass",
+    "windows": "pass"
+  }
+}

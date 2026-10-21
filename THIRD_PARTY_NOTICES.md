@@ -10,3 +10,4 @@ distributed in this repository.
 - [Flutter](https://github.com/flutter/flutter) and its Windows engine: BSD-style licenses; see `LICENSE.flutter.txt` in the Windows ZIP and `data/flutter_assets/NOTICES.Z` for package notices.
 - Other Dart packages and versions are locked in `desktop/pubspec.lock`; their notices are bundled by Flutter in `data/flutter_assets/NOTICES.Z`.
 - Microsoft C/C++ redistributable runtime DLLs in the Windows ZIP remain subject to Microsoft's redistribution terms. No Windows SDK, compiler or Flutter SDK is committed.
+- Optional JVM source-network live regression: [JSON-java 20240303](https://github.com/stleary/JSON-java/tree/20240303), test dependency only; see its upstream LICENSE. The Maven jar is SHA256-pinned, stored outside source delivery and not bundled into either client. Android uses the platform's org.json.
