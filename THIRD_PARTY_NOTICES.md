@@ -1,0 +1,12 @@
+# Third-party notices
+
+The MIT license in this repository covers its own application and service code.
+Website content, account data, user messages, and third-party packages retain
+their respective rights and licenses; no website content or user database is
+distributed in this repository.
+
+- Android QR decoding: [ZXing core 3.5.4](https://github.com/zxing/zxing/tree/zxing-3.5.4), Apache License 2.0. Full license: `app/src/main/assets/third_party/LICENSE.zxing.txt`, included in APK assets. The jar is fetched from Maven Central and checked against a pinned SHA-256 by `tools/prepare_qr.py`; it is not committed.
+- Windows QR decoding: [zxing2 0.2.4](https://pub.dev/packages/zxing2), BSD-3-Clause (the package's LICENSE), with ZXing-derived files carrying their upstream notices. Registered charset codecs normalize signed bytes in application code for correct UTF-8. No dependency cache files are patched.
+- [Flutter](https://github.com/flutter/flutter) and its Windows engine: BSD-style licenses; see `LICENSE.flutter.txt` in the Windows ZIP and `data/flutter_assets/NOTICES.Z` for package notices.
+- Other Dart packages and versions are locked in `desktop/pubspec.lock`; their notices are bundled by Flutter in `data/flutter_assets/NOTICES.Z`.
+- Microsoft C/C++ redistributable runtime DLLs in the Windows ZIP remain subject to Microsoft's redistribution terms. No Windows SDK, compiler or Flutter SDK is committed.

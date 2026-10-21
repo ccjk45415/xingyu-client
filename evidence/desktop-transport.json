@@ -1,0 +1,1 @@
+{"local_only":true,"runtime":"Pages -> internal binding -> workerd/DO","client":"actual Dart ChatController + ServiceApi","channel_isolation":"pass","mentions_and_replies":"pass","media_chat_and_private":"pass","idempotent_private_send":"pass","pause_resume_and_stale_generations":"pass","production_messages_sent":0,"real_website_requests":0}

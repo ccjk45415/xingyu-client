@@ -1,0 +1,385 @@
+{
+  "admin_api_domain": "https://cangku.moe/api",
+  "me": {
+    "path": "auth/me?include=roles,permissions,meta",
+    "code": 0,
+    "schema": {
+      "data": {
+        "id": "int",
+        "nickname": "str",
+        "description": "str",
+        "avatar": "str",
+        "banner": "str",
+        "sex": "str",
+        "level": "int",
+        "exp": "int",
+        "point": "int",
+        "post_count": "int",
+        "comment_count": "int",
+        "favorite_post_count": "int",
+        "following_count": "int",
+        "follower_count": "int",
+        "is_banned": "bool",
+        "is_muted": "bool",
+        "account": "str",
+        "email": "str",
+        "is_verified": "bool",
+        "is_signed": "bool",
+        "created_at": "str",
+        "meta": [],
+        "roles": [
+          {
+            "id": "int",
+            "name": "str",
+            "guard_name": "str"
+          }
+        ],
+        "permissions": [
+          {
+            "id": "int",
+            "name": "str",
+            "guard_name": "str"
+          }
+        ]
+      },
+      "status_code": "int",
+      "message": "str",
+      "code": "int"
+    },
+    "permission_names": [
+      "edit_posts",
+      "publish_posts",
+      "delete_posts",
+      "restore_posts",
+      "edit_comments",
+      "delete_comments",
+      "restore_comments",
+      "edit_polls",
+      "delete_polls",
+      "restore_polls"
+    ],
+    "meta_keys": []
+  },
+  "level": {
+    "path": "user/level",
+    "code": 0,
+    "schema": {
+      "data": {
+        "level": "int",
+        "current_exp": "int",
+        "current_level_exp": "int",
+        "prev_level_exp": "int",
+        "next_level_exp": "int"
+      },
+      "status_code": "int",
+      "message": "str",
+      "code": "int"
+    }
+  },
+  "credit_log": {
+    "path": "user/creditLog?page=1&per_page=1",
+    "code": 0,
+    "schema": {
+      "data": [
+        {
+          "id": "int",
+          "user_id": "int",
+          "action_id": "int",
+          "exp": "int",
+          "point": "int",
+          "description": "NoneType",
+          "created_at": "str"
+        }
+      ],
+      "status_code": "int",
+      "message": "str",
+      "code": "int",
+      "meta": {
+        "pagination": {
+          "total": "int",
+          "count": "int",
+          "per_page": "int",
+          "current_page": "int",
+          "total_pages": "int",
+          "links": {
+            "next": "str"
+          }
+        }
+      }
+    }
+  },
+  "count": {
+    "path": "post/count",
+    "code": 0,
+    "schema": {
+      "code": "int",
+      "data": [
+        {
+          "total": "int",
+          "status": "str"
+        }
+      ],
+      "message": "str",
+      "status_code": "str"
+    }
+  },
+  "published": {
+    "path": "post/list?user_id={currentUserId}&status=publish&page=1&per_page=1&include=categories:simple&simple=1",
+    "code": 0,
+    "schema": {
+      "data": [
+        {
+          "id": "int",
+          "user_id": "int",
+          "title": "str",
+          "thumb": "str",
+          "status": "str",
+          "rejected_state": "NoneType",
+          "view_count": "int",
+          "vote_count": "int",
+          "comment_count": "int",
+          "favorite_count": "int",
+          "is_sticky": "bool",
+          "is_locked": "bool",
+          "is_recommended": "bool",
+          "has_published": "bool",
+          "is_arguable": "bool",
+          "created_at": "str",
+          "updated_at": "str",
+          "deleted_at": "NoneType",
+          "categories": [
+            {
+              "id": "int",
+              "slug": "str",
+              "name": "str",
+              "type": "str"
+            }
+          ]
+        }
+      ],
+      "status_code": "int",
+      "message": "str",
+      "code": "int",
+      "meta": {
+        "pagination": {
+          "total": "int",
+          "count": "int",
+          "per_page": "int",
+          "current_page": "int",
+          "total_pages": "int",
+          "links": {
+            "next": "str"
+          }
+        }
+      }
+    }
+  },
+  "draft": {
+    "path": "post/list?user_id={currentUserId}&status=draft&page=1&per_page=1&simple=1",
+    "code": 0,
+    "schema": {
+      "data": [
+        {
+          "id": "int",
+          "user_id": "int",
+          "title": "str",
+          "thumb": "NoneType",
+          "status": "str",
+          "rejected_state": "NoneType",
+          "view_count": "int",
+          "vote_count": "int",
+          "comment_count": "int",
+          "favorite_count": "int",
+          "is_sticky": "bool",
+          "is_locked": "bool",
+          "is_recommended": "bool",
+          "has_published": "bool",
+          "is_arguable": "bool",
+          "created_at": "str",
+          "updated_at": "str",
+          "deleted_at": "NoneType"
+        }
+      ],
+      "status_code": "int",
+      "message": "str",
+      "code": "int",
+      "meta": {
+        "pagination": {
+          "total": "int",
+          "count": "int",
+          "per_page": "int",
+          "current_page": "int",
+          "total_pages": "int",
+          "links": {}
+        }
+      }
+    },
+    "count": 1
+  },
+  "pending": {
+    "path": "post/list?user_id={currentUserId}&status=pending&page=1&per_page=1&simple=1",
+    "code": 0,
+    "schema": {
+      "data": [],
+      "status_code": "int",
+      "message": "str",
+      "code": "int",
+      "meta": {
+        "pagination": {
+          "total": "int",
+          "count": "int",
+          "per_page": "int",
+          "current_page": "int",
+          "total_pages": "int",
+          "links": {}
+        }
+      }
+    },
+    "count": 0
+  },
+  "future": {
+    "path": "post/list?user_id={currentUserId}&status=future&page=1&per_page=1&simple=1",
+    "code": 0,
+    "schema": {
+      "data": [],
+      "status_code": "int",
+      "message": "str",
+      "code": "int",
+      "meta": {
+        "pagination": {
+          "total": "int",
+          "count": "int",
+          "per_page": "int",
+          "current_page": "int",
+          "total_pages": "int",
+          "links": {}
+        }
+      }
+    },
+    "count": 0
+  },
+  "rejected": {
+    "path": "post/list?user_id={currentUserId}&status=rejected&page=1&per_page=1&include=meta:include(reject_reason)&simple=1",
+    "code": 0,
+    "schema": {
+      "data": [],
+      "status_code": "int",
+      "message": "str",
+      "code": "int",
+      "meta": {
+        "pagination": {
+          "total": "int",
+          "count": "int",
+          "per_page": "int",
+          "current_page": "int",
+          "total_pages": "int",
+          "links": {}
+        }
+      }
+    },
+    "count": 0
+  },
+  "trash": {
+    "path": "post/list?user_id={currentUserId}&status=trash&page=1&per_page=1&simple=1",
+    "code": 0,
+    "schema": {
+      "data": [
+        {
+          "id": "int",
+          "user_id": "int",
+          "title": "str",
+          "thumb": "NoneType",
+          "status": "str",
+          "rejected_state": "NoneType",
+          "view_count": "int",
+          "vote_count": "int",
+          "comment_count": "int",
+          "favorite_count": "int",
+          "is_sticky": "bool",
+          "is_locked": "bool",
+          "is_recommended": "bool",
+          "has_published": "bool",
+          "is_arguable": "bool",
+          "created_at": "str",
+          "updated_at": "str",
+          "deleted_at": "str"
+        }
+      ],
+      "status_code": "int",
+      "message": "str",
+      "code": "int",
+      "meta": {
+        "pagination": {
+          "total": "int",
+          "count": "int",
+          "per_page": "int",
+          "current_page": "int",
+          "total_pages": "int",
+          "links": {
+            "next": "str"
+          }
+        }
+      }
+    },
+    "count": 2
+  },
+  "own_edit": {
+    "path": "post/info?id={ownPostId}&include=user,categories:simple,tags&exclude_view=1",
+    "code": 0,
+    "schema": {
+      "data": {
+        "id": "int",
+        "user_id": "int",
+        "title": "str",
+        "thumb": "str",
+        "status": "str",
+        "rejected_state": "NoneType",
+        "view_count": "int",
+        "vote_count": "int",
+        "comment_count": "int",
+        "favorite_count": "int",
+        "is_sticky": "bool",
+        "is_locked": "bool",
+        "is_recommended": "bool",
+        "has_published": "bool",
+        "is_arguable": "bool",
+        "created_at": "str",
+        "updated_at": "str",
+        "deleted_at": "NoneType",
+        "content": "str",
+        "user": {
+          "id": "int",
+          "nickname": "str",
+          "description": "str",
+          "avatar": "str",
+          "banner": "str",
+          "sex": "str",
+          "level": "int",
+          "exp": "int",
+          "point": "int",
+          "post_count": "int",
+          "comment_count": "int",
+          "favorite_post_count": "int",
+          "following_count": "int",
+          "follower_count": "int",
+          "is_banned": "bool",
+          "is_muted": "bool"
+        },
+        "tags": [],
+        "categories": [
+          {
+            "id": "int",
+            "slug": "str",
+            "name": "str",
+            "type": "str"
+          }
+        ]
+      },
+      "status_code": "int",
+      "message": "str",
+      "code": "int"
+    },
+    "owned": true
+  },
+  "admin_script_sha256": "4c80891d84d7b14a2e6fc2699abb2e2252f977d1d47d46befec13f45de9edf17"
+}

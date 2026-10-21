@@ -1,0 +1,19 @@
+{
+  "platform": "Flutter Windows components",
+  "core_tests": 7,
+  "widget_tests": 3,
+  "total_passed": 10,
+  "optional_live_tests_skipped_by_default": 2,
+  "widths_checked": [
+    960,
+    1440
+  ],
+  "login_password_obscured": true,
+  "article_persistent_scrollbar": true,
+  "author_uid": true,
+  "verified_chat_reply_and_channel_drafts": true,
+  "private_thread_layout": true,
+  "theme_and_editor": true,
+  "visual_artifacts": "desktop-*.png, synthetic data only",
+  "website_writes": 0
+}

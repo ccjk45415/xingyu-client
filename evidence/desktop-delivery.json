@@ -1,0 +1,11 @@
+{
+  "windows_zip": "pass",
+  "platform": "windows-x64",
+  "version": "0.1.1",
+  "size": 14215300,
+  "sha256": "4f4de63df6867256adca7864e58ef2f62b4ba8dd0fa9669aa9d2ba6873fb903a",
+  "complete_native_runtime": true,
+  "live_credentials_excluded": true,
+  "endpoint_literal_absent_from_aot": true,
+  "source_contains_flutter_project": true
+}

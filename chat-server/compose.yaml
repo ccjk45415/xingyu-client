@@ -1,0 +1,26 @@
+services:
+  chat:
+    build: .
+    restart: unless-stopped
+    volumes:
+      - chat-data:/data
+    expose:
+      - "8000"
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    environment:
+      CHAT_DOMAIN: ${CHAT_DOMAIN:?Set CHAT_DOMAIN in .env}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - chat
+volumes:
+  chat-data:
+  caddy-data:
+  caddy-config:

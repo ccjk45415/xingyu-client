@@ -1,0 +1,11 @@
+{
+  "origin": "https://xingyu-chat-ccjk45415.pages.dev",
+  "protocol": 3,
+  "anonymous_chat_disabled": true,
+  "unauthenticated_media_rejected": true,
+  "announcement_snapshot_and_heartbeat": "pass",
+  "announcement_publish_requires_secret": true,
+  "tls_certificate_verification": true,
+  "public_messages_sent": 0,
+  "public_announcements_written": 0
+}

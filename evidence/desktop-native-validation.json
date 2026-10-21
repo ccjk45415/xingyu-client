@@ -1,0 +1,11 @@
+{
+  "windows_native_engine": "pass",
+  "secure_storage": "pass",
+  "encrypted_file_and_tamper_rejection": "pass",
+  "app_data_directory": "pass",
+  "public_health": "pass",
+  "protocol": 3,
+  "website_password_used": false,
+  "messages_sent": 0,
+  "unicode_install_path_tested": true
+}

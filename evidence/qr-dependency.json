@@ -1,0 +1,7 @@
+{
+  "dependency": "com.google.zxing:core",
+  "version": "3.5.4",
+  "source": "https://repo.maven.apache.org/maven2/com/google/zxing/core/3.5.4/core-3.5.4.jar",
+  "sha256": "71de5d89341b5fcf5dd89da7f44e84d825d0e084cdf3ec77c9abe26b0f0ceb13",
+  "license": "Apache-2.0"
+}

@@ -1,0 +1,412 @@
+{
+  "read_only": true,
+  "private_content_saved": false,
+  "own_comments": {
+    "path": "user/comment?id={currentUserId}&page=1&per_page=2&include=post:simple,user&with[0]=post&with[1]=user",
+    "code": 0,
+    "schema": {
+      "data": [
+        {
+          "id": "int",
+          "user_id": "int",
+          "post_id": "int",
+          "content": "str",
+          "status": "int",
+          "vote_count": "int",
+          "parent_id": "int",
+          "reply_to_id": "int",
+          "reply_to_meta": {
+            "user": {
+              "id": "int",
+              "nickname": "str"
+            }
+          },
+          "is_sticky": "bool",
+          "is_notify": "bool",
+          "is_author_voted": "bool",
+          "created_at": "str",
+          "updated_at": "str",
+          "user": {
+            "id": "int",
+            "nickname": "str",
+            "description": "NoneType",
+            "avatar": "str",
+            "banner": "str",
+            "sex": "str",
+            "level": "int",
+            "exp": "int",
+            "point": "int",
+            "post_count": "int",
+            "comment_count": "int",
+            "favorite_post_count": "int",
+            "following_count": "int",
+            "follower_count": "int",
+            "is_banned": "bool",
+            "is_muted": "bool"
+          },
+          "post": {
+            "id": "int",
+            "user_id": "int",
+            "title": "str",
+            "thumb": "str",
+            "status": "str",
+            "rejected_state": "NoneType",
+            "view_count": "int",
+            "vote_count": "int",
+            "comment_count": "int",
+            "favorite_count": "int",
+            "is_sticky": "bool",
+            "is_locked": "bool",
+            "is_recommended": "bool",
+            "has_published": "bool",
+            "is_arguable": "bool",
+            "created_at": "str",
+            "updated_at": "str",
+            "deleted_at": "NoneType"
+          }
+        }
+      ],
+      "status_code": "int",
+      "message": "str",
+      "code": "int",
+      "meta": {
+        "pagination": {
+          "total": "int",
+          "count": "int",
+          "per_page": "int",
+          "current_page": "int",
+          "total_pages": "int",
+          "links": {
+            "next": "str"
+          }
+        }
+      }
+    }
+  },
+  "notification_count": {
+    "path": "user/unreadNotificationCount",
+    "code": 0,
+    "schema": {
+      "code": "int",
+      "data": {
+        "reply": "int",
+        "vote": "int",
+        "system": "int"
+      },
+      "message": "str",
+      "status_code": "str"
+    },
+    "count_keys": [
+      "reply",
+      "vote",
+      "system"
+    ]
+  },
+  "replies": {
+    "path": "user/notification?action=reply&page=1&per_page=2&include=user,causer,subject&with[0]=user&with[1]=causer&with[2]=subject",
+    "code": 0,
+    "schema": {
+      "data": [
+        {
+          "id": "str",
+          "user_id": "int",
+          "causer_id": "int",
+          "subject_type": "str",
+          "subject_id": "int",
+          "action": "str",
+          "extra": [],
+          "read_at": "str",
+          "created_at": "str",
+          "updated_at": "str",
+          "user": {
+            "id": "int",
+            "nickname": "str",
+            "description": "str",
+            "avatar": "str",
+            "banner": "str",
+            "sex": "str",
+            "level": "int",
+            "exp": "int",
+            "point": "int",
+            "post_count": "int",
+            "comment_count": "int",
+            "favorite_post_count": "int",
+            "following_count": "int",
+            "follower_count": "int",
+            "is_banned": "bool",
+            "is_muted": "bool"
+          },
+          "causer": {
+            "id": "int",
+            "user_id": "int",
+            "post_id": "int",
+            "content": "str",
+            "status": "int",
+            "vote_count": "int",
+            "parent_id": "int",
+            "reply_to_id": "int",
+            "reply_to_meta": "NoneType",
+            "is_sticky": "bool",
+            "is_notify": "bool",
+            "is_author_voted": "bool",
+            "created_at": "str",
+            "updated_at": "str"
+          },
+          "subject": {
+            "id": "int",
+            "user_id": "int",
+            "title": "str",
+            "thumb": "str",
+            "status": "str",
+            "rejected_state": "NoneType",
+            "view_count": "int",
+            "vote_count": "int",
+            "comment_count": "int",
+            "favorite_count": "int",
+            "is_sticky": "bool",
+            "is_locked": "bool",
+            "is_recommended": "bool",
+            "has_published": "bool",
+            "is_arguable": "bool",
+            "created_at": "str",
+            "updated_at": "str",
+            "deleted_at": "NoneType",
+            "content": "str"
+          }
+        }
+      ],
+      "status_code": "int",
+      "message": "str",
+      "code": "int",
+      "meta": {
+        "pagination": {
+          "total": "int",
+          "count": "int",
+          "per_page": "int",
+          "current_page": "int",
+          "total_pages": "int",
+          "links": {
+            "next": "str"
+          }
+        }
+      }
+    }
+  },
+  "votes": {
+    "path": "user/notification?action=vote&page=1&per_page=2&include=user,causer,subject&with[0]=user&with[1]=causer&with[2]=subject",
+    "code": 0,
+    "schema": {
+      "data": [
+        {
+          "id": "str",
+          "user_id": "int",
+          "causer_id": "int",
+          "subject_type": "str",
+          "subject_id": "int",
+          "action": "str",
+          "extra": [],
+          "read_at": "str",
+          "created_at": "str",
+          "updated_at": "str",
+          "user": {
+            "id": "int",
+            "nickname": "str",
+            "description": "str",
+            "avatar": "str",
+            "banner": "str",
+            "sex": "str",
+            "level": "int",
+            "exp": "int",
+            "point": "int",
+            "post_count": "int",
+            "comment_count": "int",
+            "favorite_post_count": "int",
+            "following_count": "int",
+            "follower_count": "int",
+            "is_banned": "bool",
+            "is_muted": "bool"
+          },
+          "causer": "NoneType",
+          "subject": {
+            "id": "int",
+            "user_id": "int",
+            "post_id": "int",
+            "content": "str",
+            "status": "int",
+            "vote_count": "int",
+            "parent_id": "int",
+            "reply_to_id": "int",
+            "reply_to_meta": "NoneType",
+            "is_sticky": "bool",
+            "is_notify": "bool",
+            "is_author_voted": "bool",
+            "created_at": "str",
+            "updated_at": "str"
+          }
+        }
+      ],
+      "status_code": "int",
+      "message": "str",
+      "code": "int",
+      "meta": {
+        "pagination": {
+          "total": "int",
+          "count": "int",
+          "per_page": "int",
+          "current_page": "int",
+          "total_pages": "int",
+          "links": {
+            "next": "str"
+          }
+        }
+      }
+    }
+  },
+  "announcements": {
+    "path": "announce/list?page=1&per_page=2",
+    "code": 0,
+    "schema": {
+      "data": [
+        {
+          "id": "int",
+          "title": "str",
+          "content": "str",
+          "is_public": "bool",
+          "created_at": "str",
+          "updated_at": "str"
+        }
+      ],
+      "status_code": "int",
+      "message": "str",
+      "code": "int",
+      "meta": {
+        "pagination": {
+          "total": "int",
+          "count": "int",
+          "per_page": "int",
+          "current_page": "int",
+          "total_pages": "int",
+          "links": {
+            "next": "str"
+          }
+        }
+      }
+    }
+  },
+  "comments": {
+    "path": "comment/list?post_id=229794&parent_id=0&page=1&per_page=2&include=children:include(user):per_page(2),user&with[0]=children&with[1]=user&order_by=created_at&order=desc&sticky=1",
+    "code": 0,
+    "schema": {
+      "data": [
+        {
+          "id": "int",
+          "user_id": "int",
+          "post_id": "int",
+          "content": "str",
+          "status": "int",
+          "vote_count": "int",
+          "parent_id": "int",
+          "reply_to_id": "int",
+          "reply_to_meta": "NoneType",
+          "is_sticky": "bool",
+          "is_notify": "bool",
+          "is_author_voted": "bool",
+          "created_at": "str",
+          "updated_at": "str",
+          "user": {
+            "id": "int",
+            "nickname": "str",
+            "description": "NoneType",
+            "avatar": "str",
+            "banner": "str",
+            "sex": "str",
+            "level": "int",
+            "exp": "int",
+            "point": "int",
+            "post_count": "int",
+            "comment_count": "int",
+            "favorite_post_count": "int",
+            "following_count": "int",
+            "follower_count": "int",
+            "is_banned": "bool",
+            "is_muted": "bool"
+          },
+          "children": {
+            "data": [],
+            "meta": {
+              "pagination": {
+                "total": "int",
+                "count": "int",
+                "per_page": "int",
+                "current_page": "int",
+                "total_pages": "int",
+                "links": {}
+              }
+            }
+          }
+        }
+      ],
+      "status_code": "int",
+      "message": "str",
+      "code": "int",
+      "meta": {
+        "pagination": {
+          "total": "int",
+          "count": "int",
+          "per_page": "int",
+          "current_page": "int",
+          "total_pages": "int",
+          "links": {}
+        }
+      }
+    }
+  },
+  "users": {
+    "path": "user/list?search=%E5%88%9D%E9%9F%B3&page=1&per_page=2",
+    "code": 0,
+    "schema": {
+      "data": [
+        {
+          "id": "int",
+          "nickname": "str",
+          "description": "str",
+          "avatar": "str",
+          "banner": "str",
+          "sex": "str",
+          "level": "int",
+          "exp": "int",
+          "point": "int",
+          "post_count": "int",
+          "comment_count": "int",
+          "favorite_post_count": "int",
+          "following_count": "int",
+          "follower_count": "int",
+          "is_banned": "bool",
+          "is_muted": "bool"
+        }
+      ],
+      "status_code": "int",
+      "message": "str",
+      "code": "int",
+      "meta": {
+        "pagination": {
+          "total": "int",
+          "count": "int",
+          "per_page": "int",
+          "current_page": "int",
+          "total_pages": "int",
+          "links": {
+            "next": "str"
+          }
+        }
+      }
+    }
+  },
+  "public_scripts": [
+    "/assets/web/static/js/chunk-vendors.cdecac74.js",
+    "/assets/web/static/js/app.a97ae13d.js",
+    "/assets/web/static/js/chunk-vendors-legacy.94934373.js",
+    "/assets/web/static/js/app-legacy.174e1e8d.js"
+  ],
+  "public_script_sha256": "259c33da4ac502c09242aff52374ed78bd72d768e98a8a5d9e33b787b0add765"
+}

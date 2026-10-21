@@ -1,0 +1,6 @@
+{
+  "decoder": "exact Android QrDecoder on JVM",
+  "result": "PASS 53 QR and editor checks; cross-language fixtures written",
+  "offline": true,
+  "real_messages_or_posts_created": false
+}

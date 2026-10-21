@@ -1,0 +1,10 @@
+{
+  "target": "localhost only",
+  "ingress": "Worker",
+  "transport": "real TCP WebSocket",
+  "simultaneous_clients": 300,
+  "broadcast_messages": 20,
+  "checks": 319,
+  "elapsed_ms": 14541,
+  "public_capacity_tested": false
+}

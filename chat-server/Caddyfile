@@ -1,0 +1,10 @@
+{$CHAT_DOMAIN} {
+    request_body {
+        max_size 16KB
+    }
+    reverse_proxy chat:8000 {
+        transport http {
+            response_header_timeout 35s
+        }
+    }
+}

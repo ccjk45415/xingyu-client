@@ -1,0 +1,71 @@
+import moe.cangku.reader.UrlPolicy;
+import moe.cangku.reader.ReaderContent;
+import moe.cangku.reader.AuthoringRules;
+import moe.cangku.reader.ChatRules;
+
+public class CoreTest {
+    static int count;
+    static void check(boolean condition){count++;if(!condition)throw new AssertionError("Check "+count);}
+    public static void main(String[] args){
+        check(UrlPolicy.isSite("https://cangku.moe/api/v1/auth/me"));
+        check(!UrlPolicy.isSite("https://cangku.moe.attacker.test/api"));
+        check(!UrlPolicy.isSite("https://cangku.moe@attacker.test/"));
+        check(!UrlPolicy.isSite("http://cangku.moe/"));
+        check(!UrlPolicy.isSite("https://cangku.moe:444/"));
+        check(!UrlPolicy.canOpen("javascript:alert(1)"));
+        check(!UrlPolicy.canOpen("intent://example"));
+        check(!UrlPolicy.canOpen("file:///etc/passwd"));
+        check(!UrlPolicy.isImage("http://file.cangku.moe/images/x.jpg"));
+        check(!UrlPolicy.isImage("https://127.0.0.1/x"));
+        check(UrlPolicy.canOpen("magnet:?xt=urn:btih:1234"));
+        check(UrlPolicy.articleId("https://cangku.moe/archives/229794#comments")==229794);
+        check(UrlPolicy.articleId("https://elsewhere.test/archives/1")==0);
+        check(UrlPolicy.articleId("https://cangku.moe/archives/1/edit")==0);
+        String real="<p>正文</p><p>[dlbox title=\"国台粤日 多音轨\" info=\"提取：1234\" link1=\"夸克|https://file.cangku.moe/images/qr.webp\" link2=\"百度|https://pan.baidu.com/s/test?a=1&amp;b=2\"][/dlbox]</p>";
+        ReaderContent p=ReaderContent.parse(real);
+        check(p.resources.size()==1);
+        check(p.resources.get(0).title.equals("国台粤日 多音轨"));
+        check(p.resources.get(0).info.equals("提取：1234"));
+        check(p.resources.get(0).links.size()==2);
+        check(p.resources.get(0).links.get("百度").contains("&b=2"));
+        check(p.html.contains("正文")&&!p.html.contains("[dlbox"));
+        ReaderContent malicious=ReaderContent.parse("<script>bad()</script>[dlbox title='test' link1='bad|javascript:alert(1)' link2='https://example.org'][/dlbox]");
+        check(!malicious.html.contains("bad()"));
+        check(malicious.resources.get(0).links.size()==1);
+        check(ReaderContent.parse("[unknown foo='bar']x[/unknown]").hasUnsupportedShortcodes);
+        check(ReaderContent.parse(null).html.isEmpty());
+        String original="<table class='original'><tr><td>排版</td></tr></table>\n[dlbox title=\"test\" link1=\"https://example.org\"][/dlbox]";
+        check(AuthoringRules.bodyHtml(original,true).equals(original));
+        check(AuthoringRules.bodyHtml("<原文> & \"引用\"\n第二行\n\n第三段",false).equals("<p>&lt;原文&gt; &amp; &quot;引用&quot;<br>第二行</p><p>第三段</p>"));
+        check(AuthoringRules.bodyHtml("a\r\nb\rc",false).equals("<p>a<br>b<br>c</p>"));
+        check(AuthoringRules.tags("动漫, 游戏，动漫\nYour Name").equals(java.util.Arrays.asList("动漫","游戏","Your Name")));
+        check(AuthoringRules.wrap("abcdef",2,4,"<b>","</b>").equals("ab<b>cd</b>ef"));
+        check(AuthoringRules.wrap("abc",-1,100,"<i>","</i>").equals("<i>abc</i>"));
+        String plain="前言 & \n选中文字\n结尾";String converted=AuthoringRules.editablePlainHtml(plain);int start=AuthoringRules.plainOffset(plain,plain.indexOf("选")),end=AuthoringRules.plainOffset(plain,plain.indexOf("字")+1);
+        check(converted.substring(start,end).equals("选中文字"));
+        check(AuthoringRules.wrap(converted,start,end,"<b>","</b>").contains("<br><b>选中文字</b><br>"));
+        check(AuthoringRules.conflict("2026-10-20T10:00:00Z","2026-10-20T10:01:00Z"));
+        check(!AuthoringRules.conflict("2026-10-20T10:00:00Z","2026-10-20T10:00:00Z"));
+        check(!AuthoringRules.conflict("","2026-10-20T10:01:00Z"));
+        check(AuthoringRules.scheduleMillis("2026-10-20 08:00:00")==java.time.Instant.parse("2026-10-20T00:00:00Z").toEpochMilli());
+        check(AuthoringRules.scheduleMillis("2028-02-29 08:00:00")>0);
+        boolean badDate=false;try{AuthoringRules.scheduleMillis("2026-02-29 08:00:00");}catch(IllegalArgumentException e){badDate=true;}check(badDate);
+        boolean badFormat=false;try{AuthoringRules.scheduleMillis("2026-10-20T08:00:00Z");}catch(IllegalArgumentException e){badFormat=true;}check(badFormat);
+        boolean badHour=false;try{AuthoringRules.scheduleMillis("2026-10-20 25:00:00");}catch(IllegalArgumentException e){badHour=true;}check(badHour);
+        check(ChatRules.channel("1")&&ChatRules.channel("2")&&!ChatRules.channel("3"));
+        check(ChatRules.accepts("1","1")&&!ChatRules.accepts("1","2"));
+        check(ChatRules.current(8,8,"2","2"));
+        check(!ChatRules.current(7,8,"2","2"));
+        check(!ChatRules.current(8,8,"1","2"));
+        check(ChatRules.server(" https://chat.example.com/ ").equals("https://chat.example.com"));
+        check(ChatRules.server("http://chat.example.com").isEmpty());
+        check(ChatRules.server("https://user:pass@chat.example.com").isEmpty());
+        check(ChatRules.server("https://chat.example.com/?token=secret").isEmpty());
+        check(ChatRules.server("https://chat.example.com/path").isEmpty());
+        check(ChatRules.server("http://127.0.0.1:8000").equals("http://127.0.0.1:8000"));
+        check(ChatRules.server("http://127.0.0.1.attacker.test:8000").isEmpty());
+        check(ChatRules.server("https://chat.example.com:0").isEmpty());
+        check(ChatRules.server("https://chat.example.com#fragment").isEmpty());
+        System.out.println("PASS "+count+" checks: reader, editor, channel isolation, stale responses, chat origins");
+    }
+}

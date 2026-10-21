@@ -1,0 +1,955 @@
+{
+  "me": {
+    "path": "auth/me",
+    "code": 0,
+    "schema": {
+      "data": {
+        "id": "int",
+        "nickname": "str",
+        "description": "str",
+        "avatar": "str",
+        "banner": "str",
+        "sex": "str",
+        "level": "int",
+        "exp": "int",
+        "point": "int",
+        "post_count": "int",
+        "comment_count": "int",
+        "favorite_post_count": "int",
+        "following_count": "int",
+        "follower_count": "int",
+        "is_banned": "bool",
+        "is_muted": "bool",
+        "account": "str",
+        "email": "str",
+        "is_verified": "bool",
+        "is_signed": "bool",
+        "created_at": "str"
+      },
+      "status_code": "int",
+      "message": "str",
+      "code": "int"
+    },
+    "pagination": null
+  },
+  "categories": {
+    "path": "category/list?all=1&type=post",
+    "code": 0,
+    "schema": {
+      "code": "int",
+      "data": [
+        {
+          "id": "int",
+          "slug": "str",
+          "name": "str",
+          "description": "NoneType",
+          "_lft": "int",
+          "_rgt": "int",
+          "parent_id": "NoneType",
+          "type": "str",
+          "created_at": "str",
+          "updated_at": "str",
+          "deleted_at": "NoneType",
+          "children": [
+            "dict"
+          ]
+        }
+      ],
+      "message": "str",
+      "status_code": "str"
+    },
+    "pagination": null,
+    "categories": [
+      {
+        "id": 12,
+        "name": "影视",
+        "children": [
+          {
+            "id": 91,
+            "name": "网络视频"
+          },
+          {
+            "id": 83,
+            "name": "舞台剧"
+          },
+          {
+            "id": 78,
+            "name": "纪录片"
+          },
+          {
+            "id": 79,
+            "name": "番剧"
+          },
+          {
+            "id": 75,
+            "name": "真人秀"
+          },
+          {
+            "id": 76,
+            "name": "娱乐"
+          },
+          {
+            "id": 77,
+            "name": "特摄"
+          },
+          {
+            "id": 73,
+            "name": "脱口秀"
+          },
+          {
+            "id": 74,
+            "name": "电影"
+          }
+        ]
+      },
+      {
+        "id": 11,
+        "name": "书籍",
+        "children": [
+          {
+            "id": 96,
+            "name": "一般小说"
+          },
+          {
+            "id": 94,
+            "name": "刊物"
+          },
+          {
+            "id": 93,
+            "name": "其他书籍"
+          },
+          {
+            "id": 92,
+            "name": "有声小说"
+          },
+          {
+            "id": 81,
+            "name": "官能小说"
+          },
+          {
+            "id": 80,
+            "name": "轻小说"
+          }
+        ]
+      },
+      {
+        "id": 8,
+        "name": "三次元",
+        "children": [
+          {
+            "id": 69,
+            "name": "写真&套图"
+          }
+        ]
+      },
+      {
+        "id": 7,
+        "name": "隐藏分类",
+        "children": []
+      },
+      {
+        "id": 6,
+        "name": "游戏",
+        "children": [
+          {
+            "id": 103,
+            "name": "PV"
+          },
+          {
+            "id": 98,
+            "name": "游戏资源"
+          },
+          {
+            "id": 84,
+            "name": "游戏补丁"
+          },
+          {
+            "id": 82,
+            "name": "游戏存档"
+          },
+          {
+            "id": 67,
+            "name": "开发相关"
+          },
+          {
+            "id": 65,
+            "name": "评测推荐"
+          },
+          {
+            "id": 21,
+            "name": "游戏教程"
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "name": "漫画",
+        "children": [
+          {
+            "id": 61,
+            "name": "漫画小说"
+          },
+          {
+            "id": 62,
+            "name": "有声漫画"
+          },
+          {
+            "id": 63,
+            "name": "其他漫画"
+          },
+          {
+            "id": 64,
+            "name": "杂志"
+          },
+          {
+            "id": 60,
+            "name": "一般漫画"
+          },
+          {
+            "id": 59,
+            "name": "单行本"
+          },
+          {
+            "id": 58,
+            "name": "本子"
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "name": "图片",
+        "children": [
+          {
+            "id": 55,
+            "name": "立绘"
+          },
+          {
+            "id": 56,
+            "name": "表情"
+          },
+          {
+            "id": 57,
+            "name": "图包"
+          },
+          {
+            "id": 53,
+            "name": "设定集"
+          },
+          {
+            "id": 54,
+            "name": "CG"
+          },
+          {
+            "id": 51,
+            "name": "画师"
+          },
+          {
+            "id": 50,
+            "name": "画集"
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "name": "音乐",
+        "children": [
+          {
+            "id": 46,
+            "name": "翻唱"
+          },
+          {
+            "id": 48,
+            "name": "PV"
+          },
+          {
+            "id": 43,
+            "name": "音乐推荐"
+          },
+          {
+            "id": 44,
+            "name": "手机铃声"
+          },
+          {
+            "id": 45,
+            "name": "侍寝声音"
+          },
+          {
+            "id": 42,
+            "name": "专辑&单曲"
+          },
+          {
+            "id": 39,
+            "name": "MV"
+          },
+          {
+            "id": 40,
+            "name": "LIVE"
+          },
+          {
+            "id": 41,
+            "name": "广播"
+          }
+        ]
+      },
+      {
+        "id": 1,
+        "name": "其他",
+        "children": [
+          {
+            "id": 97,
+            "name": "站务"
+          },
+          {
+            "id": 90,
+            "name": "杂谈"
+          },
+          {
+            "id": 89,
+            "name": "杂项"
+          },
+          {
+            "id": 88,
+            "name": "纪念"
+          },
+          {
+            "id": 85,
+            "name": "虚拟偶像"
+          },
+          {
+            "id": 22,
+            "name": "活动"
+          },
+          {
+            "id": 20,
+            "name": "工具"
+          },
+          {
+            "id": 13,
+            "name": "资讯情报"
+          },
+          {
+            "id": 14,
+            "name": "旅游"
+          },
+          {
+            "id": 15,
+            "name": "声优介绍"
+          },
+          {
+            "id": 16,
+            "name": "系统萌化"
+          },
+          {
+            "id": 17,
+            "name": "推广"
+          },
+          {
+            "id": 18,
+            "name": "技巧分享"
+          },
+          {
+            "id": 9,
+            "name": "学习资料"
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "name": "动画",
+        "children": [
+          {
+            "id": 34,
+            "name": "其他动画"
+          },
+          {
+            "id": 35,
+            "name": "SP特典"
+          },
+          {
+            "id": 36,
+            "name": "BD/DVD动画"
+          },
+          {
+            "id": 33,
+            "name": "动态CG"
+          },
+          {
+            "id": 32,
+            "name": "同人动画"
+          },
+          {
+            "id": 29,
+            "name": "新番介绍"
+          },
+          {
+            "id": 30,
+            "name": "PV"
+          },
+          {
+            "id": 31,
+            "name": "OVA&OAD&剧场版"
+          },
+          {
+            "id": 28,
+            "name": "MMD"
+          },
+          {
+            "id": 24,
+            "name": "MV"
+          },
+          {
+            "id": 25,
+            "name": "MAD"
+          },
+          {
+            "id": 26,
+            "name": "在线视频"
+          },
+          {
+            "id": 27,
+            "name": "TV动画"
+          },
+          {
+            "id": 23,
+            "name": "里番"
+          }
+        ]
+      }
+    ]
+  },
+  "feed": {
+    "path": "post/list?page=1&per_page=3&include=user,categories:simple&simple=1&with[]=user&with[]=categories",
+    "code": 0,
+    "schema": {
+      "data": [
+        {
+          "id": "int",
+          "user_id": "int",
+          "title": "str",
+          "thumb": "str",
+          "status": "str",
+          "rejected_state": "NoneType",
+          "view_count": "int",
+          "vote_count": "int",
+          "comment_count": "int",
+          "favorite_count": "int",
+          "is_sticky": "bool",
+          "is_locked": "bool",
+          "is_recommended": "bool",
+          "has_published": "bool",
+          "is_arguable": "bool",
+          "created_at": "str",
+          "updated_at": "str",
+          "deleted_at": "NoneType",
+          "user": {
+            "id": "int",
+            "nickname": "str",
+            "description": "str",
+            "avatar": "str",
+            "banner": "str",
+            "sex": "str",
+            "level": "int",
+            "exp": "int",
+            "point": "int",
+            "post_count": "int",
+            "comment_count": "int",
+            "favorite_post_count": "int",
+            "following_count": "int",
+            "follower_count": "int",
+            "is_banned": "bool",
+            "is_muted": "bool"
+          },
+          "categories": [
+            "dict"
+          ]
+        }
+      ],
+      "status_code": "int",
+      "message": "str",
+      "code": "int",
+      "meta": {
+        "pagination": {
+          "total": "int",
+          "count": "int",
+          "per_page": "int",
+          "current_page": "int",
+          "total_pages": "int",
+          "links": {
+            "next": "str"
+          }
+        }
+      }
+    },
+    "pagination": {
+      "total": 65388,
+      "count": 3,
+      "per_page": 3,
+      "current_page": 1,
+      "total_pages": 21796,
+      "links": {
+        "next": "https://cangku.moe/api/v1/post/list?page=2"
+      }
+    }
+  },
+  "search": {
+    "path": "post/search?search=%E4%BD%A0%E7%9A%84%E5%90%8D%E5%AD%97&per_page=2&include=user,categories:simple&simple=1",
+    "code": 0,
+    "schema": {
+      "data": [
+        {
+          "id": "int",
+          "user_id": "int",
+          "title": "str",
+          "thumb": "str",
+          "status": "str",
+          "rejected_state": "NoneType",
+          "view_count": "int",
+          "vote_count": "int",
+          "comment_count": "int",
+          "favorite_count": "int",
+          "is_sticky": "bool",
+          "is_locked": "bool",
+          "is_recommended": "bool",
+          "has_published": "bool",
+          "is_arguable": "bool",
+          "created_at": "str",
+          "updated_at": "str",
+          "deleted_at": "NoneType",
+          "user": {
+            "id": "int",
+            "nickname": "str",
+            "description": "str",
+            "avatar": "str",
+            "banner": "str",
+            "sex": "str",
+            "level": "int",
+            "exp": "int",
+            "point": "int",
+            "post_count": "int",
+            "comment_count": "int",
+            "favorite_post_count": "int",
+            "following_count": "int",
+            "follower_count": "int",
+            "is_banned": "bool",
+            "is_muted": "bool"
+          },
+          "categories": [
+            "dict"
+          ]
+        }
+      ],
+      "status_code": "int",
+      "message": "str",
+      "code": "int",
+      "meta": {
+        "pagination": {
+          "total": "int",
+          "count": "int",
+          "per_page": "int",
+          "current_page": "int",
+          "total_pages": "int",
+          "links": {
+            "next": "str"
+          }
+        }
+      }
+    },
+    "pagination": {
+      "total": 51,
+      "count": 2,
+      "per_page": 2,
+      "current_page": 1,
+      "total_pages": 26,
+      "links": {
+        "next": "https://cangku.moe/api/v1/post/search?query=%E4%BD%A0%E7%9A%84%E5%90%8D%E5%AD%97&page=2"
+      }
+    }
+  },
+  "category": {
+    "path": "post/list?category_in[0]=12&per_page=2&include=user,categories:simple&simple=1",
+    "code": 0,
+    "schema": {
+      "data": [
+        {
+          "id": "int",
+          "user_id": "int",
+          "title": "str",
+          "thumb": "str",
+          "status": "str",
+          "rejected_state": "NoneType",
+          "view_count": "int",
+          "vote_count": "int",
+          "comment_count": "int",
+          "favorite_count": "int",
+          "is_sticky": "bool",
+          "is_locked": "bool",
+          "is_recommended": "bool",
+          "has_published": "bool",
+          "is_arguable": "bool",
+          "created_at": "str",
+          "updated_at": "str",
+          "deleted_at": "NoneType",
+          "user": {
+            "id": "int",
+            "nickname": "str",
+            "description": "str",
+            "avatar": "str",
+            "banner": "str",
+            "sex": "str",
+            "level": "int",
+            "exp": "int",
+            "point": "int",
+            "post_count": "int",
+            "comment_count": "int",
+            "favorite_post_count": "int",
+            "following_count": "int",
+            "follower_count": "int",
+            "is_banned": "bool",
+            "is_muted": "bool"
+          },
+          "categories": [
+            "dict"
+          ]
+        }
+      ],
+      "status_code": "int",
+      "message": "str",
+      "code": "int",
+      "meta": {
+        "pagination": {
+          "total": "int",
+          "count": "int",
+          "per_page": "int",
+          "current_page": "int",
+          "total_pages": "int",
+          "links": {
+            "next": "str"
+          }
+        }
+      }
+    },
+    "pagination": {
+      "total": 1843,
+      "count": 2,
+      "per_page": 2,
+      "current_page": 1,
+      "total_pages": 922,
+      "links": {
+        "next": "https://cangku.moe/api/v1/post/list?page=2"
+      }
+    },
+    "returned_categories": [
+      [
+        {
+          "id": 12,
+          "name": "影视"
+        },
+        {
+          "id": 31,
+          "name": "OVA&OAD&剧场版"
+        },
+        {
+          "id": 36,
+          "name": "BD/DVD动画"
+        },
+        {
+          "id": 74,
+          "name": "电影"
+        }
+      ],
+      [
+        {
+          "id": 2,
+          "name": "动画"
+        },
+        {
+          "id": 4,
+          "name": "图片"
+        },
+        {
+          "id": 12,
+          "name": "影视"
+        },
+        {
+          "id": 32,
+          "name": "同人动画"
+        },
+        {
+          "id": 57,
+          "name": "图包"
+        }
+      ]
+    ]
+  },
+  "rank": {
+    "path": "post/rank?year=2026&date_type=daily&date_value=293&per_page=2&include=user&simple=1",
+    "code": 0,
+    "schema": {
+      "data": [
+        {
+          "id": "int",
+          "user_id": "int",
+          "title": "str",
+          "thumb": "str",
+          "status": "str",
+          "rejected_state": "NoneType",
+          "view_count": "int",
+          "vote_count": "int",
+          "comment_count": "int",
+          "favorite_count": "int",
+          "is_sticky": "bool",
+          "is_locked": "bool",
+          "is_recommended": "bool",
+          "has_published": "bool",
+          "is_arguable": "bool",
+          "created_at": "str",
+          "updated_at": "str",
+          "deleted_at": "NoneType",
+          "user": {
+            "id": "int",
+            "nickname": "str",
+            "description": "str",
+            "avatar": "str",
+            "banner": "str",
+            "sex": "str",
+            "level": "int",
+            "exp": "int",
+            "point": "int",
+            "post_count": "int",
+            "comment_count": "int",
+            "favorite_post_count": "int",
+            "following_count": "int",
+            "follower_count": "int",
+            "is_banned": "bool",
+            "is_muted": "bool"
+          }
+        }
+      ],
+      "status_code": "int",
+      "message": "str",
+      "code": "int",
+      "meta": {
+        "pagination": {
+          "total": "int",
+          "count": "int",
+          "per_page": "int",
+          "current_page": "int",
+          "total_pages": "int",
+          "links": {
+            "next": "str"
+          }
+        }
+      }
+    },
+    "pagination": {
+      "total": 31,
+      "count": 2,
+      "per_page": 2,
+      "current_page": 1,
+      "total_pages": 16,
+      "links": {
+        "next": "https://cangku.moe/api/v1/post/rank?page=2"
+      }
+    }
+  },
+  "article": {
+    "path": "post/info?id=229794&include=user,tags,categories,favorited,upvoted",
+    "code": 0,
+    "schema": {
+      "data": {
+        "id": "int",
+        "user_id": "int",
+        "title": "str",
+        "thumb": "str",
+        "status": "str",
+        "rejected_state": "NoneType",
+        "view_count": "int",
+        "vote_count": "int",
+        "comment_count": "int",
+        "favorite_count": "int",
+        "is_sticky": "bool",
+        "is_locked": "bool",
+        "is_recommended": "bool",
+        "has_published": "bool",
+        "is_arguable": "bool",
+        "created_at": "str",
+        "updated_at": "str",
+        "deleted_at": "NoneType",
+        "content": "str",
+        "user": {
+          "id": "int",
+          "nickname": "str",
+          "description": "str",
+          "avatar": "str",
+          "banner": "str",
+          "sex": "str",
+          "level": "int",
+          "exp": "int",
+          "point": "int",
+          "post_count": "int",
+          "comment_count": "int",
+          "favorite_post_count": "int",
+          "following_count": "int",
+          "follower_count": "int",
+          "is_banned": "bool",
+          "is_muted": "bool"
+        },
+        "tags": [],
+        "categories": [
+          {
+            "id": "int",
+            "slug": "str",
+            "name": "str",
+            "type": "str",
+            "description": "NoneType",
+            "_lft": "int",
+            "_rgt": "int",
+            "parent_id": "int",
+            "created_at": "str",
+            "updated_at": "str"
+          }
+        ],
+        "upvoted": "bool",
+        "favorited": "bool"
+      },
+      "status_code": "int",
+      "message": "str",
+      "code": "int"
+    },
+    "pagination": null,
+    "content_sample": "<p><img src=\"https://file.cangku.moe/images/96f4f3fb00ceecb535fadf522da78ed5.webp\" class=\"fr-fic fr-dib\" alt=\"96f4f3fb00ceecb535fadf522da78ed5.webp\"></p><p><strong>类型：</strong>爱情／恋爱／青春／奇幻／剧情／科幻 </p><p><strong>别名：</strong>君之名 / Your Name / Kimi no na wa. / 君の名は。 </p><p><strong>语言：</strong>日语／粤语／国语(陆/台) </p><p><strong>简介：</strong>影片讲述了生活在深山小镇的乡村少女宫水三叶与生活在繁华东京的都市少年立花泷，在机缘巧合下通过梦境互换了身体，两人在寻找彼此的过程中，意外牵扯出一场关乎小镇存亡并跨越时空的奇迹挚恋。</p><p>[dlbox title=\"国台粤日 多音轨\" time=\"\" info=\"提取：1234\" from=\"\" link1=\"夸克|https://file.cangku.moe/images/06a36f00c6f15c9b0fb10c381dd0b3ec.webp\" link2=\"百度|https://file.cangku.moe/images/f9f39a31f2416e64cd22740b599e70ff.webp\"][/dlbox]</p>"
+  },
+  "comments": {
+    "path": "comment/list?post_id=229794&per_page=3&include=user",
+    "code": 0,
+    "schema": {
+      "data": [
+        {
+          "id": "int",
+          "user_id": "int",
+          "post_id": "int",
+          "content": "str",
+          "status": "int",
+          "vote_count": "int",
+          "parent_id": "int",
+          "reply_to_id": "int",
+          "reply_to_meta": "NoneType",
+          "is_sticky": "bool",
+          "is_notify": "bool",
+          "is_author_voted": "bool",
+          "created_at": "str",
+          "updated_at": "str",
+          "user": {
+            "id": "int",
+            "nickname": "str",
+            "description": "NoneType",
+            "avatar": "str",
+            "banner": "str",
+            "sex": "str",
+            "level": "int",
+            "exp": "int",
+            "point": "int",
+            "post_count": "int",
+            "comment_count": "int",
+            "favorite_post_count": "int",
+            "following_count": "int",
+            "follower_count": "int",
+            "is_banned": "bool",
+            "is_muted": "bool"
+          }
+        }
+      ],
+      "status_code": "int",
+      "message": "str",
+      "code": "int",
+      "meta": {
+        "pagination": {
+          "total": "int",
+          "count": "int",
+          "per_page": "int",
+          "current_page": "int",
+          "total_pages": "int",
+          "links": {}
+        }
+      }
+    },
+    "pagination": {
+      "total": 2,
+      "count": 2,
+      "per_page": 3,
+      "current_page": 1,
+      "total_pages": 1,
+      "links": {}
+    }
+  },
+  "favorites": {
+    "path": "user/favoritePost?id={userId}&per_page=2&include=user,categories:simple&simple=1",
+    "code": 0,
+    "schema": {
+      "data": [
+        {
+          "id": "int",
+          "user_id": "int",
+          "title": "str",
+          "thumb": "str",
+          "status": "str",
+          "rejected_state": "NoneType",
+          "view_count": "int",
+          "vote_count": "int",
+          "comment_count": "int",
+          "favorite_count": "int",
+          "is_sticky": "bool",
+          "is_locked": "bool",
+          "is_recommended": "bool",
+          "has_published": "bool",
+          "is_arguable": "bool",
+          "created_at": "str",
+          "updated_at": "str",
+          "deleted_at": "NoneType",
+          "user": {
+            "id": "int",
+            "nickname": "str",
+            "description": "str",
+            "avatar": "str",
+            "banner": "str",
+            "sex": "str",
+            "level": "int",
+            "exp": "int",
+            "point": "int",
+            "post_count": "int",
+            "comment_count": "int",
+            "favorite_post_count": "int",
+            "following_count": "int",
+            "follower_count": "int",
+            "is_banned": "bool",
+            "is_muted": "bool"
+          },
+          "categories": [
+            "dict"
+          ]
+        }
+      ],
+      "status_code": "int",
+      "message": "str",
+      "code": "int",
+      "meta": {
+        "pagination": {
+          "total": "int",
+          "count": "int",
+          "per_page": "int",
+          "current_page": "int",
+          "total_pages": "int",
+          "links": {}
+        }
+      }
+    },
+    "pagination": {
+      "total": 2,
+      "count": 2,
+      "per_page": 2,
+      "current_page": 1,
+      "total_pages": 1,
+      "links": {}
+    }
+  }
+}

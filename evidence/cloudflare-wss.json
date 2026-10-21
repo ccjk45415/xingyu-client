@@ -1,0 +1,14 @@
+{
+  "origin": "https://xingyu-chat-ccjk45415.pages.dev",
+  "protocol": 3,
+  "wss_channels": [
+    "1",
+    "2"
+  ],
+  "certified_identity": "pass",
+  "heartbeat": "pass",
+  "public_messages_sent": 0,
+  "tls_certificate_verification": true,
+  "anonymous_test_sessions": 0,
+  "public_capacity_tested": false
+}

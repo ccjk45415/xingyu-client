@@ -1,0 +1,11 @@
+{
+  "available": true,
+  "package": "moe.cangku.reader",
+  "versionCode": 8,
+  "versionName": "0.6.2",
+  "notes": "新增长按图片识别二维码链接、作品与作者搜索切换、15项HTML代码提示，以及支持C++等17种语言的代码块插入。二维码本机识别，结果可复制或确认打开。",
+  "minSdk": 26,
+  "url": "https://xingyu-chat-ccjk45415.pages.dev/releases/Cangku-Xingyu-0.6.2-debug.apk",
+  "size": 455296,
+  "sha256": "f477ef2ea5c678948ed34249ca047c943f3c3604c2b685746c13bb3b8960c2f7"
+}

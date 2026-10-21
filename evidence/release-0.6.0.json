@@ -1,0 +1,16 @@
+{
+  "released_at": "2026-10-21T01:07:04.652054+08:00",
+  "version": "0.6.0",
+  "versionCode": 6,
+  "protocol": 3,
+  "worker_version": "016b394c-9ea2-427d-818a-af9c64850699",
+  "pages_deployment": "b7071c98",
+  "apk_bytes": 176686,
+  "apk_sha256": "e5a60807e5e565be1d4e338efce9513e4d9570a104c607cf3237715ca039075e",
+  "same_signer_as_0_5_0": true,
+  "certificate_sha256": "8c9274c514c400c29ff5d1a83678e69773eeb6fc402baac51410128503bd6af7",
+  "announcement_admin_secret_configured": true,
+  "announcement_write_during_validation": false,
+  "chat_or_private_message_sent_during_validation": false,
+  "physical_android_ui_tested": false
+}

@@ -1,0 +1,28 @@
+name: xingyu_desktop
+description: 仓库 · 星屿 Windows 原生 Flutter 客户端
+publish_to: none
+version: 0.1.1+2
+environment:
+  sdk: ">=3.13.0 <4.0.0"
+  flutter: ">=3.47.0"
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  flutter_widget_from_html_core: ^0.17.4
+  file_selector: ^1.1.0
+  url_launcher: ^6.3.3
+  path_provider: ^2.1.5
+  image: ^4.5.4
+  html: ^0.15.6
+  crypto: ^3.0.7
+  zxing2: ^0.2.4
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  integration_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+flutter:
+  uses-material-design: true

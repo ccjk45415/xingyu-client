@@ -1,0 +1,11 @@
+{
+  "jvm_checks": 14,
+  "core_checks": 54,
+  "social_rule_checks": 14,
+  "background_tls_close": "pass",
+  "stale_callbacks": "pass",
+  "android_install": "timed_out",
+  "android_ui_tested": false,
+  "crash_stack_available": false,
+  "root_cause_evidence": "source-supported inference; no physical reproduction"
+}

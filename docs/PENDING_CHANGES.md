@@ -1,0 +1,89 @@
+# 0.6.0修改说明：UID、设置、实时公告与认证聊天
+
+此前按用户要求仅修改源码；2026-10-21用户明确要求发布，统一发布为0.6.0 / versionCode6，协议3。发布验收结果见VALIDATION.md。
+
+- 作者主页昵称下显示官网UID。点击数字仅复制UID数字，提示“已复制UID”，支持辅助功能。
+- “我的”新增统一“设置”，内部四项依次为编辑个人资料、账号安全、阅读与外观、检查更新。文章阅读设置直达外观子页；其他入口保留原有操作。
+- 首页原横幅变为“发现 / 公告”两个原生页面，可左右滑动、点击指示项或自动轮播。用户拖动后暂缓自动轮播，离开首页/退后台停止计时及公告连接。
+- 公告为独立服务内容，不使用官网的系统通知列表。`GET /announcements`返回最新完整列表，Cache-Control禁止缓存；`/announcements/live`为支持休眠的WebSocket，订阅先给最新快照，发布后广播新版本。保持连接的前台页面收到后立即刷新横幅和已打开的公告全文。断网时展示标记为“上次公告”的本机缓存，重连或回到前台获取最新内容；网络断开时无法保证实时。
+- 公告用纯文本显示，最多10条；标题80字、正文5000字，完整列表顺序就是展示顺序。支持更新、移除以及清空列表。客户端不带网站Cookie、聊天令牌或发布权限。
+- 新增独立`AnnouncementHub` SQLite DO、迁移v3；保留已有ChatHub/DmHub及迁移v1/v2。Pages新增公告路径内部透传。
+
+## 部署和公告配置
+
+首次上线统一升级APP并部署后台和Pages入口。**现有0.5.0没有轮播公告功能，需要安装接入此功能的客户端一次；此后更新公告不再更新APP。**
+
+后台部署后使用官方OAuth执行以下一次性配置：
+
+```powershell
+python tools/publish_announcement.py configure
+```
+
+管理密钥只在`.toolchain/announcements/admin.key`和Cloudflare的`ANNOUNCEMENTS_ADMIN_KEY`中保存，不能进入APP、源码压缩包或公开资源。配置不需要向用户索取API Key，也不会打印密钥。
+
+## 之后发布/修改公告
+
+用户让助手写公告时，准备一个完整JSON列表，例如：
+
+```json
+{
+  "items": [
+    {"id": "notice-001", "title": "用户指定的标题", "content": "用户指定的公告正文，可换行。"}
+  ]
+}
+```
+
+发布文件为完整公告列表，保留旧公告时应保留相应items；不要无意覆盖旧条目。`announcements.example.json`是空列表模板，不是已发布公告。
+
+```powershell
+# 只检查本机文件，不连接服务
+python tools/publish_announcement.py validate announcements.json
+# 用户明确要求发布公告时，仅写公告数据，不构建/发布客户端或重新部署Worker
+python tools/publish_announcement.py publish announcements.json
+```
+
+发布使用独立密钥及当前版本条件，返回409时停止，不自动覆盖他人更新。成功后在线首页实时收到新公告，稍后打开的客户端在订阅时收到同一最新快照。无后台推送、无强制更新客户端。
+
+## 本机验证
+
+- `python tools/check_android_sources.py`：只编译Java源码，不生成APK。
+- `python tools/test_core.py`：原有54项及社交规则14项。
+- `python tools/test_chat_lifecycle.py`：14项断开连接生命周期回归。
+- `node --test test/announcements.test.mjs test/entry.test.mjs`（cloudflare-chat目录）：实际SQLite验证鉴权、版本冲突、冷启动持久化、广播、清空公告、字段边界与Pages透传。
+- `node test/announcements-runtime.integration.mjs`：一次性本机workerd、实际DO SQLite、3个订阅者和20项检查，含确切Android/JVM公告WebSocket传输、实时快照、发布广播、心跳、UTF8。没有生产公告写入。
+- `python tools/test_cloudflare.py --pages`：21组Node测试，认证300连接/338项本机联调通过，包含Android/JVM传输和图片权限。
+
+未在安卓实体设备验收UID点击、轮播手势和设置页面。安装包哈希见output/SHA256SUMS.txt。
+
+
+## 仓库认证聊天室、图片、@和引用回复
+
+用户要求聊天室必须绑定仓库账号，并支持仓库头像、昵称、UID、点击头像/名字艾特、引用其他人的消息和聊天室/私信图片。这些功能一并纳入0.6.0发布。
+
+### 身份与兼容性
+
+- 聊天室和私信共用官网认证令牌及本机独立加密存储。聊天室不再提供自定义昵称或匿名注册入口；仅服务器确认的UID、昵称和头像进入消息，重新认证可同步资料变化。认证期限7天，不保存官网Cookie或密码。
+- 协议升至3。新`VerifiedChatHub`、迁移v4、独立`xingyu-verified-chat-v1`对象，旧ChatHub v1数据保留但不进入认证频道，以免把匿名历史误标成仓库用户。`/v1/session`明确返回410，旧匿名令牌不再被聊天室接受。
+- ChatHub通过内部DO绑定查询DmHub验证令牌；WebSocket休眠附件仅保存令牌哈希。客户端无法访问`/internal/*`；每次发言再次校验认证状态，撤销后不能继续发言。
+- 消息固定带官网昵称、数字UID及头像。点击头像或昵称插入`@昵称(UID:123)`，携带最多5个UID；服务器核对当前频道服务中存在的账号和正文标记，不能客户端自报被艾特者名字。被艾特/回复自己时在气泡旁提示。
+- 每条消息下有“回复”，输入区显示可取消的引用摘要。服务端按消息ID生成原作者/原文摘要，拒绝跨频道或超过7天的引用，不接受客户端伪造引用内容。
+
+### 图片
+
+- 使用系统图片选择器；后台解码、纠正EXIF方向、压缩为静态JPEG、去除EXIF信息（透明背景变白，动图只取一帧）。预览确认后上传，添加到输入区，再由用户点击发送；可以纯图片或附带文字。
+- 客户端每张压至192KiB以内、最长边1280；服务器另行检查JPEG结构、禁止EXIF、256KiB上限、最长边1600及像素数上限。图片不是任意外链，使用随机图片ID。
+- 图片存在现有DmHub的SQLite BLOB中，未接入R2、外部图床或付费存储。默认每仓库UID每天最多上传10张（聊天室/私信共享，取消不退额度），服务全站100张/日、活动图片64MiB上限。额度北京时间08:00重置；满额明确返回错误，不自动开通付费。
+- 发出图片可见7天；未发送附件1小时失效。小时alarm分批清理，物理删除可能延后。图片也会消耗平台请求、存储及读取额度，不保证不限量免费。
+- `/media/v1/images`上传、`/media/v1/images/{id}`读取均需认证。未发送图片只对上传者可见；私信发送后只对发送者和收信人可见，第三人即使知道ID也不能读取。聊天室图片只在认证用户之间读取。图片不能盗用他人的上传、跨会话使用或重复绑定不同消息。
+- 令牌只放Authorization头，不能进图片URL，也不使用官网上传接口。图片只有本机内存缩略图缓存，按UID隔离并在退出账号时清除；不把私信图片写到共享文件目录。服务端可读取图片内容，传输加密不是端到端加密。
+- 发送重试同时绑定正文、图片、艾特和引用ID；切换频道/账号、从选择器返回，以及较晚到达的确认不会发到另一个会话或清除新草稿。
+
+### 验证与上线注意
+
+- `python tools/check_android_sources.py`通过，发布版已完整构建并校验签名。
+- `python tools/test_core.py`：54项基础及14项社交规则；`python tools/test_chat_lifecycle.py`：14项关闭/切换回归，均通过。
+- `node --test test/*.test.mjs`：21组策略、私信、公告、图片和入口测试。新增图片测试覆盖未发送附件、双方访问/第三人拒绝、重试绑定、错误文件/EXIF/尺寸限制、额度与过期清理。
+- 新默认`python tools/test_cloudflare.py --pages`使用**本机专用合成官网验证器**、真实workerd/DO SQLite及Pages内部绑定。认证300连接、第301拒绝、身份伪造拒绝、@、回复、跨频道引用拒绝、公共/私信图片权限、撤销令牌和确切Android/JVM WebSocket传输共338项检查通过。结果见`evidence/verified-media-validation.json`。
+- 原`test/integration.mjs`、`tests/ChatWireTest.java`为协议2的历史探针，不再是默认测试；合成验证器仅在`test/verified-runtime.mjs`中，生产使用固定官网auth/me验证，不能由请求/env替换。
+- 实体手机的图片选择/预览、@、引用回复、头像布局尚未验收；本机协议测试不能代替真机UI测试。
+- 发布脚本与公网验收探针已提升至0.6.0 / code6 / 协议3。旧0.5.0客户端不能继续匿名进入协议3聊天室，需要随功能更新；私信原有文本数据及认证账号保留。公告v3与认证聊天室v4两项迁移须一起保留。

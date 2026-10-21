@@ -1,0 +1,18 @@
+{
+  "released_at": "2026-10-21T01:25:04.465971+08:00",
+  "version": "0.6.1",
+  "versionCode": 7,
+  "protocol": 3,
+  "worker_version": "ce9668ad-5ad2-4ec0-8dca-d92553025f48",
+  "pages_deployment": "9d0cc5e8",
+  "apk_bytes": 180782,
+  "apk_sha256": "b0987883c3cd7fb28227593fd90b1738503b36b4d8e0c6f52451fe19130be531",
+  "same_signer_as_0_6_0": true,
+  "local_runtime_checks": 346,
+  "node_suites": 22,
+  "scrollbar_scope": "article detail only",
+  "profile_sync": "canonical website verification, existing token preserved, latest author names + live profile events",
+  "public_messages_sent": 0,
+  "website_profile_modified_during_validation": false,
+  "physical_android_ui_tested": false
+}

@@ -1,0 +1,71 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "xingyu-chat",
+  "main": "src/worker.js",
+  "compatibility_date": "2026-10-20",
+  "workers_dev": true,
+  "preview_urls": false,
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "run_worker_first": [
+      "/health",
+      "/v1/*",
+      "/ws",
+      "/updates/*",
+      "/dm/*",
+      "/announcements",
+      "/announcements/*",
+      "/media/*"
+    ]
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "CHAT",
+        "class_name": "ChatHub"
+      },
+      {
+        "name": "DM",
+        "class_name": "DmHub"
+      },
+      {
+        "name": "ANNOUNCEMENTS",
+        "class_name": "AnnouncementHub"
+      },
+      {
+        "name": "VERIFIED_CHAT",
+        "class_name": "VerifiedChatHub"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": [
+        "ChatHub"
+      ]
+    },
+    {
+      "tag": "v2",
+      "new_sqlite_classes": [
+        "DmHub"
+      ]
+    },
+    {
+      "tag": "v3",
+      "new_sqlite_classes": [
+        "AnnouncementHub"
+      ]
+    },
+    {
+      "tag": "v4",
+      "new_sqlite_classes": [
+        "VerifiedChatHub"
+      ]
+    }
+  ],
+  "observability": {
+    "enabled": false
+  }
+}

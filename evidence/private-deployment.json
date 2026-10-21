@@ -1,0 +1,19 @@
+{
+  "origin": "https://xingyu-chat-ccjk45415.pages.dev",
+  "identity_verification": "pass",
+  "profile_sync": "pass (no website changes)",
+  "fixed_upstream": "https://cangku.moe/api/v1/auth/me",
+  "token_revocation": "pass",
+  "verified_wss": {
+    "wss_channels": [
+      "1",
+      "2"
+    ],
+    "certified_identity": "pass",
+    "heartbeat": "pass",
+    "public_messages_sent": 0,
+    "tls_certificate_verification": true
+  },
+  "public_messages_sent": 0,
+  "credentials_saved": false
+}

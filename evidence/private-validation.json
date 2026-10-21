@@ -1,0 +1,12 @@
+{
+  "local_only": true,
+  "sqlite_suites": 8,
+  "combined_node_suites": 14,
+  "workerd_sqlite_checks": 28,
+  "third_party_isolation": "pass",
+  "nonce_payload_binding": "pass",
+  "verified_identity": "pass",
+  "quotas": "pass",
+  "public_messages_sent": 0,
+  "website_requests_in_local_tests": 0
+}

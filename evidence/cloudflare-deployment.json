@@ -1,0 +1,11 @@
+{
+  "origin": "https://xingyu-chat-ccjk45415.pages.dev",
+  "health": "pass",
+  "protocol": 3,
+  "channels": 2,
+  "versionCode": 8,
+  "apk_bytes": 455296,
+  "sha256": "f477ef2ea5c678948ed34249ca047c943f3c3604c2b685746c13bb3b8960c2f7",
+  "public_messages_sent": 0,
+  "public_load_tested": false
+}

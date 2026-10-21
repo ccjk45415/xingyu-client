@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- After deployment, set the same HTTPS origin for every app installation. -->
+    <string name="chat_server_url" translatable="false"></string>
+</resources>

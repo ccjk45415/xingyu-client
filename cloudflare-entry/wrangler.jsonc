@@ -1,0 +1,7 @@
+{
+  "$schema":"../cloudflare-chat/node_modules/wrangler/config-schema.json",
+  "name":"xingyu-chat-ccjk45415",
+  "pages_build_output_dir":"../.toolchain/pages-public",
+  "compatibility_date":"2026-10-20",
+  "services":[{"binding":"CHAT_SERVICE","service":"xingyu-chat"}]
+}

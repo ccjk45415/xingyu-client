@@ -1,0 +1,26 @@
+{
+  "actual_client": "Dart SiteApi + ServiceApi + WebSocket in Flutter test engine",
+  "website_login": "pass",
+  "website_reads": [
+    "auth/me",
+    "category/list",
+    "post/list",
+    "post/info",
+    "comment/list",
+    "user/favoritePost",
+    "user/comment",
+    "user/notification",
+    "user/creditLog",
+    "own draft post/list"
+  ],
+  "service_protocol": 3,
+  "certified_wss_channels": [
+    "1",
+    "2"
+  ],
+  "heartbeat": "pass",
+  "temporary_identity_revoked": true,
+  "website_content_or_profile_modified": false,
+  "public_or_private_messages_sent": 0,
+  "credentials_saved": false
+}

@@ -1,0 +1,14 @@
+{
+  "transport": "HTTP on temporary 127.0.0.1 listener",
+  "checks": [
+    "live TCP health and protocol",
+    "two independent client identities",
+    "other channel does not wake long poll",
+    "real-time same-channel delivery",
+    "both clients switch freely with isolated history",
+    "idempotent retry over HTTP",
+    "unauthenticated requests rejected"
+  ],
+  "public_deployment": false,
+  "android_device_test": false
+}
