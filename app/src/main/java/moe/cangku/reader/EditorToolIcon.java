@@ -11,6 +11,7 @@ final class EditorToolIcon extends View {
     private void label(Canvas c,String s,int style){p.setStyle(Paint.Style.FILL);p.setTypeface(Typeface.create("sans-serif",style));p.setTextAlign(Paint.Align.CENTER);p.setTextSize(s.length()>2?10:17);c.drawText(s,12,18,p);p.setStyle(Paint.Style.STROKE);}
     @Override protected void onDraw(Canvas c){super.onDraw(c);c.save();c.scale(getWidth()/24f,getHeight()/24f);p.setColor(color);p.setStrokeWidth(1.8f);p.setStyle(Paint.Style.STROKE);p.setStrokeCap(Paint.Cap.ROUND);p.setStrokeJoin(Paint.Join.ROUND);Path path=new Path();
         switch(kind){
+            case "ai":path.moveTo(12,2);path.lineTo(15,9);path.lineTo(22,12);path.lineTo(15,15);path.lineTo(12,22);path.lineTo(9,15);path.lineTo(2,12);path.lineTo(9,9);path.close();c.drawPath(path,p);break;
             case "bold":label(c,"B",Typeface.BOLD);break;case "italic":label(c,"I",Typeface.BOLD_ITALIC);break;
             case "underline":label(c,"U",Typeface.NORMAL);c.drawLine(5,21,19,21,p);break;
             case "strike":label(c,"S",Typeface.NORMAL);c.drawLine(4,12,20,12,p);break;

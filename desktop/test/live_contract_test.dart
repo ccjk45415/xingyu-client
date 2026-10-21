@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:xingyu_desktop/core/api.dart';
+import 'package:xingyu_desktop/core/ai.dart';
 import 'package:xingyu_desktop/core/native_storage.dart';
 
 class _RealHttp extends HttpOverrides {}
@@ -142,6 +143,66 @@ void main() {
                   uid,
               isTrue,
             );
+            if (Platform.environment['XINGYU_TEST_AI'] == '1') {
+              final ai = AiTransport();
+              try {
+                final source = await ai.source(
+                  'https://store.steampowered.com/app/620/',
+                );
+                expect(text(source['text']), contains('Portal'));
+                final extracted = text(source['text']);
+                source['text'] = extracted.substring(
+                  0,
+                  extracted.length.clamp(0, 700),
+                );
+                final quota = await ai.json(
+                  Uri.parse('$serviceOrigin/ai/v1/quota'),
+                  token: token,
+                );
+                expect(number(quota['remaining']), greaterThan(0));
+                final request = {
+                  'request_id': nonce(),
+                  'type': 'game',
+                  'sources': [source],
+                  'material': '',
+                };
+                final generated = await ai.json(
+                  Uri.parse('$serviceOrigin/ai/v1/draft'),
+                  body: request,
+                  token: token,
+                );
+                final draft = AiDraft.parse(generated['draft'], [
+                  source,
+                ], service: true);
+                expect(draft.title, isNotEmpty);
+                expect(draft.body, contains('资料来源'));
+                final replay = await ai.json(
+                  Uri.parse('$serviceOrigin/ai/v1/draft'),
+                  body: request,
+                  token: token,
+                );
+                expect(replay['cached'], true);
+                expect(replay['remaining'], generated['remaining']);
+                final out = File(
+                  '${Directory(Directory.current.resolveSymbolicLinksSync()).parent.path}/evidence/ai-live-validation.json',
+                );
+                await out.writeAsString(
+                  jsonEncode({
+                    'public_ingress': true,
+                    'model': object(quota['policy'])['model'],
+                    'steam_extraction': true,
+                    'generation': true,
+                    'duplicate_without_second_charge': true,
+                    'title_length': draft.title.length,
+                    'body_html_length': draft.body.length,
+                    'public_posts_created': 0,
+                    'real_chat_messages_sent': 0,
+                  }),
+                );
+              } finally {
+                ai.close();
+              }
+            }
             for (final channel in ['1', '2']) {
               final ws = await WebSocket.connect(
                 '${serviceOrigin.replaceFirst('https:', 'wss:')}/ws?channel=$channel',

@@ -1,6 +1,7 @@
 import {DurableObject} from 'cloudflare:workers';
 import {LIMITS,roomOK,nickname,text,nonceOK,dayStart,limitReason} from './policy.mjs';
 export {VerifiedChatHub} from './verified-chat.mjs';
+export {AiDraftHub} from './ai.js';
 export {DmHub} from './dm.js';
 export {AnnouncementHub} from './announcements.js';
 const encoder=new TextEncoder();
@@ -19,6 +20,7 @@ export default {
   async fetch(req,env){
     const url=new URL(req.url);
     if(url.pathname==='/health')return json({service:'xingyu-chat',protocol:3,channel_count:2,transport:'websocket',limits:LIMITS});
+    if(url.pathname.startsWith('/ai/'))return env.AI_DRAFTS.get(env.AI_DRAFTS.idFromName('xingyu-ai-v1')).fetch(req);
     if(url.pathname==='/announcements'||url.pathname.startsWith('/announcements/'))return env.ANNOUNCEMENTS.get(env.ANNOUNCEMENTS.idFromName('xingyu-announcements-v1')).fetch(req);
     if(url.pathname.startsWith('/dm/')||url.pathname.startsWith('/media/'))return env.DM.get(env.DM.idFromName('xingyu-dm-v1')).fetch(req);
     if(url.pathname.startsWith('/v1/')||url.pathname==='/ws'){

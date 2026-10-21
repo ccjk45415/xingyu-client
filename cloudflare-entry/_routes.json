@@ -1,1 +1,1 @@
-{"version":1,"include":["/health","/ws","/v1/*","/dm/*","/updates/android","/announcements","/announcements/*","/media/*"],"exclude":[]}
+{"version": 1, "include": ["/health", "/ws", "/v1/*", "/dm/*", "/updates/android", "/announcements", "/announcements/*", "/media/*", "/ai/*"], "exclude": []}

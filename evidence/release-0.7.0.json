@@ -1,0 +1,59 @@
+{
+  "android": {
+    "available": true,
+    "package": "moe.cangku.reader",
+    "versionCode": 10,
+    "versionName": "0.7.0",
+    "notes": "新增AI投稿助手，支持内置与自定义API、Steam/DLsite/官网等公开来源提取、游戏/漫画/音声/动画模板、草稿预览及选择导入；内置服务端认证限额与预算保护。手机工具栏按常用/排版/插入/更多分组，每个按钮显示中文名称，长按查看说明。",
+    "minSdk": 26,
+    "url": "https://xingyu-chat-ccjk45415.pages.dev/releases/Cangku-Xingyu-0.7.0-debug.apk",
+    "size": 483968,
+    "sha256": "266247b52bd4144f3035c411d96eeb11f98a9586aca3878731b27c84d7a5812e"
+  },
+  "windows": {
+    "available": true,
+    "product": "moe.cangku.xingyu.desktop",
+    "platform": "windows-x64",
+    "versionCode": 4,
+    "versionName": "0.2.0",
+    "notes": "新增AI投稿助手，支持内置与自定义API、Steam/DLsite/官网等公开来源提取、游戏/漫画/音声/动画模板、草稿预览及选择导入；内置服务端认证限额与预算保护。手机工具栏按常用/排版/插入/更多分组，每个按钮显示中文名称，长按查看说明。",
+    "url": "https://xingyu-chat-ccjk45415.pages.dev/releases/Xingyu-Windows-0.2.0-x64.zip",
+    "size": 14301016,
+    "sha256": "e73cee60cd60d0e5de0191eb1319e90603c5b61d418e2299f80788b8a425a8aa"
+  },
+  "worker_version": "ef529f52-8b53-498c-a45d-71bb5207d246",
+  "flutter_tests": 23,
+  "default_optional_tests_skipped": 2,
+  "node_test_groups": 28,
+  "local_pages_sqlite_assertions": 357,
+  "android_core_assertions": 54,
+  "android_social_assertions": 14,
+  "android_editor_assertions": 22,
+  "android_qr_editor_assertions": 53,
+  "ai_live": {
+    "public_ingress": true,
+    "model": "@cf/qwen/qwen3-30b-a3b-fp8",
+    "steam_extraction": true,
+    "generation": true,
+    "duplicate_without_second_charge": true,
+    "title_length": 8,
+    "body_html_length": 857,
+    "public_posts_created": 0,
+    "real_chat_messages_sent": 0
+  },
+  "phone_toolbar_groups": [
+    "常用",
+    "排版",
+    "插入",
+    "更多"
+  ],
+  "phone_toolbar_visible_labels": true,
+  "phone_ui_device_verified": false,
+  "website_posts_created": 0,
+  "public_messages_sent": 0,
+  "pages_deployment": "035e01e2",
+  "public_downloads": {
+    "android": "pass",
+    "windows": "pass"
+  }
+}

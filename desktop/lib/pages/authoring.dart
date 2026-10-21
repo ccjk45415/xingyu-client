@@ -13,6 +13,7 @@ import '../core/reader.dart';
 import '../core/state.dart';
 import '../ui/shared.dart';
 import 'account.dart';
+import 'ai_assistant.dart';
 
 const postStatuses = {
   'publish': '已发布',
@@ -769,6 +770,25 @@ class _PostEditorState extends State<PostEditor> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
     ),
   );
+  Future<void> aiAssistant() async {
+    if (busy) return;
+    final app = stateOf(context), owner = stateOf(context).uid;
+    final result = await showAiAssistant(context);
+    if (!mounted || result == null || app.uid != owner) return;
+    if (result.title) title.text = result.draft.title;
+    if (result.tags) tags.text = result.draft.tags.join(', ');
+    if (result.cover && result.draft.cover.isNotEmpty) {
+      thumb.text = result.draft.cover;
+    }
+    if (result.body) {
+      final body = result.append && content.text.isNotEmpty
+          ? '${content.text}\n${result.draft.body}'
+          : result.draft.body;
+      applyEdit(EditorSnapshot(body, body.length, body.length, html: true));
+    }
+    changed();
+  }
+
   Widget toolbar() => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
@@ -777,6 +797,7 @@ class _PostEditorState extends State<PostEditor> {
         runSpacing: 4,
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
+          tool('AI 投稿助手', Icons.auto_awesome_outlined, aiAssistant),
           tool(
             '撤销',
             Icons.undo_rounded,

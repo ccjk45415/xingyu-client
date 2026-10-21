@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';import {spawn,spawnSync} from 'node:child_process';
 import {mkdtempSync,writeFileSync,openSync,readFileSync,closeSync} from 'node:fs';import {resolve,join} from 'node:path';import {fileURLToPath} from 'node:url';import WebSocket from 'ws';
 const root=resolve(fileURLToPath(new URL('../..',import.meta.url))),cwd=join(root,'cloudflare-chat'),base='http://127.0.0.1:8794',task=mkdtempSync(join(root,'.toolchain','verified-test-')),pages=process.env.CHAT_TEST_PAGES==='1';
-const config=JSON.parse(readFileSync(join(cwd,'wrangler.jsonc'),'utf8'));delete config.$schema;config.name='verified-backend-local';config.main=join(cwd,'test/verified-runtime.mjs');config.assets.directory=join(cwd,'public');config.durable_objects.bindings.find(b=>b.name==='DM').class_name='TestDmHub';config.migrations=[{tag:'local-v1',new_sqlite_classes:['ChatHub','TestDmHub','VerifiedChatHub','AnnouncementHub']}];
+const config=JSON.parse(readFileSync(join(cwd,'wrangler.jsonc'),'utf8'));delete config.$schema;config.name='verified-backend-local';config.main=join(cwd,'test/verified-runtime.mjs');config.assets.directory=join(cwd,'public');config.durable_objects.bindings.find(b=>b.name==='DM').class_name='TestDmHub';delete config.ai;config.durable_objects.bindings.find(b=>b.name==='AI_DRAFTS').class_name='TestAiDraftHub';config.migrations=[{tag:'local-v1',new_sqlite_classes:['ChatHub','TestDmHub','VerifiedChatHub','AnnouncementHub','TestAiDraftHub']}];
 writeFileSync(join(task,'backend.json'),JSON.stringify(config));let configs=[join(task,'backend.json')];
 if(pages){const entry={name:'verified-entry-local',main:join(root,'cloudflare-entry/_worker.mjs'),compatibility_date:'2026-10-20',services:[{binding:'CHAT_SERVICE',service:config.name}],assets:{directory:join(cwd,'public'),binding:'ASSETS',run_worker_first:config.assets.run_worker_first}};writeFileSync(join(task,'entry.json'),JSON.stringify(entry));configs=[join(task,'entry.json'),...configs];}
 const log=openSync(join(task,'runtime.log'),'w'),args=configs.flatMap(c=>['--config',c]),child=spawn(process.execPath,[join(cwd,'node_modules/wrangler/bin/wrangler.js'),'dev',...args,'--local','--ip','127.0.0.1','--port','8794','--persist-to',join(task,'state')],{cwd,windowsHide:true,stdio:['ignore',log,log],env:{...process.env,CI:'true',WRANGLER_SEND_METRICS:'false',XDG_CONFIG_HOME:join(root,'.toolchain/cloudflare-auth')}});
@@ -16,6 +16,15 @@ try{
   let ready=false;for(let i=0;i<100;i++){if(child.exitCode!==null)break;try{if((await api('/health')).status===200){ready=true;break;}}catch{}await pause(200);}if(!ready)throw Error(readFileSync(join(task,'runtime.log'),'utf8').slice(-3000));
   check((await api('/health')).data.protocol,3);check((await api('/v1/session',{body:{nickname:'匿名用户'}})).status,410);check((await api('/v1/me',{token:'f'.repeat(64)})).status,401);
   const ta=await session(1),tb=await session(2),tc=await session(3),td=await session(4),a=await open(ta,'1'),b=await open(tb,'1'),c=await open(tc,'2');
+  check((await api('/ai/v1/quota')).status,401);
+  check((await api('/ai/v1/quota',{token:ta})).data.remaining,3);
+  const aiInput={request_id:crypto.randomUUID(),type:'auto',sources:[{url:'https://example.com/work',text:'这是一个来源中的游戏作品介绍。',cover:''}],material:''};
+  check((await api('/ai/v1/draft',{token:ta,body:{...aiInput,messages:[]}})).status,400);
+  const aiResult=await api('/ai/v1/draft',{token:ta,body:aiInput});check(aiResult.status,200);check(aiResult.data.remaining,2);check(aiResult.data.draft.sources[0].url,'https://example.com/work');
+  check((await api('/ai/v1/draft',{token:ta,body:aiInput})).data.cached,true);
+  check((await api('/ai/v1/draft',{token:ta,body:{...aiInput,material:'changed'}})).status,409);
+  for(let n=0;n<2;n++)check((await api('/ai/v1/draft',{token:ta,body:{...aiInput,request_id:crypto.randomUUID()}})).status,200);
+  check((await api('/ai/v1/draft',{token:ta,body:{...aiInput,request_id:crypto.randomUUID()}})).status,429);
   check(a.events[0].user.id,1);check(a.events[0].user.nickname,'仓库用户1');check(a.events[0].user.avatar,'https://images.example/1.jpg');
   const peers=[];for(let i=0;i<297;i++)peers.push(await open(await session(100+i),i%2?'1':'2'));
   let refused=0;try{await open(await session(999),'1');}catch(e){refused=e.status;}check(refused,503);for(const peer of peers)peer.terminate();await pause(150);

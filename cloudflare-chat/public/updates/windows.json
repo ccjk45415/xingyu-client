@@ -2,10 +2,10 @@
   "available": true,
   "product": "moe.cangku.xingyu.desktop",
   "platform": "windows-x64",
-  "versionCode": 3,
-  "versionName": "0.1.2",
-  "notes": "编辑器移除HTML提示入口，39项功能直接使用统一图标工具栏；新增正文选区字号、编辑字号、颜色、高亮、对齐、撤销重做、查找替换、缩进及格式清除，优化代码块图标。",
-  "url": "https://xingyu-chat-ccjk45415.pages.dev/releases/Xingyu-Windows-0.1.2-x64.zip",
-  "size": 14238006,
-  "sha256": "2dfe03b70dd000d587d386a791850018752cd28a36a101e562c29f38d9fee032"
+  "versionCode": 4,
+  "versionName": "0.2.0",
+  "notes": "新增AI投稿助手，支持内置与自定义API、Steam/DLsite/官网等公开来源提取、游戏/漫画/音声/动画模板、草稿预览及选择导入；内置服务端认证限额与预算保护。手机工具栏按常用/排版/插入/更多分组，每个按钮显示中文名称，长按查看说明。",
+  "url": "https://xingyu-chat-ccjk45415.pages.dev/releases/Xingyu-Windows-0.2.0-x64.zip",
+  "size": 14301016,
+  "sha256": "e73cee60cd60d0e5de0191eb1319e90603c5b61d418e2299f80788b8a425a8aa"
 }

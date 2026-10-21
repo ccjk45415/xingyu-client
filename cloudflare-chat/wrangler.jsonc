@@ -16,7 +16,8 @@
       "/dm/*",
       "/announcements",
       "/announcements/*",
-      "/media/*"
+      "/media/*",
+      "/ai/*"
     ]
   },
   "durable_objects": {
@@ -36,6 +37,10 @@
       {
         "name": "VERIFIED_CHAT",
         "class_name": "VerifiedChatHub"
+      },
+      {
+        "name": "AI_DRAFTS",
+        "class_name": "AiDraftHub"
       }
     ]
   },
@@ -63,9 +68,18 @@
       "new_sqlite_classes": [
         "VerifiedChatHub"
       ]
+    },
+    {
+      "tag": "v5",
+      "new_sqlite_classes": [
+        "AiDraftHub"
+      ]
     }
   ],
   "observability": {
     "enabled": false
+  },
+  "ai": {
+    "binding": "AI"
   }
 }
