@@ -1,0 +1,19 @@
+{
+  "scope": "native and Flutter companion editor dialogs",
+  "native_helper_assertions": 63,
+  "native_ui_javac": true,
+  "flutter_test_groups": 9,
+  "flutter_analyze": "No issues found",
+  "website_writes": 0,
+  "fixture_uploads_only": true,
+  "official_shortcode_contracts": [
+    "collapse",
+    "poll",
+    "lottery"
+  ],
+  "image_class": "blur-img",
+  "preserves_unchanged_table_cells_and_attributes": true,
+  "account_switch_blocks_stale_poll_write": true,
+  "limitation": "Merged or nested tables remain intact and require source mode for structural edits; no merge/split GUI.",
+  "device_ui_verified": false
+}

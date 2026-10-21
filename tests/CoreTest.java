@@ -34,6 +34,11 @@ public class CoreTest {
         check(malicious.resources.get(0).links.size()==1);
         check(ReaderContent.parse("[unknown foo='bar']x[/unknown]").hasUnsupportedShortcodes);
         check(ReaderContent.parse(null).html.isEmpty());
+        ReaderContent official=ReaderContent.parse("[dlbox title=\"标题\" time=\"2026-10-21\" from=\"本人上传\" info=\"提取：abc / 密码：123\" link1=\"网盘|https://example.org/one\" link2=\"网盘|https://example.org/two\"][/dlbox]");
+        check(official.resources.get(0).time.equals("2026-10-21"));check(official.resources.get(0).from.equals("本人上传"));check(official.resources.get(0).details().contains("文件信息：提取：abc / 密码：123"));check(official.resources.get(0).links.size()==2);
+        String codeExample="<pre><code>[dlbox title=\"示例\"][/dlbox][iframe]https://example.org[/iframe]</code></pre>";
+        ReaderContent literal=ReaderContent.parse(codeExample);check(literal.resources.isEmpty());check(literal.html.equals(codeExample));check(!literal.hasUnsupportedShortcodes);
+        ReaderContent external=ReaderContent.parse("[iframe]https://example.org/watch[/iframe][iframe]javascript:bad()[/iframe]");check(external.html.contains("在系统浏览器打开"));check(external.html.contains("href=\"https://example.org/watch\""));check(!external.html.contains("javascript:"));
         String original="<table class='original'><tr><td>排版</td></tr></table>\n[dlbox title=\"test\" link1=\"https://example.org\"][/dlbox]";
         check(AuthoringRules.bodyHtml(original,true).equals(original));
         check(AuthoringRules.bodyHtml("<原文> & \"引用\"\n第二行\n\n第三段",false).equals("<p>&lt;原文&gt; &amp; &quot;引用&quot;<br>第二行</p><p>第三段</p>"));

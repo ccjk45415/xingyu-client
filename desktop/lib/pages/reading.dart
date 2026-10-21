@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../core/api.dart';
 import '../core/reader.dart';
 import '../ui/shared.dart';
@@ -45,10 +46,8 @@ class ArticlePage extends StatelessWidget {
                 const SizedBox(height: 18),
                 Text(
                   text(post['title']),
-                  style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                    fontWeight: FontWeight.w800,
-                    height: 1.45,
-                  ),
+                  style: Theme.of(context).textTheme.headlineLarge
+                      ?.copyWith(fontWeight: FontWeight.w800, height: 1.45),
                 ),
                 const SizedBox(height: 22),
                 Row(
@@ -119,9 +118,9 @@ class ArticlePage extends StatelessWidget {
                                   style: Theme.of(context).textTheme.titleMedium
                                       ?.copyWith(fontWeight: FontWeight.w700),
                                 ),
-                                if (resource.info.isNotEmpty) ...[
+                                if (resource.details.isNotEmpty) ...[
                                   const SizedBox(height: 10),
-                                  SelectableText(resource.info),
+                                  SelectableText(resource.details),
                                 ],
                                 const SizedBox(height: 16),
                                 Wrap(
@@ -590,9 +589,8 @@ class AuthorPage extends StatelessWidget {
             ),
             Text(
               text(user['nickname']),
-              style: Theme.of(
-                context,
-              ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800),
+              style: Theme.of(context).textTheme.headlineMedium
+                  ?.copyWith(fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 8),
             TextButton.icon(

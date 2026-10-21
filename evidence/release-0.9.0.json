@@ -1,0 +1,50 @@
+{
+  "date": "2026-10-21T13:25:47.480918+00:00",
+  "android": {
+    "available": true,
+    "package": "moe.cangku.reader",
+    "versionCode": 13,
+    "versionName": "0.9.0",
+    "notes": "修复上传正文图片未插入；新增原生可视化编辑与HTML源码双向切换，保留图片和排版；下载卡片、外部链接等按官网格式填写；Windows本机预览支持独立滚轮滚动。",
+    "minSdk": 26,
+    "url": "https://xingyu-chat-ccjk45415.pages.dev/releases/Cangku-Xingyu-0.9.0-debug.apk",
+    "size": 721618,
+    "sha256": "74a677d5d15317778bc5748a52efa16207464ea807960058a478b8574b6e1398"
+  },
+  "windows": {
+    "available": true,
+    "product": "moe.cangku.xingyu.desktop",
+    "platform": "windows-x64",
+    "versionCode": 7,
+    "versionName": "0.4.0",
+    "notes": "修复上传正文图片未插入；新增原生可视化编辑与HTML源码双向切换，保留图片和排版；下载卡片、外部链接等按官网格式填写；Windows本机预览支持独立滚轮滚动。",
+    "url": "https://xingyu-chat-ccjk45415.pages.dev/releases/Xingyu-Windows-0.4.0-x64.zip",
+    "size": 14448297,
+    "sha256": "329f1b12635df4df2ce82c39a2ded6cd778d46d860a67ad217d6533a9ad22726"
+  },
+  "changes": [
+    "native visual/source editor",
+    "body upload busy insertion fix and selection ownership",
+    "official download and external templates",
+    "full companion forms and role-sensitive poll/lottery",
+    "independent desktop preview wheel scrolling"
+  ],
+  "backend_deployment_required": false,
+  "native_rich_assertions": 65,
+  "native_extra_assertions": 63,
+  "editor_assertions": 22,
+  "core_assertions": 64,
+  "social_assertions": 14,
+  "flutter_tests_passed": 52,
+  "flutter_optional_network_tests_skipped": 3,
+  "flutter_analyze": "No issues found",
+  "windows_native_diagnostics": "pass",
+  "source_contract_probe": "editor-official-contract-probe.json",
+  "production_website_posts_images_polls_or_messages_written": 0,
+  "phone_ui_device_verified": false,
+  "system_print_device_verified": false,
+  "complex_table_limitation": "Merged or nested table structure editing uses retained source; no merge/split GUI",
+  "pages_deployment": "c227a102",
+  "public_android_download_verified": true,
+  "public_windows_download_verified": true
+}

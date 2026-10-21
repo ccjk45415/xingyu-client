@@ -1,8 +1,6 @@
 import 'dart:convert';
 import 'dart:math';
 
-import 'package:html/parser.dart' as html_parser;
-
 class EditorSnapshot {
   final String text;
   final int start, end;
@@ -147,14 +145,18 @@ EditorSnapshot indentSource(EditorSnapshot v, bool outdent) {
 
 EditorSnapshot removeSelectionFormat(EditorSnapshot v) {
   if (v.a == v.b || !v.html) return v;
-  final selected = v.text
+  // Clearing text formatting must not delete selected images, website cards,
+  // table content or unknown components. Only known inline formatting wrappers
+  // are removed; block structure and all embedded source bytes are retained.
+  final escaped = v.text
       .substring(v.a, v.b)
       .replaceAll(
-        RegExp(r'<br\s*/?>|</(?:p|div|li|h[1-6])\s*>', caseSensitive: false),
-        '\n',
+        RegExp(
+          r'</?(?:b|strong|i|em|u|s|del|strike|font|sup|sub|span)\b[^>]*>',
+          caseSensitive: false,
+        ),
+        '',
       );
-  final plain = html_parser.parseFragment(selected).text ?? '';
-  final escaped = const HtmlEscape().convert(plain).replaceAll('\n', '<br>');
   return EditorSnapshot(
     v.text.replaceRange(v.a, v.b, escaped),
     v.a,

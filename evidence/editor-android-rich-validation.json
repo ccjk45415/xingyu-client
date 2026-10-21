@@ -1,0 +1,7 @@
+{
+  "actual_source": "RichEditorDocument + EditorTemplates + NativePrintPagination",
+  "result": "PASS 65 native visual source, image, formatting, entity and website template checks",
+  "local_only": true,
+  "website_writes": 0,
+  "full_android_device_ui_verified": false
+}

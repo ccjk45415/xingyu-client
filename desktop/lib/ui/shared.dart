@@ -472,6 +472,49 @@ class RichContent extends StatelessWidget {
       ].contains(element.localName)) {
         return const SizedBox.shrink();
       }
+      if (element.classes.contains('text-rainbow')) {
+        final width = MediaQuery.sizeOf(context).width;
+        return ShaderMask(
+          blendMode: BlendMode.srcIn,
+          shaderCallback: (bounds) =>
+              const LinearGradient(
+                colors: [
+                  Color(0xffe65c83),
+                  Color(0xffbd8a20),
+                  Color(0xff2e9f78),
+                  Color(0xff477bd2),
+                  Color(0xffa85ac4),
+                ],
+              ).createShader(
+                Rect.fromLTWH(
+                  0,
+                  0,
+                  bounds.width.clamp(1, width),
+                  bounds.height,
+                ),
+              ),
+          child: RichContent(element.innerHtml, fontSize: fontSize),
+        );
+      }
+      if (element.classes.contains('text-forbidden')) {
+        return _RevealText(element.innerHtml, fontSize: fontSize);
+      }
+      if (element.localName == 'details') {
+        final summary = element.querySelector('summary');
+        final label = summary?.text ?? '折叠内容';
+        final cloned = element.clone(true);
+        cloned.querySelector('summary')?.remove();
+        return ExpansionTile(
+          initiallyExpanded: element.attributes.containsKey('open'),
+          title: Text(label),
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: RichContent(cloned.innerHtml, fontSize: fontSize),
+            ),
+          ],
+        );
+      }
       if (element.localName == 'img') {
         final uri = Uri.tryParse(element.attributes['src'] ?? '');
         if (uri == null ||
@@ -487,6 +530,10 @@ class RichContent extends StatelessWidget {
             onTap: () => showImage(context, url: url),
             child: Image.network(
               url,
+              headers: const {
+                'Referer': '$siteOrigin/',
+                'User-Agent': 'Mozilla/5.0 XingyuDesktop/$desktopVersion',
+              },
               fit: BoxFit.contain,
               errorBuilder: (_, _, _) => const Text('[图片暂时无法加载]'),
             ),
@@ -495,12 +542,60 @@ class RichContent extends StatelessWidget {
       }
       return null;
     },
-    customStylesBuilder: (element) => switch (element.localName) {
-      'img' => {'max-width': '100%', 'border-radius': '12px'},
-      'a' => {'color': '#9671de'},
-      'pre' => {'white-space': 'pre-wrap', 'padding': '16px'},
-      _ => null,
+    customStylesBuilder: (element) {
+      if (element.classes.contains('text-forbidden')) {
+        return {'color': '#ffffff', 'background-color': '#262130'};
+      }
+      if (element.classes.contains('text-rainbow')) return {'color': '#a763c1'};
+      if (element.classes.contains('xingyu-download') ||
+          element.classes.contains('xingyu-external')) {
+        return {
+          'padding': '16px',
+          'background-color': '#f1ebfc',
+          'border': '1px solid #ded4f0',
+          'border-radius': '12px',
+        };
+      }
+      return switch (element.localName) {
+        'img' => {'max-width': '100%', 'border-radius': '12px'},
+        'a' => {'color': '#9671de'},
+        'pre' => {'white-space': 'pre-wrap', 'padding': '16px'},
+        _ => null,
+      };
     },
+  );
+}
+
+class _RevealText extends StatefulWidget {
+  final String html;
+  final double? fontSize;
+  const _RevealText(this.html, {this.fontSize});
+  @override
+  State<_RevealText> createState() => _RevealTextState();
+}
+
+class _RevealTextState extends State<_RevealText> {
+  bool revealed = false;
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: () => setState(() => revealed = !revealed),
+    child: DecoratedBox(
+      decoration: BoxDecoration(
+        color: revealed
+            ? violet.withValues(alpha: .08)
+            : const Color(0xff322c48),
+        borderRadius: BorderRadius.circular(5),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+        child: revealed
+            ? RichContent(widget.html, fontSize: widget.fontSize)
+            : const Text(
+                '点击显示隐藏文字',
+                style: TextStyle(color: Colors.white, fontSize: 12),
+              ),
+      ),
+    ),
   );
 }
 

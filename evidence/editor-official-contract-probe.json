@@ -1,0 +1,96 @@
+{
+  "read_only": true,
+  "credentials_saved": false,
+  "posts_or_uploads_written": 0,
+  "permission_names": [
+    "edit_polls",
+    "delete_polls",
+    "restore_polls"
+  ],
+  "role_names": [
+    "contributor"
+  ],
+  "admin_page_status": 200,
+  "scripts": [
+    "/assets/admin/static/js/chunk-vendors.d866ef5f.js",
+    "/assets/admin/static/js/app.4c0ebfd5.js",
+    "/assets/admin/static/js/chunk-vendors-legacy.e62b9178.js",
+    "/assets/admin/static/js/app-legacy.344b7f20.js"
+  ],
+  "current_admin_bundle_sha256": "4c80891d84d7b14a2e6fc2699abb2e2252f977d1d47d46befec13f45de9edf17",
+  "retained_admin_bundle_matches_current": true,
+  "/api/poll/list": {
+    "http_status": 404,
+    "code": null,
+    "data_type": "NoneType",
+    "item_keys": [],
+    "pagination": null
+  },
+  "/api/lottery/list": {
+    "http_status": 404,
+    "code": null,
+    "data_type": "NoneType",
+    "item_keys": [],
+    "pagination": null
+  },
+  "/api/v1/poll/list": {
+    "http_status": 200,
+    "code": 0,
+    "data_type": "list",
+    "item_keys": [
+      "id",
+      "user_id",
+      "title",
+      "options",
+      "votes",
+      "vote_count",
+      "image_mode",
+      "multi_select",
+      "max_select",
+      "start_at",
+      "end_at",
+      "created_at",
+      "updated_at"
+    ],
+    "pagination": {
+      "total": 153,
+      "count": 1,
+      "per_page": 1,
+      "current_page": 1,
+      "total_pages": 153,
+      "links": {
+        "next": "https://cangku.moe/api/v1/poll/list?page=2"
+      }
+    }
+  },
+  "/api/v1/lottery/list": {
+    "http_status": 200,
+    "code": 0,
+    "data_type": "list",
+    "item_keys": [
+      "id",
+      "name",
+      "description",
+      "background",
+      "prizes",
+      "point",
+      "is_finished",
+      "is_published",
+      "participant_count",
+      "start_at",
+      "end_at",
+      "created_at",
+      "updated_at"
+    ],
+    "pagination": {
+      "total": 126,
+      "count": 1,
+      "per_page": 1,
+      "current_page": 1,
+      "total_pages": 126,
+      "links": {
+        "next": "https://cangku.moe/api/v1/lottery/list?page=2"
+      }
+    }
+  }
+}

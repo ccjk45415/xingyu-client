@@ -261,6 +261,9 @@ void main() {
       await frames(tester);
       expect(tester.takeException(), isNull, reason: 'editor layout');
       expect(find.text('HTML 提示'), findsNothing);
+      // Source-mode keyboard helpers remain available alongside default visual.
+      await tester.tap(find.text('HTML源码'));
+      await frames(tester);
       await tester.ensureVisible(find.byTooltip('段落'));
       await tester.tap(find.byTooltip('段落'));
       await frames(tester);

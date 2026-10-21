@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
+
 import 'native_storage.dart';
 
 typedef Json = Map<String, dynamic>;
@@ -62,8 +63,8 @@ final serviceOrigin = String.fromCharCodes(
     113,
   ].indexed.map((v) => v.$2 ^ ((0x6d + v.$1 * 31) & 255)),
 );
-const desktopVersion = '0.3.0';
-const desktopBuild = 6;
+const desktopVersion = '0.4.0';
+const desktopBuild = 7;
 bool safeExternal(String raw) {
   final u = Uri.tryParse(raw);
   return u != null &&
@@ -222,15 +223,20 @@ class SiteApi {
     bool api = true,
   }) async {
     final current = generation;
-    final uri = Uri.parse(
-      '$siteOrigin${api ? '/api/v1/' : ''}$path',
-    ).replace(queryParameters: params?.map((k, v) => MapEntry(k, text(v))));
+    final sessionCookie = cookieHeader;
+    final csrfValue = _cookies['XSRF-TOKEN']?.value;
+    final uri = Uri.parse('$siteOrigin${api ? '/api/v1/' : ''}$path')
+        .replace(queryParameters: params?.map((k, v) => MapEntry(k, text(v))));
     if (uri.host != 'cangku.moe' || uri.scheme != 'https') {
       throw ApiFailure(400, '站点地址无效');
     }
     final request = await _client
         .openUrl(body == null ? 'GET' : 'POST', uri)
         .timeout(const Duration(seconds: 20));
+    if (current != generation) {
+      request.abort();
+      throw ApiFailure(409, '账号已切换，请重试');
+    }
     request.followRedirects = false;
     request.headers.set(
       HttpHeaders.userAgentHeader,
@@ -240,10 +246,9 @@ class SiteApi {
     request.headers.set('Origin', siteOrigin);
     request.headers.set('Referer', '$siteOrigin/');
     request.headers.set('X-Requested-With', 'XMLHttpRequest');
-    if (cookieHeader.isNotEmpty) request.headers.set('Cookie', cookieHeader);
-    final csrf = _cookies['XSRF-TOKEN'];
-    if (csrf != null) {
-      request.headers.set('X-XSRF-TOKEN', Uri.decodeComponent(csrf.value));
+    if (sessionCookie.isNotEmpty) request.headers.set('Cookie', sessionCookie);
+    if (csrfValue != null) {
+      request.headers.set('X-XSRF-TOKEN', Uri.decodeComponent(csrfValue));
     }
     if (body != null) {
       request.headers.contentType = ContentType.json;
@@ -288,15 +293,21 @@ class SiteApi {
     Json fields = const {},
   ]) async {
     final current = generation, boundary = 'Xingyu${nonce()}';
+    final sessionCookie = cookieHeader;
+    final csrfValue = _cookies['XSRF-TOKEN']?.value;
     final request = await _client.postUrl(
       Uri.parse('$siteOrigin/api/v1/$path'),
     );
+    if (current != generation) {
+      request.abort();
+      throw ApiFailure(409, '账号已切换，请重试');
+    }
     request.followRedirects = false;
     request.headers.set(
       'Content-Type',
       'multipart/form-data; boundary=$boundary',
     );
-    request.headers.set('Cookie', cookieHeader);
+    request.headers.set('Cookie', sessionCookie);
     request.headers.set(
       'User-Agent',
       'Mozilla/5.0 XingyuDesktop/$desktopVersion',
@@ -304,11 +315,8 @@ class SiteApi {
     request.headers.set('Origin', siteOrigin);
     request.headers.set('Referer', '$siteOrigin/');
     request.headers.set('X-Requested-With', 'XMLHttpRequest');
-    if (_cookies['XSRF-TOKEN'] != null) {
-      request.headers.set(
-        'X-XSRF-TOKEN',
-        Uri.decodeComponent(_cookies['XSRF-TOKEN']!.value),
-      );
+    if (csrfValue != null) {
+      request.headers.set('X-XSRF-TOKEN', Uri.decodeComponent(csrfValue));
     }
     for (final e in fields.entries) {
       if (!RegExp(r'^[a-z_]+$').hasMatch(e.key)) throw ApiFailure(400, '字段无效');

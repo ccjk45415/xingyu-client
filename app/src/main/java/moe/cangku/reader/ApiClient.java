@@ -19,6 +19,13 @@ final class ApiClient {
     ApiClient(Context ctx){sessions=new SessionStore(ctx);cookies=new CookieManager(sessions,CookiePolicy.ACCEPT_ORIGINAL_SERVER);}
     synchronized void clear(){generation++;sessions.removeAll();}
     private synchronized long version(){return generation;}
+    private synchronized Map<String,String> sessionHeaders(URI uri,long expected)throws Exception {
+        if(expected!=generation)throw new IOException("账号已切换，请重试");
+        Map<String,String> result=new LinkedHashMap<>();
+        for(Map.Entry<String,List<String>> e:cookies.get(uri,Collections.emptyMap()).entrySet())result.put(e.getKey(),String.join("; ",e.getValue()));
+        for(HttpCookie h:sessions.get(uri))if(h.getName().equals("XSRF-TOKEN"))result.put("X-XSRF-TOKEN",URLDecoder.decode(h.getValue(),"UTF-8"));
+        return result;
+    }
     JSONObject get(String path,Map<String,String> params)throws Exception{return request("GET",url(path,params),null,true);}
     JSONObject post(String path,JSONObject body)throws Exception{return request("POST",url(path,null),body,true);}
     void bootstrap()throws Exception{request("GET",UrlPolicy.ORIGIN+"/login",null,false);}
@@ -63,10 +70,10 @@ final class ApiClient {
         c.setInstanceFollowRedirects(false);c.setConnectTimeout(18000);c.setReadTimeout(25000);c.setRequestMethod(method);
         c.setRequestProperty("User-Agent",UA);c.setRequestProperty("Accept",json?"application/json":"text/html");
         c.setRequestProperty("Origin",UrlPolicy.ORIGIN);c.setRequestProperty("Referer",UrlPolicy.ORIGIN+"/");c.setRequestProperty("X-Requested-With","XMLHttpRequest");
-        for(Map.Entry<String,List<String>> e:cookies.get(uri,Collections.emptyMap()).entrySet())c.setRequestProperty(e.getKey(),String.join("; ",e.getValue()));
+        for(Map.Entry<String,String> e:sessionHeaders(uri,requestGeneration).entrySet())c.setRequestProperty(e.getKey(),e.getValue());
         if(body!=null){
-            for(HttpCookie h:sessions.get(uri))if(h.getName().equals("XSRF-TOKEN"))c.setRequestProperty("X-XSRF-TOKEN",URLDecoder.decode(h.getValue(),"UTF-8"));
             c.setRequestProperty("Content-Type","application/json; charset=utf-8");c.setDoOutput(true);
+            if(requestGeneration!=version()){c.disconnect();throw new IOException("账号已切换，请重试");}
             try(OutputStream out=c.getOutputStream()){out.write(body.toString().getBytes(StandardCharsets.UTF_8));}
         }
         try{
@@ -93,9 +100,9 @@ final class ApiClient {
         c.setRequestMethod("POST");c.setDoOutput(true);c.setInstanceFollowRedirects(false);c.setConnectTimeout(18000);c.setReadTimeout(35000);
         c.setRequestProperty("User-Agent",UA);c.setRequestProperty("Accept","application/json");c.setRequestProperty("Origin",UrlPolicy.ORIGIN);c.setRequestProperty("Referer",UrlPolicy.ORIGIN+"/");
         c.setRequestProperty("X-Requested-With","XMLHttpRequest");c.setRequestProperty("Content-Type","multipart/form-data; boundary="+boundary);
-        for(Map.Entry<String,List<String>> e:cookies.get(uri,Collections.emptyMap()).entrySet())c.setRequestProperty(e.getKey(),String.join("; ",e.getValue()));
-        for(HttpCookie h:sessions.get(uri))if(h.getName().equals("XSRF-TOKEN"))c.setRequestProperty("X-XSRF-TOKEN",URLDecoder.decode(h.getValue(),"UTF-8"));
+        for(Map.Entry<String,String> e:sessionHeaders(uri,requestGeneration).entrySet())c.setRequestProperty(e.getKey(),e.getValue());
         try{
+            if(requestGeneration!=version())throw new IOException("账号已切换，请重试");
             try(OutputStream out=c.getOutputStream()){
                 if(fields!=null)for(Map.Entry<String,String> e:fields.entrySet()){
                     if(!e.getKey().matches("[a-zA-Z_]+"))throw new IOException("无效字段");

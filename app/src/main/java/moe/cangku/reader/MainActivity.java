@@ -29,9 +29,9 @@ public class MainActivity extends Activity {
     private LinearLayout root,body,top,bottom;
     private ScrollView scroll;
     private Route route=new Route("home","发现");
-    private int epoch;
+    private volatile int epoch;
     private long pendingArticle;
-    private boolean closed;
+    private volatile boolean closed;
     private AuthoringScreens authoring;
     private ChatScreens chat;
     private AppUpdates updates;
@@ -72,7 +72,7 @@ public class MainActivity extends Activity {
     }
     <T> void task(Work<T> work,Done<T> done,java.util.function.Consumer<String> error){
         int token=epoch;
-        network.execute(()->{try{T value=work.run();main.post(()->{if(closed||token!=epoch)return;try{done.accept(value);}catch(Exception e){error.accept("数据格式发生变化，请重试");}});}catch(Exception e){main.post(()->{
+        network.execute(()->{if(closed||token!=epoch)return;try{T value=work.run();main.post(()->{if(closed||token!=epoch)return;try{done.accept(value);}catch(Exception e){error.accept("数据格式发生变化，请重试");}});}catch(Exception e){main.post(()->{
             if(closed||token!=epoch)return;
             if(e instanceof ApiClient.ApiException&&user!=null&&(((ApiClient.ApiException)e).status==401||((ApiClient.ApiException)e).status==419||((ApiClient.ApiException)e).status==302||((ApiClient.ApiException)e).status==303)){
                 authoring.suspend();chat.resetAccount();direct.resetAccount();if(messageImages!=null)messageImages.clear();api.clear();user=null;history.clear();login("登录已过期，请重新登录");return;
@@ -340,7 +340,7 @@ public class MainActivity extends Activity {
     }
     private void resource(ReaderContent.Resource resource){
         LinearLayout card=ui.column();ui.pad(card,18,18,18,18);card.setBackground(ui.round(ui.surface,20));card.addView(ui.text(resource.title,17,ui.text,true));
-        if(!resource.info.isEmpty()){ui.space(card,8);TextView info=ui.text(resource.info,14,ui.muted,false);info.setTextIsSelectable(true);card.addView(info);}
+        if(!resource.details().isEmpty()){ui.space(card,8);TextView info=ui.text(resource.details(),14,ui.muted,false);info.setTextIsSelectable(true);card.addView(info);}
         if(resource.links.isEmpty()){ui.space(card,12);card.addView(ui.text("该资源使用特殊格式，请前往官网原文查看。",13,ui.muted,false));}
         for(Map.Entry<String,String> link:resource.links.entrySet()){
             ui.space(card,12);LinearLayout row=ui.row();String url=link.getValue();TextView open=ui.button(link.getKey()+"  ↗",false,()->openLink(url));row.addView(open,new LinearLayout.LayoutParams(0,-2,1));TextView copy=ui.button("复制",false,()->copy(url));LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(-2,-2);cp.setMargins(ui.dp(8),0,0,0);row.addView(copy,cp);card.addView(row);
@@ -396,14 +396,14 @@ public class MainActivity extends Activity {
         menu("我的","编辑个人资料","昵称 / 简介 / 头像 / 空间背景",()->go(new Route("editProfile","编辑个人资料")));
         menu("设置","账号安全","更改邮箱与密码",()->go(new Route("security","账号安全")));
         menu("设置","阅读与外观","夜间主题 / 正文字号",()->go(new Route("appearance","阅读与外观")));
-        menu("设置","检查更新","当前版本 0.8.0",()->updates.check(true));
+        menu("设置","检查更新","当前版本 0.9.0",()->updates.check(true));
     }
     private void settings(){
         toolbar("阅读与外观",true,()->render());section("让阅读更合心意","设置保存在这台设备上");
         menu("设置",library.dark()?"夜间星空 · 已开启":"日间晴空 · 已开启","点击切换明暗主题",()->{library.dark(!library.dark());render();});
         ui.space(body,16);TextView size=ui.text("正文字号  "+library.textSize()+" sp",16,ui.text,true);body.addView(size);SeekBar slider=new SeekBar(this);slider.setMax(10);slider.setProgress(library.textSize()-14);body.addView(slider,new LinearLayout.LayoutParams(-1,ui.dp(56)));TextView preview=ui.text("把喜欢的世界，装进口袋。\n每一次翻页，都是新的相遇。",library.textSize(),ui.text,false);preview.setLineSpacing(ui.dp(8),1.2f);ui.pad(preview,20,22,20,22);preview.setBackground(ui.round(ui.surface,20));body.addView(preview);slider.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){public void onProgressChanged(SeekBar s,int p,boolean from){library.textSize(p+14);size.setText("正文字号  "+(p+14)+" sp");preview.setTextSize(p+14);}public void onStartTrackingTouch(SeekBar s){}public void onStopTrackingTouch(SeekBar s){}});
         section("本地数据","");body.addView(ui.button("清空阅读足迹",false,()->new AlertDialog.Builder(this).setTitle("清空阅读足迹？").setMessage("将删除这个账号在当前设备上的阅读记录。").setNegativeButton("取消",null).setPositiveButton("清空",(d,w)->{library.clearHistory();toast("阅读足迹已清空");}).show()));
-        section("关于星屿","仓库 · 星屿  0.8.0");TextView about=ui.text("非官方安卓客户端。网站内容与账号服务由 cangku.moe 提供。\n\n聊天室与私信共用仓库认证，显示官网昵称、UID和头像；认证时临时使用官网会话核验，不保存该会话或密码。\n\n开通独立私信时，经你同意会把官网会话临时发送至 Cloudflare 服务验证身份，不保存该会话；官网密码不会发送。私信双方需安装并开通，消息保留7天。\n\n密码不落盘，本机会话与私信令牌由 Android Keystore 加密。\n\n网站可能调整接口。遇到特殊内容，可以通过文章底部的原文入口查看。",13,ui.muted,false);about.setLineSpacing(ui.dp(5),1.1f);body.addView(about);
+        section("关于星屿","仓库 · 星屿  0.9.0");TextView about=ui.text("非官方安卓客户端。网站内容与账号服务由 cangku.moe 提供。\n\n聊天室与私信共用仓库认证，显示官网昵称、UID和头像；认证时临时使用官网会话核验，不保存该会话或密码。\n\n开通独立私信时，经你同意会把官网会话临时发送至 Cloudflare 服务验证身份，不保存该会话；官网密码不会发送。私信双方需安装并开通，消息保留7天。\n\n密码不落盘，本机会话与私信令牌由 Android Keystore 加密。\n\n网站可能调整接口。遇到特殊内容，可以通过文章底部的原文入口查看。",13,ui.muted,false);about.setLineSpacing(ui.dp(5),1.1f);body.addView(about);
     }
     private void menu(String icon,String title,String subtitle,Runnable action){
         LinearLayout item=ui.row();ui.pad(item,16,16,16,16);item.setBackground(ui.round(ui.surface,20));FrameLayout mark=new FrameLayout(this);mark.setBackground(ui.round(ui.soft,14));FrameLayout.LayoutParams ip=new FrameLayout.LayoutParams(ui.dp(23),ui.dp(23),Gravity.CENTER);mark.addView(ui.icon(icon,ui.accent),ip);item.addView(mark,new LinearLayout.LayoutParams(ui.dp(44),ui.dp(44)));LinearLayout words=ui.column();ui.pad(words,14,0,0,0);words.addView(ui.text(title,16,ui.text,true));ui.space(words,5);words.addView(ui.text(subtitle,11,ui.muted,false));item.addView(words,new LinearLayout.LayoutParams(0,-2,1));item.addView(ui.text("›",25,ui.muted,false));ui.click(item,action);body.addView(item,new LinearLayout.LayoutParams(-1,-2));ui.space(body,10);

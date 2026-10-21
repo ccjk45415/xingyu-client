@@ -1,0 +1,20 @@
+{
+  "date": "2026-10-21T13:23:35.760302+00:00",
+  "android_source_and_template_assertions": 65,
+  "android_editor_regression_assertions": 22,
+  "android_extras_assertions": 63,
+  "core_assertions": 64,
+  "social_assertions": 14,
+  "flutter_tests_passed": 52,
+  "flutter_optional_network_tests_skipped": 3,
+  "flutter_analyze": "No issues found",
+  "visual_image_geometry": "image below preceding text, following card below image",
+  "actual_editor_upload_regression": "fake completion transitions busy to inserted original selection",
+  "preview_pointer_wheel": "independent scroll reaches last paragraph; toolbar position unchanged",
+  "cookies_scope": "switch while opening aborts upload/post before headers or body are sent",
+  "source_of_website_contract": "editor-official-contract-probe.json",
+  "website_writes": 0,
+  "phone_ui_device_verified": false,
+  "system_print_device_verified": false,
+  "complex_table_limitation": "merged or nested tables require source mode for structural edits"
+}

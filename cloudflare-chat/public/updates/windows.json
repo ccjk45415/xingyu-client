@@ -2,10 +2,10 @@
   "available": true,
   "product": "moe.cangku.xingyu.desktop",
   "platform": "windows-x64",
-  "versionCode": 6,
-  "versionName": "0.3.0",
-  "notes": "修复详细介绍提取与AI草稿字段错误；改为逐段翻译原文，不概括、不补写，正文图片按原顺序带入且不翻译。中文可跳过AI原样导入；长介绍分批处理，超预算提示，不截断。",
-  "url": "https://xingyu-chat-ccjk45415.pages.dev/releases/Xingyu-Windows-0.3.0-x64.zip",
-  "size": 14319207,
-  "sha256": "8294c14da6965a3fca191b1fa516f4a34af7e1f37505e2915a9535336090bcf5"
+  "versionCode": 7,
+  "versionName": "0.4.0",
+  "notes": "修复上传正文图片未插入；新增原生可视化编辑与HTML源码双向切换，保留图片和排版；下载卡片、外部链接等按官网格式填写；Windows本机预览支持独立滚轮滚动。",
+  "url": "https://xingyu-chat-ccjk45415.pages.dev/releases/Xingyu-Windows-0.4.0-x64.zip",
+  "size": 14448297,
+  "sha256": "329f1b12635df4df2ce82c39a2ded6cd778d46d860a67ad217d6533a9ad22726"
 }

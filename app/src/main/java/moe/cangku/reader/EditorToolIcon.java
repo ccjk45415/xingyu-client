@@ -38,6 +38,22 @@ final class EditorToolIcon extends View {
             case "return":path.moveTo(21,4);path.lineTo(21,12);path.lineTo(3,12);path.lineTo(8,7);path.moveTo(3,12);path.lineTo(8,17);c.drawPath(path,p);break;
             case "find":c.drawCircle(10,9,6,p);c.drawLine(14,14,21,21,p);c.drawLine(2,21,10,21,p);break;
             case "date":c.drawRoundRect(3,4,21,22,2,2,p);c.drawLine(3,10,21,10,p);c.drawLine(7,2,7,6,p);c.drawLine(17,2,17,6,p);label(c,"·",Typeface.BOLD);break;
+            case "fontFamily":label(c,"Aa",Typeface.NORMAL);break;
+            case "lineHeight":c.drawLine(9,4,21,4,p);c.drawLine(9,12,21,12,p);c.drawLine(9,20,21,20,p);c.drawLine(3,3,3,21,p);path.moveTo(0,6);path.lineTo(3,3);path.lineTo(6,6);path.moveTo(0,18);path.lineTo(3,21);path.lineTo(6,18);c.drawPath(path,p);break;
+            case "emoji":c.drawCircle(12,12,10,p);c.drawCircle(8,9,1,p);c.drawCircle(16,9,1,p);c.drawArc(6,8,18,19,15,150,false,p);break;
+            case "rainbow":c.drawArc(2,3,22,23,185,170,false,p);c.drawArc(6,7,18,23,190,160,false,p);c.drawArc(10,12,14,23,195,150,false,p);break;
+            case "blackbar":c.drawRoundRect(2,6,22,19,2,2,p);c.drawLine(6,12,18,12,p);break;
+            case "collapse":c.drawRoundRect(2,3,22,21,2,2,p);c.drawLine(2,9,22,9,p);path.moveTo(8,13);path.lineTo(12,17);path.lineTo(16,13);c.drawPath(path,p);break;
+            case "randomFileName":label(c,"#",Typeface.BOLD);break;
+            case "poll":c.drawLine(3,21,21,21,p);c.drawRect(4,12,7,20,p);c.drawRect(10,5,13,20,p);c.drawRect(16,9,19,20,p);break;
+            case "lottery":c.drawRoundRect(3,8,21,21,2,2,p);c.drawLine(1,8,23,8,p);c.drawLine(12,8,12,21,p);c.drawOval(5,2,12,8,p);c.drawOval(12,2,19,8,p);break;
+            case "imageEdit":c.drawRoundRect(2,3,20,20,2,2,p);path.moveTo(4,18);path.lineTo(9,12);path.lineTo(14,17);path.moveTo(14,19);path.lineTo(21,12);path.lineTo(23,14);path.lineTo(16,21);path.close();c.drawPath(path,p);break;
+            case "external":c.drawRoundRect(3,5,18,22,2,2,p);c.drawLine(11,13,22,2,p);c.drawLine(16,2,22,2,p);c.drawLine(22,2,22,8,p);break;
+            case "selectAll":c.drawRoundRect(3,3,21,21,2,2,p);c.drawLine(7,8,17,8,p);c.drawLine(7,12,17,12,p);c.drawLine(7,16,17,16,p);break;
+            case "componentEdit":c.drawRoundRect(2,4,22,20,2,2,p);c.drawLine(7,9,17,9,p);c.drawLine(7,14,14,14,p);c.drawCircle(20,19,3,p);break;
+            case "focus":path.moveTo(2,8);path.lineTo(2,2);path.lineTo(8,2);path.moveTo(16,2);path.lineTo(22,2);path.lineTo(22,8);path.moveTo(22,16);path.lineTo(22,22);path.lineTo(16,22);path.moveTo(8,22);path.lineTo(2,22);path.lineTo(2,16);c.drawPath(path,p);break;
+            case "help":c.drawCircle(12,12,10,p);label(c,"?",Typeface.BOLD);break;
+            case "print":c.drawRoundRect(2,7,22,18,2,2,p);c.drawRect(6,2,18,7,p);c.drawRect(6,14,18,23,p);c.drawCircle(18,10,0.6f,p);break;
             default:label(c,"&",Typeface.NORMAL);
         }c.restore();
     }

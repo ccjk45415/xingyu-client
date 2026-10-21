@@ -4,16 +4,22 @@ import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:file_selector/file_selector.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../core/api.dart';
 import '../core/editor_hints.dart';
 import '../core/editor_tools.dart';
+import '../core/editor_export.dart';
+import '../core/visual_editor.dart';
+import '../ui/editor_templates.dart';
 import '../core/media.dart';
 import '../core/reader.dart';
 import '../core/state.dart';
 import '../ui/shared.dart';
 import 'account.dart';
 import 'ai_assistant.dart';
+import 'editor_extras.dart';
 
 const postStatuses = {
   'publish': '已发布',
@@ -279,7 +285,8 @@ class AuthoringPage extends StatelessWidget {
 
 class PostEditor extends StatefulWidget {
   final DeskRoute route;
-  const PostEditor(this.route, {super.key});
+  final Future<Uint8List?> Function(BuildContext)? imagePicker;
+  const PostEditor(this.route, {super.key, this.imagePicker});
   @override
   State<PostEditor> createState() => _PostEditorState();
 }
@@ -292,8 +299,11 @@ class _PostEditorState extends State<PostEditor> {
       schedule = TextEditingController();
   final Set<int> categories = {};
   final contentFocus = FocusNode();
+  final previewScroll = ScrollController();
+  final visual = VisualHtmlController();
   EditorHistory? editHistory;
   bool applyingEdit = false;
+  bool focusedEditor = false;
   double sourceFontSize = 14;
   AppState? app;
   int owner = 0;
@@ -302,7 +312,7 @@ class _PostEditorState extends State<PostEditor> {
       version = '',
       baseline = '',
       error = '';
-  bool html = true,
+  bool html = false,
       loading = true,
       busy = false,
       dirty = false,
@@ -349,7 +359,18 @@ class _PostEditorState extends State<PostEditor> {
       }
       if (!mounted || app!.uid != owner) return;
       title.text = text(source['title']);
-      content.text = text(source['content']);
+      final savedBody = text(source['content']);
+      // Legacy html=false drafts contained plain text. Current drafts always
+      // store canonical HTML; visual/source is only an editor preference.
+      content.text = savedBody;
+      if (source['content_format'] != 'html' && source['html'] == false) {
+        content.text = EditorSnapshot(
+          savedBody,
+          0,
+          0,
+          html: false,
+        ).asHtml().text;
+      }
       thumb.text = text(source['thumb']);
       tags.text = text(source['tag_text']);
       schedule.text = text(source['schedule']);
@@ -361,7 +382,16 @@ class _PostEditorState extends State<PostEditor> {
         status = 'pending';
       }
       categories.addAll((source['category_ids'] as List? ?? []).map(number));
-      html = source['html'] != false;
+      html = source['editor_mode'] == 'source';
+      visual.load(content.text);
+      visual.onSourceChanged = visualChanged;
+      visual.onEditError = (error) {
+        if (mounted) message(context, error);
+      };
+      visual.onImageEdit = (start, end, markup) =>
+          unawaited(editImageAtom(start, end, markup));
+      visual.onComponentEdit = (start, end, markup) =>
+          unawaited(editComponent(start, end, markup));
       sourceFontSize =
           (number(source['editor_font_size']) == 0
                   ? 14
@@ -395,6 +425,8 @@ class _PostEditorState extends State<PostEditor> {
     'status': status,
     'oldStatus': oldStatus,
     'html': html,
+    'content_format': 'html',
+    'editor_mode': html ? 'source' : 'visual',
     'editor_font_size': sourceFontSize.toInt(),
     'category_ids': categories.toList(),
     'version': version,
@@ -429,23 +461,62 @@ class _PostEditorState extends State<PostEditor> {
       );
     }
     contentFocus.dispose();
+    previewScroll.dispose();
+    visual.dispose();
     for (final c in [title, content, thumb, tags, schedule]) {
       c.dispose();
     }
     super.dispose();
   }
 
-  String bodyHtml() => html
-      ? content.text
-      : '<p>${const HtmlEscape().convert(content.text).replaceAll('\n', '<br>')}</p>';
+  String bodyHtml() => content.text;
   EditorSnapshot captureEdit() => EditorSnapshot(
     content.text,
-    content.selection.isValid ? content.selection.start : content.text.length,
-    content.selection.isValid ? content.selection.end : content.text.length,
-    html: html,
+    !html && visual.selection.isValid
+        ? visual.sourceOffset(visual.selection.start)
+        : content.selection.isValid
+        ? content.selection.start
+        : content.text.length,
+    !html && visual.selection.isValid
+        ? visual.sourceOffset(visual.selection.end)
+        : content.selection.isValid
+        ? content.selection.end
+        : content.text.length,
   );
+  void visualChanged() {
+    if (applyingEdit || busy) return;
+    applyingEdit = true;
+    content.value = TextEditingValue(
+      text: visual.source,
+      selection: TextSelection(
+        baseOffset: visual.sourceOffset(visual.selection.baseOffset),
+        extentOffset: visual.sourceOffset(visual.selection.extentOffset),
+      ),
+    );
+    applyingEdit = false;
+    editHistory?.record(captureEdit(), typing: true);
+    changed();
+  }
+
   void sourceChanged() {
     if (applyingEdit) return;
+    if (content.text.length > 1000000) {
+      applyingEdit = true;
+      content.value = TextEditingValue(
+        text: visual.source,
+        selection: const TextSelection.collapsed(offset: 0),
+      );
+      applyingEdit = false;
+      message(context, '正文请控制在100万字符以内，已保留修改前的内容');
+      return;
+    }
+    if (html && visual.source != content.text) {
+      visual.load(
+        content.text,
+        start: content.selection.start,
+        end: content.selection.end,
+      );
+    }
     final next = captureEdit(), old = editHistory?.current;
     editHistory?.record(next, typing: true);
     if (old?.text != next.text) {
@@ -457,11 +528,11 @@ class _PostEditorState extends State<PostEditor> {
 
   void renderEdit(EditorSnapshot next) {
     applyingEdit = true;
-    html = next.html;
     content.value = TextEditingValue(
       text: next.text,
       selection: TextSelection(baseOffset: next.a, extentOffset: next.b),
     );
+    visual.load(next.text, start: next.a, end: next.b);
     applyingEdit = false;
     changed();
     contentFocus.requestFocus();
@@ -670,6 +741,63 @@ class _PostEditorState extends State<PostEditor> {
               return;
             }
             try {
+              if (!html) {
+                final plain = visual.text;
+                final selection = visual.selection;
+                if (mode == 'all') {
+                  replaceEditorText(
+                    plain,
+                    needle,
+                    replace.text,
+                  ); // allocation bound
+                  final positions = needle
+                      .allMatches(plain)
+                      .map((m) => m.start)
+                      .toList();
+                  final draft = VisualHtmlController()..load(content.text);
+                  for (final at in positions.reversed) {
+                    draft.value = TextEditingValue(
+                      text: draft.text.replaceRange(
+                        at,
+                        at + needle.length,
+                        replace.text,
+                      ),
+                      selection: TextSelection.collapsed(
+                        offset: at + replace.text.length,
+                      ),
+                    );
+                  }
+                  applyEdit(EditorSnapshot(draft.source, 0, 0));
+                  draft.dispose();
+                  update(() => status = '已替换 ${positions.length} 处，可使用撤销恢复');
+                  return;
+                }
+                final from = selection.isValid ? selection.start : 0;
+                final to = selection.isValid ? selection.end : 0;
+                if (mode == 'one' && plain.substring(from, to) == needle) {
+                  visual.value = TextEditingValue(
+                    text: plain.replaceRange(from, to, replace.text),
+                    selection: TextSelection(
+                      baseOffset: from,
+                      extentOffset: from + replace.text.length,
+                    ),
+                  );
+                  update(() => status = '已替换当前匹配');
+                  return;
+                }
+                var at = plain.indexOf(needle, to);
+                if (at < 0) at = plain.indexOf(needle);
+                if (at < 0) {
+                  update(() => status = '没有找到匹配内容');
+                  return;
+                }
+                visual.selection = TextSelection(
+                  baseOffset: at,
+                  extentOffset: at + needle.length,
+                );
+                update(() => status = '已选中第 ${at + 1} 个字符处的匹配');
+                return;
+              }
               final v = captureEdit();
               if (mode == 'all') {
                 final result = replaceEditorText(v.text, needle, replace.text);
@@ -878,16 +1006,9 @@ class _PostEditorState extends State<PostEditor> {
             Icons.add_photo_alternate_outlined,
             () => insertLinkDialog(image: true),
           ),
-          tool(
-            '插入下载卡片模板',
-            Icons.cloud_download_outlined,
-            () => insert(htmlHints.last.code),
-          ),
-          tool(
-            '插入表格',
-            Icons.table_chart_outlined,
-            () => insert(htmlHints[10].code),
-          ),
+          tool('插入下载卡片模板', Icons.cloud_download_outlined, insertDownloadDialog),
+          tool('插入外部链接', Icons.open_in_browser_outlined, insertExternalDialog),
+          tool('插入表格', Icons.table_chart_outlined, () => extra('table')),
           tool(
             '行内代码',
             Icons.code_rounded,
@@ -904,6 +1025,16 @@ class _PostEditorState extends State<PostEditor> {
             () => insert('\n<hr>\n'),
           ),
           tool('正文字号', Icons.format_size, chooseFontSize),
+          tool('字体', Icons.font_download_outlined, () => extra('fontFamily')),
+          tool('段落行高', Icons.format_line_spacing, () => extra('lineHeight')),
+          tool('表情', Icons.emoji_emotions_outlined, () => extra('emoji')),
+          tool('特殊字符', Icons.insert_emoticon_outlined, () => extra('special')),
+          tool('彩虹文字', Icons.palette_outlined, () => extra('rainbow')),
+          tool('黑幕文字', Icons.rectangle_outlined, () => extra('blackbar')),
+          tool('折叠内容', Icons.unfold_less_rounded, () => extra('collapse')),
+          tool('随机文件名', Icons.shuffle_rounded, () => extra('randomFileName')),
+          tool('插入投票', Icons.poll_outlined, () => extra('poll')),
+          tool('插入抽奖', Icons.card_giftcard_outlined, () => extra('lottery')),
           tool('文字颜色', Icons.format_color_text, () => chooseColor(false)),
           tool('文字背景色', Icons.format_color_fill, () => chooseColor(true)),
           tool(
@@ -957,6 +1088,23 @@ class _PostEditorState extends State<PostEditor> {
             );
           }),
           tool('查找与替换', Icons.find_replace_rounded, findReplace),
+          tool('全选正文', Icons.select_all_rounded, () {
+            final active = html ? content : visual;
+            active.selection = TextSelection(
+              baseOffset: 0,
+              extentOffset: active.text.length,
+            );
+            contentFocus.requestFocus();
+          }),
+          tool(
+            focusedEditor ? '退出专注编辑' : '专注编辑',
+            focusedEditor
+                ? Icons.fullscreen_exit_rounded
+                : Icons.fullscreen_rounded,
+            () => setState(() => focusedEditor = !focusedEditor),
+          ),
+          tool('打印/导出 HTML', Icons.print_outlined, exportPost),
+          tool('工具说明', Icons.help_outline_rounded, showEditorHelp),
           tool(
             '减小编辑字号',
             Icons.text_decrease,
@@ -981,11 +1129,18 @@ class _PostEditorState extends State<PostEditor> {
             onSelected: busy
                 ? null
                 : (v) {
-                    if (!v && content.text.isNotEmpty) {
-                      message(context, '已有正文时保留HTML排版，避免丢失格式');
-                      return;
-                    }
-                    applyEdit(EditorSnapshot(content.text, 0, 0, html: v));
+                    final selection = captureEdit();
+                    visual.load(
+                      content.text,
+                      start: selection.a,
+                      end: selection.b,
+                    );
+                    content.selection = TextSelection(
+                      baseOffset: selection.a,
+                      extentOffset: selection.b,
+                    );
+                    setState(() => html = v);
+                    changed();
                   },
           ),
           FilterChip(
@@ -994,7 +1149,11 @@ class _PostEditorState extends State<PostEditor> {
             onSelected: (v) => setState(() => preview = v),
           ),
           Text(
-            '源码 ${content.text.runes.length} 字符 · 选中 ${captureEdit().b - captureEdit().a} · 编辑字号 ${sourceFontSize.toInt()}',
+            html ? '代码视图 · 直接编辑 HTML' : '正常模式 · 直接打字和插图，右键图片可编辑',
+            style: const TextStyle(fontSize: 11, color: violet),
+          ),
+          Text(
+            '${html ? '源码' : '正文'} ${(html ? content.text : visual.text).runes.length} 字符 · 编辑字号 ${sourceFontSize.toInt()}',
             style: const TextStyle(fontSize: 11, color: Colors.grey),
           ),
         ],
@@ -1077,24 +1236,234 @@ class _PostEditorState extends State<PostEditor> {
 
   Future<void> upload({bool cover = false}) async {
     if (busy) return;
+    final insertion = captureEdit();
+    String? uploaded;
     setState(() => busy = true);
+    try {
+      await action(context, () async {
+        final bytes = await (widget.imagePicker ?? pickJpeg)(context);
+        if (bytes == null || !mounted || app!.uid != owner) return;
+        final result = await app!.site.upload('upload/image', 'image', bytes);
+        if (!mounted || app!.uid != owner) return;
+        final url = uploadedUrl(result);
+        if (!url.startsWith('https:') || !safeExternal(url)) {
+          throw ApiFailure(400, '上传结果未包含有效图片地址');
+        }
+        uploaded = url;
+      });
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+    if (!mounted || app!.uid != owner || uploaded == null) return;
+    if (cover) {
+      thumb.text = uploaded!;
+    } else if (content.text == insertion.text) {
+      applyEdit(
+        insertMarkup(
+          insertion,
+          '<img src="${const HtmlEscape().convert(uploaded!)}" alt="图片">',
+        ),
+      );
+    } else {
+      // Never overwrite intervening edits if a platform picker changed focus.
+      insert('<img src="${const HtmlEscape().convert(uploaded!)}" alt="图片">');
+    }
+  }
+
+  Future<void> insertDownloadDialog() async {
+    final selection = captureEdit();
+    final result = await showDownloadTemplateDialog(context);
+    if (result != null && mounted && app!.uid == owner) {
+      applyEdit(
+        insertMarkup(
+          content.text == selection.text ? selection : captureEdit(),
+          result,
+        ),
+      );
+    }
+  }
+
+  Future<void> showEditorHelp() => showDialog<void>(
+    context: context,
+    builder: (c) => AlertDialog(
+      title: const Text('投稿编辑工具'),
+      content: const SizedBox(
+        width: 600,
+        child: SingleChildScrollView(
+          child: Text(
+            '正常模式：直接输入文字，选中文字后加粗、改字号或调整颜色。上传正文图片会插入到原先光标处，右键图片可以更换、改说明、尺寸、链接或删除。\n\n'
+            'HTML 源码：点击按钮切换代码视图。切换会保留原有图片、排版与网站组件；不支持直接显示的复杂组件会以卡片保留。\n\n'
+            '资源：下载链接包含标题、上传时间、来源、提取码、解压码和多个地址；外部链接由官网解析为嵌入组件。表格卡片可点击编辑。\n\n'
+            '扩展：表情、特殊字符、折叠内容、彩虹文字、黑幕文字、随机文件名、投票与抽奖。投票管理需要官网权限；创建前会再次确认。\n\n'
+            '撤销与重做支持工具栏和 Ctrl+Z / Ctrl+Shift+Z。Ctrl+B 加粗，Ctrl+I 斜体，Ctrl+U 下划线，Ctrl+F 查找替换。\n\n'
+            '实时预览可独立用鼠标滚轮查看长文章。专注编辑收起标题和投稿资料。打印会导出安全的 HTML 文件，并可在系统浏览器中按 Ctrl+P 打印。\n\n'
+            '本机草稿自动保存。只有点击提交并确认后才会提交网站。',
+            style: TextStyle(height: 1.8),
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(c), child: const Text('知道了')),
+      ],
+    ),
+  );
+
+  Future<void> exportPost() async {
+    final open = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: const Text('打印与导出'),
+        content: const Text(
+          '将当前标题和正文保存为 HTML 文件。选择“保存并打开”会用系统浏览器打开文件，再按 Ctrl+P 打印或另存为 PDF。',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(c),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(c, false),
+            child: const Text('只保存 HTML'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(c, true),
+            child: const Text('保存并打开'),
+          ),
+        ],
+      ),
+    );
+    if (open == null || !mounted) return;
     await action(context, () async {
-      final bytes = await pickJpeg(context);
-      if (bytes == null || !mounted || app!.uid != owner) return;
-      final result = await app!.site.upload('upload/image', 'image', bytes);
-      final url = uploadedUrl(result);
-      if (!url.startsWith('https:') || !safeExternal(url)) {
-        throw ApiFailure(400, '上传结果未包含有效图片地址');
+      final location = await getSaveLocation(
+        suggestedName: '星屿投稿.html',
+        acceptedTypeGroups: const [
+          XTypeGroup(label: 'HTML文章', extensions: ['html', 'htm']),
+        ],
+      );
+      if (location == null || !mounted) return;
+      final bytes = Uint8List.fromList(
+        utf8.encode(printablePost(title.text, content.text)),
+      );
+      await XFile.fromData(bytes, mimeType: 'text/html').saveTo(location.path);
+      if (open &&
+          !await launchUrl(
+            Uri.file(location.path),
+            mode: LaunchMode.externalApplication,
+          )) {
+        throw ApiFailure(400, '文件已保存，但系统浏览器未能打开；请从保存位置手动打开');
       }
-      if (cover) {
-        thumb.text = url;
-      } else {
-        insert(
-          '<p><img src="${const HtmlEscape().convert(url)}" alt="图片"></p>',
-        );
-      }
+      if (mounted) message(context, '文章已导出');
     });
-    if (mounted) setState(() => busy = false);
+  }
+
+  Future<void> extra(String tool) async {
+    final selection = captureEdit();
+    final result = await showEditorExtra(
+      context,
+      tool,
+      selectedHtml: selection.text.substring(selection.a, selection.b),
+      api: app!.site,
+      account: app!.user,
+      uploadImage: uploadForDialog,
+    );
+    if (!mounted || app!.uid != owner || result == null) return;
+    applyEdit(
+      insertMarkup(
+        content.text == selection.text ? selection : captureEdit(),
+        result,
+      ),
+    );
+  }
+
+  Future<String?> uploadForDialog() async {
+    if (busy) return null;
+    String? uploaded;
+    setState(() => busy = true);
+    try {
+      await action(context, () async {
+        final bytes = await (widget.imagePicker ?? pickJpeg)(context);
+        if (bytes == null || !mounted || app!.uid != owner) return;
+        final value = await app!.site.upload('upload/image', 'image', bytes);
+        if (!mounted || app!.uid != owner) return;
+        final url = uploadedUrl(value);
+        if (!url.startsWith('https:') || !safeExternal(url)) {
+          throw ApiFailure(400, '上传结果未包含有效图片地址');
+        }
+        uploaded = url;
+      });
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+    return mounted && app!.uid == owner ? uploaded : null;
+  }
+
+  Future<void> editImageAtom(int start, int end, String markup) async {
+    if (busy) return;
+    final original = content.text;
+    final result = await editEditorImage(
+      context,
+      markup,
+      uploadImage: uploadForDialog,
+    );
+    if (!mounted || app!.uid != owner || result == null) return;
+    if (content.text != original) {
+      message(context, '正文已发生变化，请重新右键选择图片');
+      return;
+    }
+    applyEdit(
+      EditorSnapshot(
+        original.replaceRange(start, end, result),
+        start + result.length,
+        start + result.length,
+      ),
+    );
+  }
+
+  Future<void> editComponent(int start, int end, String markup) async {
+    if (busy) return;
+    final original = content.text;
+    String? result;
+    if (markup.toLowerCase().startsWith('<table')) {
+      result = await showEditorExtra(
+        context,
+        'table',
+        selectedHtml: markup,
+        api: app!.site,
+        account: app!.user,
+      );
+    } else if (markup.startsWith('[dlbox')) {
+      result = await showDownloadTemplateDialog(context, initialMarkup: markup);
+    } else if (markup.startsWith('[iframe]') && markup.endsWith('[/iframe]')) {
+      result = await showExternalTemplateDialog(
+        context,
+        initialUrl: markup.substring(8, markup.length - 9),
+      );
+    } else {
+      message(context, '该网站组件已原样保留；可选中后重新插入，或切换 HTML 源码精确编辑');
+      return;
+    }
+    if (!mounted || app!.uid != owner || result == null) return;
+    if (content.text != original) return;
+    applyEdit(
+      EditorSnapshot(
+        original.replaceRange(start, end, result),
+        start + result.length,
+        start + result.length,
+      ),
+    );
+  }
+
+  Future<void> insertExternalDialog() async {
+    final selection = captureEdit();
+    final result = await showExternalTemplateDialog(context);
+    if (result != null && mounted && app!.uid == owner) {
+      applyEdit(
+        insertMarkup(
+          content.text == selection.text ? selection : captureEdit(),
+          result,
+        ),
+      );
+    }
   }
 
   Future<void> selectCategories() async {
@@ -1280,6 +1649,8 @@ class _PostEditorState extends State<PostEditor> {
             unawaited(submit()),
       },
       child: PageBody(
+        padding: EdgeInsets.all(focusedEditor ? 12 : 32),
+        width: focusedEditor ? 1800 : 1500,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -1303,84 +1674,89 @@ class _PostEditorState extends State<PostEditor> {
                   ),
                 ),
               ),
-            TextField(
-              controller: title,
-              enabled: !busy,
-              maxLength: 150,
-              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
-              decoration: const InputDecoration(hintText: '一个吸引人的标题…'),
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 12,
-              runSpacing: 10,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                SizedBox(
-                  width: 180,
-                  child: DropdownButtonFormField<String>(
-                    initialValue: statuses.containsKey(status)
-                        ? status
-                        : 'pending',
-                    items: [
-                      for (final e in statuses.entries)
-                        DropdownMenuItem(value: e.key, child: Text(e.value)),
-                    ],
-                    onChanged: busy
-                        ? null
-                        : (v) {
-                            status = v ?? 'draft';
-                            changed();
-                          },
-                    decoration: const InputDecoration(labelText: '投稿状态'),
-                  ),
+            if (!focusedEditor) ...[
+              TextField(
+                controller: title,
+                enabled: !busy,
+                maxLength: 500,
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
                 ),
-                OutlinedButton.icon(
-                  onPressed: busy ? null : selectCategories,
-                  icon: const Icon(Icons.interests_outlined, size: 17),
-                  label: Text('分类 · ${categories.length}'),
-                ),
-                SizedBox(
-                  width: 300,
-                  child: TextField(
-                    controller: tags,
-                    enabled: !busy,
-                    decoration: const InputDecoration(labelText: '标签，以逗号分隔'),
-                  ),
-                ),
-                if (status == 'future')
+                decoration: const InputDecoration(hintText: '一个吸引人的标题…'),
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 12,
+                runSpacing: 10,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
                   SizedBox(
-                    width: 260,
+                    width: 180,
+                    child: DropdownButtonFormField<String>(
+                      initialValue: statuses.containsKey(status)
+                          ? status
+                          : 'pending',
+                      items: [
+                        for (final e in statuses.entries)
+                          DropdownMenuItem(value: e.key, child: Text(e.value)),
+                      ],
+                      onChanged: busy
+                          ? null
+                          : (v) {
+                              status = v ?? 'draft';
+                              changed();
+                            },
+                      decoration: const InputDecoration(labelText: '投稿状态'),
+                    ),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: busy ? null : selectCategories,
+                    icon: const Icon(Icons.interests_outlined, size: 17),
+                    label: Text('分类 · ${categories.length}'),
+                  ),
+                  SizedBox(
+                    width: 300,
                     child: TextField(
-                      controller: schedule,
+                      controller: tags,
+                      enabled: !busy,
+                      decoration: const InputDecoration(labelText: '标签，以逗号分隔'),
+                    ),
+                  ),
+                  if (status == 'future')
+                    SizedBox(
+                      width: 260,
+                      child: TextField(
+                        controller: schedule,
+                        enabled: !busy,
+                        decoration: const InputDecoration(
+                          labelText: '上海时间 YYYY-MM-DD HH:mm:ss',
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 22),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: thumb,
                       enabled: !busy,
                       decoration: const InputDecoration(
-                        labelText: '上海时间 YYYY-MM-DD HH:mm:ss',
+                        labelText: '封面图片 HTTPS 地址',
                       ),
                     ),
                   ),
-              ],
-            ),
-            const SizedBox(height: 22),
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: thumb,
-                    enabled: !busy,
-                    decoration: const InputDecoration(
-                      labelText: '封面图片 HTTPS 地址',
-                    ),
+                  const SizedBox(width: 15),
+                  OutlinedButton(
+                    onPressed: busy ? null : () => upload(cover: true),
+                    child: const Text('上传封面'),
                   ),
-                ),
-                const SizedBox(width: 15),
-                OutlinedButton(
-                  onPressed: busy ? null : () => upload(cover: true),
-                  child: const Text('上传封面'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
+                ],
+              ),
+              const SizedBox(height: 24),
+            ],
             Surface(
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -1425,15 +1801,20 @@ class _PostEditorState extends State<PostEditor> {
                             },
                             child: TextField(
                               key: const Key('editor.content'),
-                              controller: content,
+                              controller: html ? content : visual,
                               focusNode: contentFocus,
                               enabled: !busy,
                               minLines: 21,
                               maxLines: 45,
+                              // Default EditableText forces every line to the
+                              // base font height, which overlaps tall widgets.
+                              strutStyle: html
+                                  ? null
+                                  : const StrutStyle(forceStrutHeight: false),
                               style: TextStyle(
                                 fontSize: sourceFontSize,
                                 height: 1.8,
-                                fontFamily: 'Consolas',
+                                fontFamily: html ? 'Consolas' : null,
                                 fontFamilyFallback: [
                                   'Microsoft YaHei UI',
                                   'Microsoft YaHei',
@@ -1456,9 +1837,26 @@ class _PostEditorState extends State<PostEditor> {
                                   style: TextStyle(fontSize: 11, color: violet),
                                 ),
                                 const SizedBox(height: 15),
-                                RichContent(
-                                  ReaderDocument.parse(bodyHtml()).content,
-                                  fontSize: 15,
+                                SizedBox(
+                                  height:
+                                      (MediaQuery.sizeOf(context).height * .62)
+                                          .clamp(320, 760),
+                                  child: Scrollbar(
+                                    controller: previewScroll,
+                                    thumbVisibility: true,
+                                    child: SingleChildScrollView(
+                                      key: const Key('editor.preview.scroll'),
+                                      controller: previewScroll,
+                                      padding: const EdgeInsets.only(right: 14),
+                                      child: RichContent(
+                                        ReaderDocument.parse(
+                                          bodyHtml(),
+                                          inlineResources: true,
+                                        ).content,
+                                        fontSize: 15,
+                                      ),
+                                    ),
+                                  ),
                                 ),
                               ],
                             ),
