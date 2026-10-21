@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
-import {createAnnouncementHub,validateBoard} from '../src/announcements-core.mjs';
+import {createAnnouncementHub,validateBoard,validateDiscovery,DEFAULT_DISCOVERY} from '../src/announcements-core.mjs';
 globalThis.WebSocketRequestResponsePair??=class {constructor(a,b){this.request=a;this.response=b;}};
 const SECRET='a'.repeat(64);
 function fixture(){
@@ -33,4 +33,33 @@ test('board validates unique IDs, Unicode length, control characters and explici
 test('read-only live clients cannot publish messages, and unconfigured admin secret fails closed',async()=>{
   const f=fixture();f.hub.webSocketMessage(f.peer,'replace the board');assert.equal(f.peer.readyState,3);assert.equal(f.hub.board().revision,0);
   const hub=new f.Hub(f.ctx,{});assert.equal((await hub.fetch(new Request('https://local.invalid/announcements/publish',{method:'POST'}))).status,503);
+});
+
+test('discovery shares the live envelope but keeps independent persistence and conflict versions',async()=>{
+  const f=fixture();
+  const read=async()=>await (await f.hub.fetch(new Request('https://local.invalid/discovery'))).json();
+  const publish=async(data,token=SECRET)=>f.hub.fetch(new Request('https://local.invalid/discovery/publish',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify(data)}));
+  assert.deepEqual(await read(),DEFAULT_DISCOVERY);
+  const data={base_revision:0,title:'发现 😀',content:'运营正文\n<只显示文字，不执行HTML>'};
+  assert.equal((await publish(data,'b'.repeat(64))).status,401);
+  assert.equal((await publish(data)).status,200);
+  assert.equal(f.events[0].type,'announcements');
+  assert.deepEqual(f.events[0].data.items,[]);
+  assert.equal(f.events[0].data.revision,0);
+  assert.equal(f.events[0].data.discovery.revision,1);
+  assert.equal(f.events[0].data.discovery.content,data.content);
+  assert.equal((await publish(data)).status,409);
+  const cold=new f.Hub(f.ctx,{ANNOUNCEMENTS_ADMIN_KEY:SECRET});
+  assert.deepEqual(cold.discovery(),await read());
+  assert.equal((await f.request('/publish',{base_revision:0,items:[item]},SECRET)).status,200);
+  assert.equal(cold.discovery().revision,1);
+  assert.equal(f.events.at(-1).data.discovery.title,data.title);
+  assert.deepEqual(f.events.at(-1).data.items,[item]);
+  assert.equal((await f.request()).status,200);
+});
+
+test('discovery rejects extra fields, control characters, oversized Unicode and missing revision',()=>{
+  const data={base_revision:0,title:'😀'.repeat(80),content:'公开纯文本'};
+  assert.equal(validateDiscovery(data).title,data.title);
+  for(const bad of [{...data,title:'😀'.repeat(81)},{...data,content:'a'.repeat(1501)},{...data,content:'\u0000'},{...data,base_revision:undefined},{...data,base_revision:0.2},{...data,items:[]}])assert.throws(()=>validateDiscovery(bad));
 });

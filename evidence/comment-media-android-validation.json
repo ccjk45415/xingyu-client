@@ -1,0 +1,10 @@
+{
+  "result": "PASS 61 native comment media and image boundary assertions; no website writes",
+  "actual_sources": [
+    "CommentMedia.java",
+    "CommentImageRules.java"
+  ],
+  "no_website_writes": true,
+  "android_full_ui_device_verified": false,
+  "image_upload_http_verified": false
+}

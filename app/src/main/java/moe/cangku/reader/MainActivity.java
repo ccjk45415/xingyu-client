@@ -296,12 +296,14 @@ public class MainActivity extends Activity {
         TextView t=ui.text("",size,ui.text,false);t.setLineSpacing(ui.dp(7),1.15f);t.setLinkTextColor(ui.accent);t.setTextIsSelectable(true);t.setMovementMethod(LinkMovementMethod.getInstance());
         int token=epoch;int width=ui.dp(getResources().getConfiguration().screenWidthDp-80);
         Html.ImageGetter getter=source->{
-            String resolved=source.startsWith("/")?UrlPolicy.ORIGIN+source:source;
-            AsyncDrawable placeholder=new AsyncDrawable(ui.soft);placeholder.setBounds(0,0,width,ui.dp(140));
+            String resolved=source.startsWith("//")?"https:"+source:source.startsWith("/")?UrlPolicy.ORIGIN+source:source;
+            boolean emoji=CommentMedia.emojiImage(resolved);int frameWidth=emoji?ui.dp(32):width;
+            AsyncDrawable placeholder=new AsyncDrawable(ui.soft);placeholder.setBounds(0,0,frameWidth,ui.dp(emoji?32:140));
+            if(emoji&&resolved.endsWith(".gif")){images.animatedEmoji(resolved,drawable->{if(drawable==null||token!=epoch||closed)return;drawable.setBounds(0,0,frameWidth,ui.dp(32));placeholder.content=drawable;placeholder.setBounds(0,0,frameWidth,ui.dp(32));drawable.setCallback(new android.graphics.drawable.Drawable.Callback(){public void invalidateDrawable(android.graphics.drawable.Drawable who){if(token==epoch&&!closed)t.invalidate();}public void scheduleDrawable(android.graphics.drawable.Drawable who,Runnable what,long when){if(token==epoch&&!closed&&t.isAttachedToWindow())t.postDelayed(what,Math.max(0,when-SystemClock.uptimeMillis()));}public void unscheduleDrawable(android.graphics.drawable.Drawable who,Runnable what){t.removeCallbacks(what);}});if(drawable instanceof android.graphics.drawable.Animatable){android.graphics.drawable.Animatable animated=(android.graphics.drawable.Animatable)drawable;t.addOnAttachStateChangeListener(new View.OnAttachStateChangeListener(){public void onViewAttachedToWindow(View view){if(token==epoch&&!closed)animated.start();}public void onViewDetachedFromWindow(View view){animated.stop();}});if(t.isAttachedToWindow())animated.start();}t.setText(t.getText());t.requestLayout();});return placeholder;}
             images.load(resolved,bitmap->{
                 if(bitmap==null||token!=epoch||closed)return;
-                int height=(int)Math.min(ui.dp(2400),width*(bitmap.getHeight()/(float)Math.max(1,bitmap.getWidth())));
-                BitmapDrawable d=new BitmapDrawable(getResources(),bitmap);d.setBounds(0,0,width,height);placeholder.content=d;placeholder.setBounds(0,0,width,height);t.setText(t.getText());t.requestLayout();
+                int height=emoji?ui.dp(32):(int)Math.min(ui.dp(2400),frameWidth*(bitmap.getHeight()/(float)Math.max(1,bitmap.getWidth())));
+                BitmapDrawable d=new BitmapDrawable(getResources(),bitmap);d.setBounds(0,0,frameWidth,height);placeholder.content=d;placeholder.setBounds(0,0,frameWidth,height);t.setText(t.getText());t.requestLayout();
             });return placeholder;
         };
         Spanned parsed=Html.fromHtml(EditorStyles.markFontSizes(html),Html.FROM_HTML_MODE_COMPACT,getter,new NativeEditorStyles(getResources().getDisplayMetrics().scaledDensity));SpannableStringBuilder safe=new SpannableStringBuilder(parsed);
@@ -328,6 +330,7 @@ public class MainActivity extends Activity {
             int start=safe.getSpanStart(url),end=safe.getSpanEnd(url);safe.removeSpan(url);String link=url.getURL();
             safe.setSpan(new ClickableSpan(){@Override public void onClick(View widget){openLink(link);}@Override public void updateDrawState(TextPaint ds){ds.setColor(ui.accent);ds.setUnderlineText(false);}},start,end,Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         }
+        for(ImageSpan image:safe.getSpans(0,safe.length(),ImageSpan.class)){String source=image.getSource();if(source==null)continue;String url=source.startsWith("//")?"https:"+source:source.startsWith("/")?UrlPolicy.ORIGIN+source:source;if(!UrlPolicy.isImage(url)||CommentMedia.emojiImage(url))continue;int start=safe.getSpanStart(image),end=safe.getSpanEnd(image);for(ClickableSpan click:safe.getSpans(start,end,ClickableSpan.class))safe.removeSpan(click);safe.setSpan(new ClickableSpan(){@Override public void onClick(View view){preview(url);}@Override public void updateDrawState(TextPaint paint){paint.setUnderlineText(false);}},start,end,Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);}
         t.setText(safe);parent.addView(t,new LinearLayout.LayoutParams(-1,-2));
     }
     private static final class AsyncDrawable extends android.graphics.drawable.Drawable {
@@ -354,10 +357,7 @@ public class MainActivity extends Activity {
         String lower=value.toLowerCase(Locale.ROOT);if(UrlPolicy.isImage(value)&&lower.matches(".*\\.(png|jpe?g|webp|gif)(?:[?#].*)?$")){preview(value);return;}
         external(value);
     }
-    private void preview(String url){
-        LinearLayout wrap=ui.column();ui.pad(wrap,20,20,20,16);ImageView image=new ImageView(this);image.setAdjustViewBounds(true);image.setScaleType(ImageView.ScaleType.FIT_CENTER);wrap.addView(image,new LinearLayout.LayoutParams(-1,ui.dp(330)));images.into(url,image);image.setOnLongClickListener(v->{if(image.getDrawable() instanceof BitmapDrawable)recognizeQr(((BitmapDrawable)image.getDrawable()).getBitmap());else toast("图片尚未加载完成");return true;});ui.space(wrap,14);TextView note=ui.text("长按图片识别二维码。识别在本机完成，可复制结果或确认打开链接。",13,ui.muted,false);wrap.addView(note);ui.space(wrap,12);wrap.addView(ui.button("复制图片链接",false,()->copy(url)));
-        new AlertDialog.Builder(this).setTitle("查看资源图片").setView(wrap).setPositiveButton("浏览器打开",(d,w)->external(url)).setNegativeButton("返回",null).show();
-    }
+    private void preview(String url){NativeImageViewer.show(this,url);}
     void recognizeQr(Bitmap bitmap){
         if(qrBusy){toast("正在识别二维码…");return;}qrBusy=true;toast("正在本机识别二维码…");
         task(()->{try{float scale=Math.min(1,2048f/Math.max(bitmap.getWidth(),bitmap.getHeight()));Bitmap work=scale<1?Bitmap.createScaledBitmap(bitmap,Math.max(1,(int)(bitmap.getWidth()*scale)),Math.max(1,(int)(bitmap.getHeight()*scale)),true):bitmap;
@@ -396,14 +396,14 @@ public class MainActivity extends Activity {
         menu("我的","编辑个人资料","昵称 / 简介 / 头像 / 空间背景",()->go(new Route("editProfile","编辑个人资料")));
         menu("设置","账号安全","更改邮箱与密码",()->go(new Route("security","账号安全")));
         menu("设置","阅读与外观","夜间主题 / 正文字号",()->go(new Route("appearance","阅读与外观")));
-        menu("设置","检查更新","当前版本 0.9.0",()->updates.check(true));
+        menu("设置","检查更新","当前版本 0.9.1",()->updates.check(true));
     }
     private void settings(){
         toolbar("阅读与外观",true,()->render());section("让阅读更合心意","设置保存在这台设备上");
         menu("设置",library.dark()?"夜间星空 · 已开启":"日间晴空 · 已开启","点击切换明暗主题",()->{library.dark(!library.dark());render();});
         ui.space(body,16);TextView size=ui.text("正文字号  "+library.textSize()+" sp",16,ui.text,true);body.addView(size);SeekBar slider=new SeekBar(this);slider.setMax(10);slider.setProgress(library.textSize()-14);body.addView(slider,new LinearLayout.LayoutParams(-1,ui.dp(56)));TextView preview=ui.text("把喜欢的世界，装进口袋。\n每一次翻页，都是新的相遇。",library.textSize(),ui.text,false);preview.setLineSpacing(ui.dp(8),1.2f);ui.pad(preview,20,22,20,22);preview.setBackground(ui.round(ui.surface,20));body.addView(preview);slider.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){public void onProgressChanged(SeekBar s,int p,boolean from){library.textSize(p+14);size.setText("正文字号  "+(p+14)+" sp");preview.setTextSize(p+14);}public void onStartTrackingTouch(SeekBar s){}public void onStopTrackingTouch(SeekBar s){}});
         section("本地数据","");body.addView(ui.button("清空阅读足迹",false,()->new AlertDialog.Builder(this).setTitle("清空阅读足迹？").setMessage("将删除这个账号在当前设备上的阅读记录。").setNegativeButton("取消",null).setPositiveButton("清空",(d,w)->{library.clearHistory();toast("阅读足迹已清空");}).show()));
-        section("关于星屿","仓库 · 星屿  0.9.0");TextView about=ui.text("非官方安卓客户端。网站内容与账号服务由 cangku.moe 提供。\n\n聊天室与私信共用仓库认证，显示官网昵称、UID和头像；认证时临时使用官网会话核验，不保存该会话或密码。\n\n开通独立私信时，经你同意会把官网会话临时发送至 Cloudflare 服务验证身份，不保存该会话；官网密码不会发送。私信双方需安装并开通，消息保留7天。\n\n密码不落盘，本机会话与私信令牌由 Android Keystore 加密。\n\n网站可能调整接口。遇到特殊内容，可以通过文章底部的原文入口查看。",13,ui.muted,false);about.setLineSpacing(ui.dp(5),1.1f);body.addView(about);
+        section("关于星屿","仓库 · 星屿  0.9.1");TextView about=ui.text("非官方安卓客户端。网站内容与账号服务由 cangku.moe 提供。\n\n聊天室与私信共用仓库认证，显示官网昵称、UID和头像；认证时临时使用官网会话核验，不保存该会话或密码。\n\n开通独立私信时，经你同意会把官网会话临时发送至 Cloudflare 服务验证身份，不保存该会话；官网密码不会发送。私信双方需安装并开通，消息保留7天。\n\n密码不落盘，本机会话与私信令牌由 Android Keystore 加密。\n\n网站可能调整接口。遇到特殊内容，可以通过文章底部的原文入口查看。",13,ui.muted,false);about.setLineSpacing(ui.dp(5),1.1f);body.addView(about);
     }
     private void menu(String icon,String title,String subtitle,Runnable action){
         LinearLayout item=ui.row();ui.pad(item,16,16,16,16);item.setBackground(ui.round(ui.surface,20));FrameLayout mark=new FrameLayout(this);mark.setBackground(ui.round(ui.soft,14));FrameLayout.LayoutParams ip=new FrameLayout.LayoutParams(ui.dp(23),ui.dp(23),Gravity.CENTER);mark.addView(ui.icon(icon,ui.accent),ip);item.addView(mark,new LinearLayout.LayoutParams(ui.dp(44),ui.dp(44)));LinearLayout words=ui.column();ui.pad(words,14,0,0,0);words.addView(ui.text(title,16,ui.text,true));ui.space(words,5);words.addView(ui.text(subtitle,11,ui.muted,false));item.addView(words,new LinearLayout.LayoutParams(0,-2,1));item.addView(ui.text("›",25,ui.muted,false));ui.click(item,action);body.addView(item,new LinearLayout.LayoutParams(-1,-2));ui.space(body,10);
@@ -428,6 +428,8 @@ public class MainActivity extends Activity {
     void manageFilter(String status,String query){route.period=status;route.query=query;route.page=1;route.scrollY=0;render();}
     void nativePagination(JSONObject page){pagination(page);}
     void renderHtml(LinearLayout parent,String html,int size){nativeHtml(parent,html,size);}
+    void renderComment(LinearLayout parent,String source,int size){nativeHtml(parent,CommentMedia.html(source),size);}
+    void copyText(String text){((android.content.ClipboardManager)getSystemService(CLIPBOARD_SERVICE)).setPrimaryClip(ClipData.newPlainText("仓库内容",text));toast("已复制");}
     void updateAccount(JSONObject value){
         if(user==null){user=value;return;}
         Iterator<String> keys=value.keys();while(keys.hasNext()){String key=keys.next();try{user.put(key,value.opt(key));}catch(JSONException ignored){}}
@@ -451,6 +453,6 @@ public class MainActivity extends Activity {
     void privateSearch(String query){route.query=query;route.page=1;route.scrollY=0;render();}
     @Override protected void onResume(){super.onResume();if(chat!=null)chat.resume();if(direct!=null)direct.resume();if(carousel!=null)carousel.start();if(updates!=null)updates.autoCheck();}
     @Override protected void onPause(){if(authoring!=null){authoring.closeAi();authoring.persist();}if(chat!=null)chat.pause();if(direct!=null)direct.pause();if(carousel!=null)carousel.pause();super.onPause();}
-    @Override protected void onActivityResult(int request,int result,Intent data){super.onActivityResult(request,result,data);if(messageImages!=null&&messageImages.onFileResult(request,result,data))return;if(authoring!=null)authoring.onFileResult(request,result,data);}
+    @Override protected void onActivityResult(int request,int result,Intent data){super.onActivityResult(request,result,data);if(social!=null&&social.onFileResult(request,result,data))return;if(messageImages!=null&&messageImages.onFileResult(request,result,data))return;if(authoring!=null)authoring.onFileResult(request,result,data);}
     @Override protected void onDestroy(){closed=true;epoch++;if(profileSync!=null)profileSync.close();if(authoring!=null){authoring.closeAi();authoring.persist();}if(chat!=null)chat.close();if(direct!=null)direct.close();if(carousel!=null)carousel.close();if(updates!=null)updates.close();network.shutdownNow();images.close();super.onDestroy();}
 }

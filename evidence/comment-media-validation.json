@@ -1,0 +1,32 @@
+{
+  "date": "2026-10-22",
+  "android_version": "0.9.1",
+  "windows_version": "0.4.1",
+  "public_release_notes": "优化了一些已知问题",
+  "native_comment_media_assertions": 61,
+  "core_checks": 64,
+  "social_checks": 14,
+  "chat_lifecycle_checks": 14,
+  "flutter_full_passed": 65,
+  "flutter_optional_network_skipped": 3,
+  "flutter_final_image_regressions_passed": 21,
+  "flutter_analyze": "No issues found",
+  "backend_unit_tests": 38,
+  "backend_pages_300_user_checks": 362,
+  "home_discovery_runtime_checks": 29,
+  "android_device_ui_verified": false,
+  "website_comments_written": 0,
+  "website_image_uploads_written": 0,
+  "native_clipboard_real_system_content_modified": false,
+  "clipboard_channel_widget_mock_verified": true,
+  "screenshots": "neutral synthetic images, no real user content",
+  "maximum_image_bytes": 1048576,
+  "mobile_image_input": "native file picker only",
+  "desktop_image_input": [
+    "file picker",
+    "Ctrl+V",
+    "context menu",
+    "PNG/Bitmap/DIB/HDROP native channel"
+  ],
+  "hosting": "website upload/image, field=image, no type param"
+}

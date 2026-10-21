@@ -1,0 +1,67 @@
+{
+  "date": "2026-10-22",
+  "scope": "home announcements/discovery remote content",
+  "backend_unit_tests": 8,
+  "backend_unit_command": "node --test test/announcements.test.mjs test/entry.test.mjs",
+  "runtime": {
+    "engine": "workerd",
+    "command": "node test/announcements-runtime.integration.mjs",
+    "checks": 29,
+    "live_subscribers": 4,
+    "same_announcement_websocket": true,
+    "exact_android_jvm_transport": "pass",
+    "production_writes": 0
+  },
+  "flutter": {
+    "command": "flutter test test/home_content_test.dart --no-pub",
+    "tests": 4,
+    "widget_tests": 2,
+    "analyze": "No issues found",
+    "verified": [
+      "announcement first page",
+      "old cache and default discovery",
+      "live discovery update without refresh",
+      "announcement and discovery independent revision",
+      "stale discovery ignored",
+      "HTTP fallback when WebSocket fails"
+    ]
+  },
+  "android": {
+    "source_compilation": "pass",
+    "device_ui_tested": false
+  },
+  "admin_script": {
+    "validation": "pass",
+    "published": false,
+    "fields": {
+      "title_max": 80,
+      "content_max": 1500
+    },
+    "format": "plain text"
+  },
+  "migration": {
+    "durable_object_class_changes": false,
+    "existing_data_deleted": false,
+    "new_sqlite_table": "discovery_board",
+    "default_seed": "INSERT OR IGNORE with current built-in title/content",
+    "new_secret": false,
+    "publish_key": "existing ANNOUNCEMENTS_ADMIN_KEY",
+    "deploy_required": [
+      "Worker",
+      "Pages routes/ingress"
+    ]
+  },
+  "limitations": [
+    "No remote HTML or image execution; discovery title/body use plain text.",
+    "Android real-device UI not verified."
+  ],
+  "production": {
+    "worker_version": "9790133f-877a-4f0c-aec2-e8c1eb0b9e10",
+    "snapshot_via_public_pages": "pass",
+    "announcement_content_preserved": true,
+    "discovery_default_preserved": true,
+    "production_content_published": false,
+    "pages_deployment": "4f310474",
+    "public_discovery_endpoint_verified": true
+  }
+}

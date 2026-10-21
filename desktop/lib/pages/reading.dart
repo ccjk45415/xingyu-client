@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../core/api.dart';
 import '../core/reader.dart';
+import '../core/comment_content.dart';
+import '../ui/comment_composer.dart';
 import '../ui/shared.dart';
 
 class ArticlePage extends StatelessWidget {
@@ -104,7 +106,11 @@ class ArticlePage extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      RichContent(document.content),
+                      RichContent(
+                        document.content,
+                        maxImageHeight: 520,
+                        maxImageWidth: 760,
+                      ),
                       for (final resource in document.resources)
                         Padding(
                           padding: const EdgeInsets.only(top: 22),
@@ -359,7 +365,7 @@ class _CommentsPaneState extends State<CommentsPane> {
         trailing: widget.root == 0 && !widget.locked
             ? FilledButton.tonalIcon(
                 onPressed: () async {
-                  final value = await composeText(context, '发表评论');
+                  final value = await composeComment(context, '发表评论');
                   if (value != null && context.mounted) {
                     await action(context, () async {
                       await stateOf(context).post('comment/create', {
@@ -463,7 +469,12 @@ class CommentTile extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
-            RichContent(text(comment['content']), fontSize: 15),
+            RichContent(
+              renderCommentContent(text(comment['content'])),
+              fontSize: 15,
+              maxImageHeight: 300,
+              maxImageWidth: 480,
+            ),
             const SizedBox(height: 10),
             Wrap(
               spacing: 6,
@@ -489,7 +500,7 @@ class CommentTile extends StatelessWidget {
                 if (!locked)
                   TextButton(
                     onPressed: () async {
-                      final reply = await composeText(
+                      final reply = await composeComment(
                         context,
                         '回复 ${text(user['nickname'])}',
                       );

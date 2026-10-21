@@ -63,8 +63,8 @@ final serviceOrigin = String.fromCharCodes(
     113,
   ].indexed.map((v) => v.$2 ^ ((0x6d + v.$1 * 31) & 255)),
 );
-const desktopVersion = '0.4.0';
-const desktopBuild = 7;
+const desktopVersion = '0.4.1';
+const desktopBuild = 8;
 bool safeExternal(String raw) {
   final u = Uri.tryParse(raw);
   return u != null &&
@@ -326,9 +326,10 @@ class SiteApi {
         ),
       );
     }
+    final (extension, mime) = uploadImageType(data);
     request.add(
       utf8.encode(
-        '--$boundary\r\nContent-Disposition: form-data; name="$field"; filename="upload.jpg"\r\nContent-Type: image/jpeg\r\n\r\n',
+        '--$boundary\r\nContent-Disposition: form-data; name="$field"; filename="upload.$extension"\r\nContent-Type: $mime\r\n\r\n',
       ),
     );
     request.add(data);
@@ -405,4 +406,22 @@ class ServiceApi {
   }
 
   void close() => client.close(force: true);
+}
+
+/// Preserve the original image format for website comment uploads (including GIF).
+(String, String) uploadImageType(Uint8List bytes) {
+  bool prefix(List<int> signature, [int offset = 0]) =>
+      bytes.length >= signature.length + offset &&
+      List.generate(
+        signature.length,
+        (i) => bytes[offset + i] == signature[i],
+      ).every((x) => x);
+  if (prefix([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) {
+    return ('png', 'image/png');
+  }
+  if (prefix([0x47, 0x49, 0x46, 0x38])) return ('gif', 'image/gif');
+  if (prefix([0x52, 0x49, 0x46, 0x46]) && prefix([0x57, 0x45, 0x42, 0x50], 8)) {
+    return ('webp', 'image/webp');
+  }
+  return ('jpg', 'image/jpeg');
 }

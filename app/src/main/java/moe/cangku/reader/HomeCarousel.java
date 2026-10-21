@@ -10,7 +10,7 @@ import org.json.*;
 import java.util.*;
 import java.util.concurrent.*;
 
-/** Two native pages: discovery artwork and a remotely managed, live announcement board. */
+/** Two native pages: a live announcement board and remotely managed discovery, sharing one stream. */
 final class HomeCarousel {
     private final MainActivity host;
     private final Ui ui;
@@ -20,9 +20,9 @@ final class HomeCarousel {
     private final android.content.SharedPreferences cache;
     private final LinearLayout root,track;
     private final Pager pager;
-    private final TextView headline,preview,stamp,count;
+    private final TextView headline,preview,stamp,count,discoveryTitle,discoveryContent;
     private final TextView[] indicators=new TextView[2];
-    private JSONObject board;
+    private JSONObject board,discovery;
     private AlertDialog detailDialog;
     private LinearLayout detailBody;
     private volatile boolean active,closed;
@@ -35,15 +35,16 @@ final class HomeCarousel {
     HomeCarousel(MainActivity h){
         host=h;ui=h.design();cache=h.getSharedPreferences("homeAnnouncements",Context.MODE_PRIVATE);root=ui.column();
         board=empty();try{board=validate(new JSONObject(cache.getString("board",empty().toString())));}catch(Exception ignored){}
+        discovery=defaultDiscovery();try{discovery=validateDiscovery(new JSONObject(cache.getString("discovery",discovery.toString())));}catch(Exception ignored){}
         pager=new Pager();pager.setHorizontalScrollBarEnabled(false);pager.setOverScrollMode(View.OVER_SCROLL_NEVER);pager.setFillViewport(true);
         track=ui.row();pager.addView(track,new HorizontalScrollView.LayoutParams(-2,-1));root.addView(pager,new LinearLayout.LayoutParams(-1,ui.dp(172)));
         FrameLayout discovery=background();LinearLayout words=ui.column();ui.pad(words,22,23,22,20);
-        words.addView(ui.text("YOUR LITTLE UNIVERSE",10,0xDDFFFFFF,true));ui.space(words,14);words.addView(ui.text("今天，也有新的心动。",23,android.graphics.Color.WHITE,true));ui.space(words,8);words.addView(ui.text("探索灵感 / 珍藏热爱 / 自在阅读",12,0xEEFFFFFF,false));discovery.addView(words);track.addView(discovery,new LinearLayout.LayoutParams(1,-1));
+        words.addView(ui.text("YOUR LITTLE UNIVERSE",10,0xDDFFFFFF,true));ui.space(words,14);discoveryTitle=ui.text("",23,android.graphics.Color.WHITE,true);discoveryTitle.setMaxLines(2);discoveryTitle.setEllipsize(TextUtils.TruncateAt.END);words.addView(discoveryTitle);ui.space(words,8);discoveryContent=ui.text("",12,0xEEFFFFFF,false);discoveryContent.setMaxLines(2);discoveryContent.setEllipsize(TextUtils.TruncateAt.END);words.addView(discoveryContent);discovery.addView(words);discovery.setContentDescription("发现，点击查看全文");ui.click(discovery,this::discoveryDetails);renderDiscovery();
         FrameLayout announcements=background();LinearLayout notice=ui.column();ui.pad(notice,22,17,22,12);LinearLayout header=ui.row();header.addView(ui.text("✦  公告栏",13,android.graphics.Color.WHITE,true),new LinearLayout.LayoutParams(0,-2,1));count=ui.text("",10,0xEEFFFFFF,false);header.addView(count);notice.addView(header);ui.space(notice,9);
         headline=ui.text("",19,android.graphics.Color.WHITE,true);headline.setMaxLines(1);headline.setEllipsize(TextUtils.TruncateAt.END);notice.addView(headline);
         ui.space(notice,5);preview=ui.text("",12,0xEEFFFFFF,false);preview.setMaxLines(2);preview.setEllipsize(TextUtils.TruncateAt.END);preview.setLineSpacing(ui.dp(2),1.1f);notice.addView(preview,new LinearLayout.LayoutParams(-1,0,1));
-        stamp=ui.text("",10,0xDDFFFFFF,false);notice.addView(stamp);announcements.addView(notice);announcements.setContentDescription("公告栏，点击查看完整公告");ui.click(announcements,this::details);track.addView(announcements,new LinearLayout.LayoutParams(1,-1));
-        LinearLayout dots=ui.row();dots.setGravity(Gravity.CENTER);for(int i=0;i<2;i++){final int index=i;TextView dot=ui.text("",11,ui.muted,false);dot.setGravity(Gravity.CENTER);ui.pad(dot,13,8,13,5);dot.setMinHeight(ui.dp(32));dot.setContentDescription(i==0?"轮播：发现":"轮播：公告栏");indicators[i]=dot;ui.click(dot,()->{touched=SystemClock.elapsedRealtime();select(index,true);});dots.addView(dot);}root.addView(dots);select(0,false);renderBoard("正在连接公告…");
+        stamp=ui.text("",10,0xDDFFFFFF,false);notice.addView(stamp);announcements.addView(notice);announcements.setContentDescription("公告栏，点击查看完整公告");ui.click(announcements,this::details);track.addView(announcements,new LinearLayout.LayoutParams(1,-1));track.addView(discovery,new LinearLayout.LayoutParams(1,-1));
+        LinearLayout dots=ui.row();dots.setGravity(Gravity.CENTER);for(int i=0;i<2;i++){final int index=i;TextView dot=ui.text("",11,ui.muted,false);dot.setGravity(Gravity.CENTER);ui.pad(dot,13,8,13,5);dot.setMinHeight(ui.dp(32));dot.setContentDescription(i==0?"轮播：公告栏":"轮播：发现");indicators[i]=dot;ui.click(dot,()->{touched=SystemClock.elapsedRealtime();select(index,true);});dots.addView(dot);}root.addView(dots);select(0,false);renderBoard("正在连接公告…");
         heartbeat.scheduleWithFixedDelay(()->{ChatSocket wire=socket;if(wire!=null)try{wire.send("ping");}catch(Exception e){wire.close();}},35,35,TimeUnit.SECONDS);
     }
     View view(){return root;}
@@ -56,6 +57,17 @@ final class HomeCarousel {
             for(String key:new String[]{"title","content"}){Object raw=item.get(key);if(!(raw instanceof String))throw new JSONException("公告内容无效");String text=(String)raw;if(text.trim().isEmpty()||text.codePointCount(0,text.length())>(key.equals("title")?80:5000)||text.matches("(?s).*[\\x00-\\x08\\x0b\\x0c\\x0e-\\x1f\\x7f].*"))throw new JSONException("公告内容无效");}}
         if(value.getLong("revision")>0)try{java.time.Instant.parse(value.getString("updated_at"));}catch(Exception e){throw new JSONException("公告时间无效");}return value;
     }
+    private static JSONObject defaultDiscovery(){try{return new JSONObject().put("schema",1).put("revision",0).put("updated_at",JSONObject.NULL).put("title","今天，也有新的心动。").put("content","探索灵感 / 珍藏热爱 / 自在阅读");}catch(JSONException e){throw new IllegalStateException(e);}}
+    static JSONObject validateDiscovery(JSONObject value)throws JSONException{
+        if(value.getInt("schema")!=1||!(value.get("revision") instanceof Number)||value.getDouble("revision")!=value.getLong("revision")||value.getLong("revision")<0)throw new JSONException("发现版本无效");
+        for(String key:new String[]{"title","content"}){Object raw=value.get(key);if(!(raw instanceof String))throw new JSONException("发现内容无效");String text=(String)raw;if(text.trim().isEmpty()||text.codePointCount(0,text.length())>(key.equals("title")?80:1500)||text.matches("(?s).*[\\x00-\\x08\\x0b\\x0c\\x0e-\\x1f\\x7f].*"))throw new JSONException("发现内容无效");}
+        if(value.getLong("revision")>0)try{java.time.Instant.parse(value.getString("updated_at"));}catch(Exception e){throw new JSONException("发现时间无效");}return value;
+    }
+    private void renderDiscovery(){discoveryTitle.setText(discovery.optString("title"));discoveryContent.setText(discovery.optString("content"));}
+    private void discoveryDetails(){
+        ScrollView scroll=new ScrollView(host);LinearLayout body=ui.column();ui.pad(body,20,12,20,20);TextView text=ui.text(discovery.optString("content"),15,ui.text,false);text.setTextIsSelectable(true);text.setLineSpacing(ui.dp(5),1.15f);body.addView(text);scroll.addView(body);
+        new AlertDialog.Builder(new ContextThemeWrapper(host,ui.dark?android.R.style.Theme_Material_Dialog_Alert:android.R.style.Theme_Material_Light_Dialog_Alert)).setTitle(discovery.optString("title")).setView(scroll).setPositiveButton("关闭",null).show();
+    }
     private void renderBoard(String connection){
         JSONArray items=board.optJSONArray("items");int n=items==null?0:items.length();JSONObject first=n==0?null:items.optJSONObject(0);
         headline.setText(first==null?"暂无公告":first.optString("title"));preview.setText(first==null?"新消息会在这里与你相遇。":first.optString("content"));count.setText(n==0?"":"共 "+n+" 条  ›");
@@ -63,10 +75,12 @@ final class HomeCarousel {
         stamp.setText(connection+(updated.isEmpty()?"":" · 更新于 "+updated));
     }
     private void accept(JSONObject value,int request){
-        if(!valid(request)||value.optLong("revision")<board.optLong("revision"))return;boolean changed=value.optLong("revision")>board.optLong("revision");board=value;
+        if(!valid(request))return;
+        JSONObject remote=value.optJSONObject("discovery");if(remote!=null)try{JSONObject next=validateDiscovery(remote);if(next.optLong("revision")>=discovery.optLong("revision")){discovery=next;cache.edit().putString("discovery",next.toString()).apply();renderDiscovery();}}catch(Exception ignored){}
+        if(value.optLong("revision")<board.optLong("revision"))return;boolean changed=value.optLong("revision")>board.optLong("revision");board=value;
         cache.edit().putString("board",value.toString()).apply();renderBoard("实时公告 · 点击查看全文");
         if(detailDialog!=null&&detailDialog.isShowing())renderDetails();
-        if(changed&&value.optJSONArray("items").length()>0&&!pager.dragging&&SystemClock.elapsedRealtime()-touched>2000)select(1,true);
+        if(changed&&value.optJSONArray("items").length()>0&&!pager.dragging&&SystemClock.elapsedRealtime()-touched>2000)select(0,true);
     }
     void start(){
         if(closed||active)return;active=true;int requested=++generation;main.removeCallbacks(rotate);main.postDelayed(rotate,6000);renderBoard("正在同步公告…");
@@ -90,7 +104,7 @@ final class HomeCarousel {
     void pause(){active=false;generation++;pager.dragging=false;main.removeCallbacks(rotate);ChatSocket wire=socket;socket=null;if(wire!=null)wire.close();if(job!=null)job.cancel(true);job=null;}
     void close(){closed=true;pause();if(detailDialog!=null)detailDialog.dismiss();network.shutdownNow();heartbeat.shutdownNow();}
     private void rotate(){if(!active||closed)return;if(!pager.dragging&&SystemClock.elapsedRealtime()-touched>12000)select(1-selected,true);main.postDelayed(rotate,6000);}
-    private void select(int page,boolean animate){selected=page;for(int i=0;i<2;i++){indicators[i].setText((i==selected?"●  ":"○  ")+(i==0?"发现":"公告"));indicators[i].setTextColor(i==selected?ui.accent:ui.muted);}if(pager.getWidth()>0){if(animate)pager.smoothScrollTo(page*pager.getWidth(),0);else pager.scrollTo(page*pager.getWidth(),0);}}
+    private void select(int page,boolean animate){selected=page;for(int i=0;i<2;i++){indicators[i].setText((i==selected?"●  ":"○  ")+(i==0?"公告":"发现"));indicators[i].setTextColor(i==selected?ui.accent:ui.muted);}if(pager.getWidth()>0){if(animate)pager.smoothScrollTo(page*pager.getWidth(),0);else pager.scrollTo(page*pager.getWidth(),0);}}
     private void details(){
         if(detailDialog!=null&&detailDialog.isShowing())return;
         ScrollView scroll=new ScrollView(host);detailBody=ui.column();ui.pad(detailBody,20,12,20,20);scroll.addView(detailBody);renderDetails();

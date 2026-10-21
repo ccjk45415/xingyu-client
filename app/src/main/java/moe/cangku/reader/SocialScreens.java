@@ -12,6 +12,7 @@ import java.util.*;
 /** Native website comments and notifications. Writes happen only after an explicit user action. */
 final class SocialScreens {
     private final MainActivity host;
+    private final CommentImages images;
     private long generation;
     private long focusPost, focusId;
     private JSONObject focusSeed;
@@ -19,7 +20,8 @@ final class SocialScreens {
     private long requestNumber;
     private long request(LinearLayout view){long n=++requestNumber;requests.put(view,n);return n;}
     private boolean latest(LinearLayout view,long n){return Objects.equals(requests.get(view),n);}
-    SocialScreens(MainActivity host){this.host=host;}
+    SocialScreens(MainActivity host){this.host=host;images=new CommentImages(host);}
+    boolean onFileResult(int request,int result,android.content.Intent data){return images.onFileResult(request,result,data);}
     private Ui ui(){return host.design();}
     private long uid(){return host.account()==null?0:host.account().optLong("id");}
     private boolean muted(){return host.account()!=null&&(host.account().optBoolean("is_muted")||host.account().optBoolean("is_banned"));}
@@ -93,26 +95,29 @@ final class SocialScreens {
         LinearLayout box=card(target,child);JSONObject author=object(c,"user");LinearLayout header=ui().row();
         TextView who=ui().text(name(author),14,ui().accent,true);header.addView(who,new LinearLayout.LayoutParams(0,-2,1));
         if(author.optLong("id")>0)ui().click(who,()->host.navigateNative("profile","作者主页",author.optLong("id")));
-        header.addView(ui().text(date(c.optString("created_at")),10,ui().muted,false));box.addView(header);ui().space(box,8);
+        header.addView(ui().text(date(c.optString("created_at")),10,ui().muted,false));TextView more=ui().text("⋯",22,ui().muted,true);more.setGravity(Gravity.CENTER);more.setMinHeight(ui().dp(44));more.setContentDescription("评论操作");ui().click(more,()->dialog().setTitle("评论操作").setItems(new String[]{"复制评论原文"},(dialog,index)->host.copyText(c.optString("content"))).show());header.addView(more,new LinearLayout.LayoutParams(ui().dp(36),ui().dp(44)));box.addView(header);ui().space(box,8);
         if(c.optBoolean("is_sticky"))note(box,"置顶评论");
         JSONObject replyUser=object(object(c,"reply_to_meta"),"user");if(replyUser.optLong("id")>0)box.addView(ui().text("回复 @"+name(replyUser),12,ui().muted,false));
-        host.renderHtml(box,c.optString("content"),15);ui().space(box,6);
-        LinearLayout actions=ui().row();TextView like=ui().button(likeLabel(c),false,()->{});like.setEnabled(c.optBoolean("_likeKnown"));
+        host.renderComment(box,c.optString("content"),15);ui().space(box,6);
+        LinearLayout actions=ui().row();TextView like=commentAction(likeLabel(c),c.optBoolean("_liked")?"已赞":"点赞",()->{});like.setEnabled(c.optBoolean("_likeKnown"));
         // A dedicated listener keeps the toggle disabled while its request is outstanding.
         like.setOnClickListener(v->{if(!c.optBoolean("_likeKnown"))return;boolean was=c.optBoolean("_liked");like.setEnabled(false);
             host.task(()->host.client().post(was?"comment/unvote":"comment/vote",new JSONObject().put("id",c.optLong("id"))),r->{
                 if(!current(token))return;try{c.put("_liked",!was);c.put("vote_count",Math.max(0,c.optInt("vote_count")+(was?-1:1)));}catch(JSONException ignored){}
-                like.setText(likeLabel(c));like.setEnabled(true);
+                like.setText(likeLabel(c));actionIcon(like,c.optBoolean("_liked")?"已赞":"点赞");like.setEnabled(true);
             },error->{if(current(token)){like.setEnabled(true);host.toast(error);}});
         });actions.addView(like,new LinearLayout.LayoutParams(0,-2,1));
-        if(!locked&&!muted()){long root=SocialRules.rootId(c.optLong("id"),c.optLong("parent_id"));TextView reply=ui().button("回复",false,()->compose(post,root,c.optLong("id"),locked,refresh));actions.addView(reply,new LinearLayout.LayoutParams(0,-2,1));}
-        if(SocialRules.ownComment(uid(),c.optLong("user_id")))actions.addView(ui().button("删除",false,()->delete(c,refresh)),new LinearLayout.LayoutParams(0,-2,1));box.addView(actions);
+        if(!locked&&!muted()){long root=SocialRules.rootId(c.optLong("id"),c.optLong("parent_id"));TextView reply=commentAction("回复","回复",()->compose(post,root,c.optLong("id"),locked,refresh));actions.addView(reply,new LinearLayout.LayoutParams(0,-2,1));}
+        if(SocialRules.ownComment(uid(),c.optLong("user_id")))actions.addView(commentAction("删除","删除",()->delete(c,refresh)),new LinearLayout.LayoutParams(0,-2,1));box.addView(actions);
+
         if(!child){JSONObject children=c.optJSONObject("children");JSONArray rows=data(children);LinearLayout replies=ui().column();box.addView(replies,new LinearLayout.LayoutParams(-1,-2));
             for(int i=0;i<rows.length();i++){JSONObject reply=rows.optJSONObject(i);if(reply!=null)commentCard(replies,reply,post,locked,true,token,refresh);}
             JSONObject pg=pagination(children);if(pg.optInt("total")>rows.length()){TextView all=ui().button("查看全部 "+pg.optInt("total")+" 条回复",false,()->loadChildren(replies,post,c.optLong("id"),locked,1,token,refresh));replies.addView(all);}
         }
     }
-    private String likeLabel(JSONObject c){return (c.optBoolean("_liked")?"已赞 ":"赞 ")+c.optInt("vote_count");}
+    private String likeLabel(JSONObject c){return (c.optBoolean("_liked")?"已赞":"赞")+"  "+c.optInt("vote_count");}
+    private void actionIcon(TextView view,String icon){android.graphics.drawable.Drawable drawable=new CommentActionIcon(icon,ui().accent,ui().dp(19));view.setCompoundDrawables(drawable,null,null,null);view.setCompoundDrawablePadding(ui().dp(7));view.setContentDescription(view.getText());}
+    private TextView commentAction(String text,String icon,Runnable action){TextView v=ui().text(text,12,ui().accent,false);v.setGravity(Gravity.CENTER);v.setMinHeight(ui().dp(44));ui().pad(v,12,8,12,8);v.setBackground(new android.graphics.drawable.RippleDrawable(android.content.res.ColorStateList.valueOf(0x227D69EB),ui().round(ui().surface,12),null));actionIcon(v,icon);ui().click(v,action);return v;}
     private void loadChildren(LinearLayout panel,long post,long root,boolean locked,int page,long token,Runnable refresh){
         long request=request(panel);loading(panel);host.task(()->withLikes(host.client().get("comment/list",commentParams(post,root,page,6))),result->{
             if(!current(token)||!latest(panel,request))return;panel.removeAllViews();JSONArray rows=data(result);if(rows.length()==0)note(panel,"暂无回复，或回复已被删除。");
@@ -123,13 +128,26 @@ final class SocialScreens {
         },error->{if(current(token)&&latest(panel,request))fail(panel,error,()->loadChildren(panel,post,root,locked,page,token,refresh));});
     }
     private void compose(long post,long parent,long reply,boolean locked,Runnable refresh){
-        if(locked||muted()){host.toast("当前无法发表评论");return;}long token=generation;
+        if(uid()==0){host.toast("请登录后发表评论");return;}if(locked||muted()){host.toast("当前无法发表评论");return;}long token=generation;
         EditText input=new EditText(host);input.setTextColor(ui().text);input.setHintTextColor(ui().muted);input.setTextSize(15);input.setHint(parent>0?"写下你的回复…":"写下你的评论…");input.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_FLAG_MULTI_LINE);input.setMinLines(4);input.setMaxLines(10);input.setGravity(Gravity.TOP);input.setFilters(new InputFilter[]{new InputFilter.LengthFilter(5000)});
         LinearLayout wrap=ui().column();ui().pad(wrap,20,12,20,4);wrap.addView(input,new LinearLayout.LayoutParams(-1,ui().dp(170)));
-        AlertDialog d=dialog().setTitle(parent>0?"回复评论":"发表评论").setView(wrap).setNegativeButton("取消",null).setPositiveButton("发布",null).create();
-        d.setOnShowListener(x->d.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->{String text=input.getText().toString().trim();if(text.isEmpty()){input.setError("请输入内容");return;}d.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(false);d.getButton(AlertDialog.BUTTON_NEGATIVE).setEnabled(false);d.setCancelable(false);
-            host.task(()->{JSONObject body=new JSONObject().put("post_id",post).put("content",text).put("include","user");if(parent>0)body.put("parent_id",parent).put("reply_to_id",reply);return host.client().post("comment/create",body);},result->{d.dismiss();if(current(token)){host.toast("评论已发布");refresh.run();}},error->{if(!d.isShowing())return;d.setCancelable(true);d.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(true);d.getButton(AlertDialog.BUTTON_NEGATIVE).setEnabled(true);host.toast(error);});
+        LinearLayout tools=ui().row();tools.addView(ui().chip("官网表情",false,()->emojiPicker(input,token)),new LinearLayout.LayoutParams(0,-2,1));TextView copyHint=ui().text("选择表情后可继续输入文字",11,ui().muted,false);ui().pad(copyHint,12,0,0,0);tools.addView(copyHint,new LinearLayout.LayoutParams(0,-2,1));wrap.addView(tools);
+        TextView imageStatus=ui().text("图片上传到官网图床，单张最大1MB。发布前可在下方预览。",11,ui().muted,false);ui().pad(imageStatus,0,8,0,4);wrap.addView(imageStatus);
+        LinearLayout preview=ui().column();ScrollView previewScroll=new ScrollView(host);previewScroll.setFillViewport(false);previewScroll.addView(preview);previewScroll.setVisibility(View.GONE);wrap.addView(previewScroll,new LinearLayout.LayoutParams(-1,ui().dp(120)));
+        ScrollView dialogScroll=new ScrollView(host);dialogScroll.setFillViewport(false);dialogScroll.addView(wrap);
+        AlertDialog d=dialog().setTitle(parent>0?"回复评论":"发表评论").setView(dialogScroll).setNegativeButton("取消",null).setPositiveButton("发布",null).create();
+        CommentImages.Session[] session={null};long owner=uid();Runnable changed=()->{if(d.isShowing()&&session[0]!=null){d.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(!session[0].busy);uploadPreview(previewScroll,preview,input,imageStatus);}};session[0]=images.session(input,imageStatus,()->current(token)&&uid()==owner&&d.isShowing(),changed);
+        TextView upload=ui().chip("上传图片",false,()->images.pick(session[0]));tools.removeView(copyHint);tools.addView(upload,new LinearLayout.LayoutParams(0,-2,1));
+        TextView previewButton=ui().chip("预览",false,()->{if(previewScroll.getVisibility()==View.VISIBLE){previewScroll.setVisibility(View.GONE);return;}preview.removeAllViews();host.renderComment(preview,input.getText().toString(),14);previewScroll.setVisibility(View.VISIBLE);});tools.addView(previewButton,new LinearLayout.LayoutParams(0,-2,1));d.setOnDismissListener(x->images.cancel(session[0]));
+        input.addTextChangedListener(new android.text.TextWatcher(){public void beforeTextChanged(CharSequence s,int start,int count,int after){}public void onTextChanged(CharSequence s,int start,int before,int count){if(previewScroll.getVisibility()==View.VISIBLE){preview.removeAllViews();host.renderComment(preview,s.toString(),14);}}public void afterTextChanged(android.text.Editable e){}});
+        d.setOnShowListener(x->d.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->{if(session[0].busy)return;String text=input.getText().toString().trim();if(text.isEmpty()){input.setError("请输入内容");return;}d.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(false);d.getButton(AlertDialog.BUTTON_NEGATIVE).setEnabled(false);d.setCancelable(false);input.setEnabled(false);for(int i=0;i<tools.getChildCount();i++)tools.getChildAt(i).setEnabled(false);
+            host.task(()->{JSONObject body=new JSONObject().put("post_id",post).put("content",text).put("include","user");if(parent>0)body.put("parent_id",parent).put("reply_to_id",reply);return host.client().post("comment/create",body);},result->{d.dismiss();if(current(token)){host.toast("评论已发布");refresh.run();}},error->{if(!d.isShowing())return;d.setCancelable(true);d.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(true);d.getButton(AlertDialog.BUTTON_NEGATIVE).setEnabled(true);input.setEnabled(true);for(int i=0;i<tools.getChildCount();i++)tools.getChildAt(i).setEnabled(true);host.toast(error);});
         }));d.show();
+    }
+    private void uploadPreview(ScrollView view,LinearLayout target,EditText input,TextView status){if(status.getText().toString().startsWith("图片已上传并加入")){target.removeAllViews();host.renderComment(target,input.getText().toString(),14);view.setVisibility(View.VISIBLE);}}
+    private void emojiPicker(EditText input,long token){
+        if(!current(token))return;LinearLayout wrap=ui().column();ui().pad(wrap,12,6,12,12);HorizontalScrollView tabsScroll=new HorizontalScrollView(host);tabsScroll.setHorizontalScrollBarEnabled(false);LinearLayout tabs=ui().row();tabsScroll.addView(tabs);wrap.addView(tabsScroll);LinearLayout body=ui().column();wrap.addView(body);int[] group={1},page={0};Runnable[] render={null};AlertDialog picker=dialog().setTitle("官网表情").setView(wrap).setNegativeButton("关闭",null).create();
+        render[0]=()->{tabs.removeAllViews();for(int g=0;g<CommentMedia.GROUPS.length;g++){final int selected=g;tabs.addView(ui().chip(CommentMedia.NAMES[g],group[0]==g,()->{group[0]=selected;page[0]=0;render[0].run();}));}body.removeAllViews();ui().space(body,8);GridLayout grid=new GridLayout(host);grid.setColumnCount(6);for(int i=page[0]*24+1;i<=Math.min(CommentMedia.COUNTS[group[0]],(page[0]+1)*24);i++){final int id=i;String value=CommentMedia.token(group[0],id);LinearLayout cell=ui().column();cell.setGravity(Gravity.CENTER);ImageView image=new ImageView(host);image.setScaleType(ImageView.ScaleType.FIT_CENTER);image.setContentDescription(value);cell.addView(image,new LinearLayout.LayoutParams(ui().dp(34),ui().dp(34)));host.pictures().into(CommentMedia.emojiUrl(CommentMedia.GROUPS[group[0]],id),image);image.setContentDescription(value);TextView number=ui().text(String.valueOf(id),10,ui().muted,false);number.setGravity(Gravity.CENTER);cell.addView(number);cell.setContentDescription(CommentMedia.NAMES[group[0]]+"表情"+id);cell.setTooltipText(value);cell.setBackground(ui().round(ui().soft,10));ui().click(cell,()->{if(!current(token)||!input.isAttachedToWindow()){picker.dismiss();return;}int a=Math.max(0,input.getSelectionStart()),b=Math.max(a,input.getSelectionEnd());if(input.length()-(b-a)+value.length()>5000){host.toast("评论最多5000字，请先删减内容");return;}input.getText().replace(a,b,value);input.setSelection(a+value.length());picker.dismiss();});GridLayout.LayoutParams lp=new GridLayout.LayoutParams(GridLayout.spec((i-page[0]*24-1)/6),GridLayout.spec((i-1)%6,1f));lp.width=0;lp.height=ui().dp(56);lp.setMargins(ui().dp(3),ui().dp(3),ui().dp(3),ui().dp(3));grid.addView(cell,lp);}body.addView(grid,new LinearLayout.LayoutParams(-1,-2));ui().space(body,8);LinearLayout nav=ui().row();int total=(CommentMedia.COUNTS[group[0]]+23)/24;TextView prev=ui().button("上一页",false,()->{page[0]--;render[0].run();});prev.setEnabled(page[0]>0);nav.addView(prev,new LinearLayout.LayoutParams(0,-2,1));TextView number=ui().text("  "+(page[0]+1)+" / "+total+"  ",12,ui().muted,false);nav.addView(number);TextView next=ui().button("下一页",false,()->{page[0]++;render[0].run();});next.setEnabled(page[0]+1<total);nav.addView(next,new LinearLayout.LayoutParams(0,-2,1));body.addView(nav);};render[0].run();picker.show();
     }
     private void delete(JSONObject c,Runnable refresh){
         if(!SocialRules.ownComment(uid(),c.optLong("user_id")))return;long token=generation;
@@ -145,7 +163,7 @@ final class SocialScreens {
         host.task(()->host.client().get("user/comment",params),result->{if(!current(token))return;list.removeAllViews();JSONArray rows=data(result);int count=0;
             for(int i=0;i<rows.length();i++){JSONObject c=rows.optJSONObject(i);if(c==null||c.optLong("user_id")!=uid())continue;count++;JSONObject post=object(c,"post");LinearLayout box=card(list,false);
                 TextView title=ui().text(post.optString("title","原作品已删除或不可见"),16,ui().text,true);box.addView(title);if(post.optLong("id")>0)ui().click(title,()->host.navigateNative("article","作品详情",post.optLong("id")));
-                note(box,date(c.optString("created_at"))+"  ·  "+(c.optLong("parent_id")>0?"回复":"评论")+"  ·  "+c.optInt("vote_count")+" 赞");host.renderHtml(box,c.optString("content"),15);ui().space(box,8);
+                note(box,date(c.optString("created_at"))+"  ·  "+(c.optLong("parent_id")>0?"回复":"评论")+"  ·  "+c.optInt("vote_count")+" 赞");host.renderComment(box,c.optString("content"),15);ui().space(box,8);
                 LinearLayout actions=ui().row();TextView view=ui().button("查看讨论",false,()->openFocused(c,c.optLong("post_id")));view.setEnabled(post.optLong("id")>0);actions.addView(view,new LinearLayout.LayoutParams(0,-2,1));actions.addView(ui().button("删除评论",false,()->delete(c,()->host.reloadNative())),new LinearLayout.LayoutParams(0,-2,1));box.addView(actions);
             }if(count==0)note(list,"还没有发布过评论。");JSONObject pg=pagination(result);if(pg.length()>0)host.nativePagination(pg);
         },error->{if(current(token))fail(list,error,()->host.reloadNative());});
@@ -184,8 +202,8 @@ final class SocialScreens {
         String action=type.equals("vote")?(subjectPost?"赞了你的作品":"赞了你的评论"):n.optString("subject_type").equals("post")?"回复了你的作品":"回复了你的评论";
         TextView heading=ui().text((unread?"● ":"")+name(actor)+" "+action,15,ui().text,true);box.addView(heading);note(box,date(n.optString("created_at")));
         if(actor.optLong("id")>0)ui().click(heading,()->host.navigateNative("profile","作者主页",actor.optLong("id")));
-        if(!type.equals("vote")){if(causer.optLong("id")>0)host.renderHtml(box,causer.optString("content"),15);else note(box,"这条回复已删除或不可见。");}
-        if(subject.optLong("id")>0){LinearLayout quote=ui().column();ui().pad(quote,12,10,12,10);quote.setBackground(ui().round(ui().soft,12));quote.addView(ui().text(type.equals("vote")?(subjectPost?"我的作品":"我的评论"):"原内容",11,ui().muted,true));String text=subject.optString("title","");if(text.isEmpty())text=subject.optString("content");host.renderHtml(quote,text,13);box.addView(quote);}else note(box,"原内容已删除或不可见。");
+        if(!type.equals("vote")){if(causer.optLong("id")>0)host.renderComment(box,causer.optString("content"),15);else note(box,"这条回复已删除或不可见。");}
+        if(subject.optLong("id")>0){LinearLayout quote=ui().column();ui().pad(quote,12,10,12,10);quote.setBackground(ui().round(ui().soft,12));quote.addView(ui().text(type.equals("vote")?(subjectPost?"我的作品":"我的评论"):"原内容",11,ui().muted,true));String text=subject.optString("title","");if(text.isEmpty())text=subject.optString("content");host.renderComment(quote,text,13);box.addView(quote);}else note(box,"原内容已删除或不可见。");
         ui().space(box,10);LinearLayout actions=ui().row();JSONObject target=type.equals("vote")?subject:causer;
         long post=SocialRules.notificationPostId(n.optString("subject_type"),subject.optLong("id"),subject.optLong("post_id"));
         boolean articleVote=type.equals("vote")&&subjectPost;long targetId=SocialRules.notificationCommentId(type,n.optString("subject_type"),subject.optLong("id"),causer.optLong("id"));

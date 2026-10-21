@@ -26,6 +26,7 @@ bool FlutterWindow::OnCreate() {
   }
   RegisterPlugins(flutter_controller_->engine());
   storage_channel_ = RegisterSecureStorage(flutter_controller_->engine()->messenger());
+  image_clipboard_channel_ = RegisterImageClipboard(flutter_controller_->engine()->messenger());
   SetChildContent(flutter_controller_->view()->GetNativeWindow());
 
   flutter_controller_->engine()->SetNextFrameCallback([&]() {
@@ -41,6 +42,7 @@ bool FlutterWindow::OnCreate() {
 }
 
 void FlutterWindow::OnDestroy() {
+  image_clipboard_channel_.reset();
   storage_channel_.reset();
   if (flutter_controller_) {
     flutter_controller_ = nullptr;

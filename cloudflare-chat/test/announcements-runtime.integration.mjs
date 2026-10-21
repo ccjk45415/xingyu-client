@@ -28,10 +28,18 @@ try{
   const later=await connect();check(later.events[0].data.revision,1);check(later.events[0].data.items,post.items);
   a.send('ping');await until(()=>a.events.includes('pong'));check(a.events.at(-1),'pong');
   check((await request('/publish',{base_revision:1,items:[]},secret)).status,200);await until(()=>b.events.length===3);check(b.events[2].data.items,[]);
+  // Discovery changes travel on the SAME subscribers without replacing old clients' items.
+  const discovery={base_revision:0,title:'本机发现',content:'远程修改发现，不发布客户端'};
+  const publishDiscovery=()=>fetch(origin+'/discovery/publish',{method:'POST',headers:{Authorization:'Bearer '+secret,'Content-Type':'application/json'},body:JSON.stringify(discovery)});
+  check((await publishDiscovery()).status,200);await until(()=>a.events.length===5&&b.events.length===4);
+  check(b.events.at(-1).type,'announcements');check(b.events.at(-1).data.items,[]);check(b.events.at(-1).data.revision,2);check(b.events.at(-1).data.discovery.title,discovery.title);
+  check((await (await fetch(origin+'/discovery')).json()).revision,1);check((await publishDiscovery()).status,409);
+  check((await request()).body.discovery.content,discovery.content);
+  const discoveryReconnect=await connect();check(discoveryReconnect.events[0].data.discovery.content,discovery.content);
   const jdk=process.env.JAVA_HOME||'C:/Program Files/Java/jdk-17',classes=join(task,'classes');
   const compile=spawnSync(join(jdk,'bin/javac.exe'),['-encoding','UTF-8','-d',classes,join(root,'app/src/main/java/moe/cangku/reader/ChatRules.java'),join(root,'app/src/main/java/moe/cangku/reader/ChatSocket.java'),join(root,'tests/AnnouncementWireTest.java')],{windowsHide:true,stdio:'inherit'});assert.equal(compile.status,0);
   const jvm=spawn(join(jdk,'bin/java.exe'),['-ea','-cp',classes,'moe.cangku.reader.AnnouncementWireTest',origin,secret],{windowsHide:true,stdio:'inherit'});assert.equal(await new Promise(r=>jvm.once('exit',r)),0);checks++;
-  console.log(JSON.stringify({local_only:true,runtime:'workerd',checks,live_subscribers:3,publications_to_production:0,client_release_changes:0}));
+  console.log(JSON.stringify({local_only:true,runtime:'workerd',checks,live_subscribers:4,discovery_shared_connection:true,publications_to_production:0,client_release_changes:0}));
 }finally{
   for(const ws of sockets)ws.terminate();
   if(child.pid){if(process.platform==='win32')spawnSync('taskkill',['/PID',String(child.pid),'/T','/F'],{windowsHide:true,stdio:'ignore'});else child.kill('SIGTERM');}closeSync(log);

@@ -1,5 +1,16 @@
 const encoder=new TextEncoder();
 export const EMPTY_BOARD=Object.freeze({schema:1,revision:0,updated_at:null,items:[]});
+export const DEFAULT_DISCOVERY=Object.freeze({schema:1,revision:0,updated_at:null,title:'今天，也有新的心动。',content:'探索灵感 / 珍藏热爱 / 自在阅读'});
+export function validateDiscovery(input){
+  if(!input||typeof input!=='object'||Array.isArray(input)||Object.keys(input).some(k=>!['title','content','base_revision'].includes(k)))fail('发现格式无效');
+  if(!Number.isSafeInteger(input.base_revision)||input.base_revision<0)fail('缺少有效的发现版本');
+  const result={base_revision:input.base_revision};
+  for(const [key,max] of [['title',80],['content',1500]]){
+    if(typeof input[key]!=='string'||!input[key].trim()||[...input[key]].length>max||/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/u.test(input[key]))fail('发现标题或正文无效');
+    result[key]=input[key].trim();
+  }
+  return result;
+}
 const headers={'Cache-Control':'no-store, no-cache, max-age=0, must-revalidate','X-Content-Type-Options':'nosniff'};
 function fail(message,status=400){throw Object.assign(new Error(message),{status});}
 const json=(value,status=200)=>Response.json(value,{status,headers});
@@ -34,18 +45,33 @@ export function createAnnouncementHub(Base){return class extends Base{
     super(ctx,env);this.ctx=ctx;this.env=env;this.sql=ctx.storage.sql;
     this.sql.exec('CREATE TABLE IF NOT EXISTS announcement_board(id INTEGER PRIMARY KEY CHECK(id=1),revision INTEGER NOT NULL,body TEXT NOT NULL)');
     this.sql.exec('INSERT OR IGNORE INTO announcement_board(id,revision,body) VALUES(1,0,?)',JSON.stringify(EMPTY_BOARD));
+    this.sql.exec('CREATE TABLE IF NOT EXISTS discovery_board(id INTEGER PRIMARY KEY CHECK(id=1),revision INTEGER NOT NULL,body TEXT NOT NULL)');
+    this.sql.exec('INSERT OR IGNORE INTO discovery_board(id,revision,body) VALUES(1,0,?)',JSON.stringify(DEFAULT_DISCOVERY));
     this.ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair('ping','pong'));
   }
   board(){return JSON.parse(this.sql.exec('SELECT body FROM announcement_board WHERE id=1').toArray()[0].body);}
-  event(board){return JSON.stringify({type:'announcements',data:board});}
+  discovery(){return JSON.parse(this.sql.exec('SELECT body FROM discovery_board WHERE id=1').toArray()[0].body);}
+  snapshot(){return {...this.board(),discovery:this.discovery()};}
+  // Additive envelope keeps old clients reading their original items and reuses one socket.
+  event(board=this.board()){return JSON.stringify({type:'announcements',data:{...board,discovery:this.discovery()}});}
+  broadcast(){const event=this.event();for(const peer of this.ctx.getWebSockets()){try{if(peer.readyState===1)peer.send(event);}catch{try{peer.close(1011,'请重新连接');}catch{}}}}
   async fetch(req){try{
     const path=new URL(req.url).pathname;
-    if(path==='/announcements'&&req.method==='GET')return json(this.board());
+    if(path==='/announcements'&&req.method==='GET')return json(this.snapshot());
+    if(path==='/discovery'&&req.method==='GET')return json(this.discovery());
     if(path==='/announcements/live'&&req.method==='GET'){
       if(req.headers.get('Upgrade')?.toLowerCase()!=='websocket')fail('需要WebSocket连接',426);
       if(this.ctx.getWebSockets().filter(s=>s.readyState===1).length>=1500)fail('公告实时连接繁忙，请稍后重试',503);
       const pair=new WebSocketPair(),client=pair[0],server=pair[1];this.ctx.acceptWebSocket(server);server.send(this.event(this.board()));
       return new Response(null,{status:101,webSocket:client});
+    }
+    if(path==='/discovery/publish'&&req.method==='POST'){
+      await authorized(req,this.env.ANNOUNCEMENTS_ADMIN_KEY);const input=validateDiscovery(await body(req));let next;
+      this.ctx.storage.transactionSync(()=>{
+        const current=this.discovery();if(current.revision!==input.base_revision)fail('发现已被其他发布操作修改，请重新读取后再发布',409);
+        next={schema:1,revision:current.revision+1,updated_at:new Date().toISOString(),title:input.title,content:input.content};
+        this.sql.exec('UPDATE discovery_board SET revision=?,body=? WHERE id=1',next.revision,JSON.stringify(next));
+      });this.broadcast();return json({ok:true,revision:next.revision});
     }
     if(path==='/announcements/publish'&&req.method==='POST'){
       await authorized(req,this.env.ANNOUNCEMENTS_ADMIN_KEY);const input=validateBoard(await body(req));let board;
@@ -54,7 +80,7 @@ export function createAnnouncementHub(Base){return class extends Base{
         board={schema:1,revision:current.revision+1,updated_at:new Date().toISOString(),items:input.items};
         this.sql.exec('UPDATE announcement_board SET revision=?,body=? WHERE id=1',board.revision,JSON.stringify(board));
       });
-      const event=this.event(board);for(const peer of this.ctx.getWebSockets()){try{if(peer.readyState===1)peer.send(event);}catch{try{peer.close(1011,'请重新连接');}catch{}}}
+      this.broadcast();
       return json({ok:true,revision:board.revision});
     }
     fail('接口不存在',404);

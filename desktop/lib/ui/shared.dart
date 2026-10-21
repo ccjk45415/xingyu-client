@@ -439,8 +439,14 @@ class Pagination extends StatelessWidget {
 
 class RichContent extends StatelessWidget {
   final String html;
-  final double? fontSize;
-  const RichContent(this.html, {super.key, this.fontSize});
+  final double? fontSize, maxImageHeight, maxImageWidth;
+  const RichContent(
+    this.html, {
+    super.key,
+    this.fontSize,
+    this.maxImageHeight,
+    this.maxImageWidth,
+  });
   @override
   Widget build(BuildContext context) => HtmlWidget(
     html,
@@ -493,11 +499,21 @@ class RichContent extends StatelessWidget {
                   bounds.height,
                 ),
               ),
-          child: RichContent(element.innerHtml, fontSize: fontSize),
+          child: RichContent(
+            element.innerHtml,
+            fontSize: fontSize,
+            maxImageHeight: maxImageHeight,
+            maxImageWidth: maxImageWidth,
+          ),
         );
       }
       if (element.classes.contains('text-forbidden')) {
-        return _RevealText(element.innerHtml, fontSize: fontSize);
+        return _RevealText(
+          element.innerHtml,
+          fontSize: fontSize,
+          maxImageHeight: maxImageHeight,
+          maxImageWidth: maxImageWidth,
+        );
       }
       if (element.localName == 'details') {
         final summary = element.querySelector('summary');
@@ -510,7 +526,12 @@ class RichContent extends StatelessWidget {
           children: [
             Padding(
               padding: const EdgeInsets.all(12),
-              child: RichContent(cloned.innerHtml, fontSize: fontSize),
+              child: RichContent(
+                cloned.innerHtml,
+                fontSize: fontSize,
+                maxImageHeight: maxImageHeight,
+                maxImageWidth: maxImageWidth,
+              ),
             ),
           ],
         );
@@ -524,18 +545,43 @@ class RichContent extends StatelessWidget {
           return const Text('[不支持的图片]');
         }
         final url = uri.toString();
-        return QrImageActions(
-          url: url,
-          child: InkWell(
-            onTap: () => showImage(context, url: url),
-            child: Image.network(
-              url,
-              headers: const {
-                'Referer': '$siteOrigin/',
-                'User-Agent': 'Mozilla/5.0 XingyuDesktop/$desktopVersion',
-              },
-              fit: BoxFit.contain,
-              errorBuilder: (_, _, _) => const Text('[图片暂时无法加载]'),
+        final sticker =
+            element.classes.contains('xingyu-site-sticker') ||
+            element.classes.contains('emoji') &&
+                uri.host == 'cangku.moe' &&
+                uri.path.startsWith('/images/stickers/');
+        final image = Image.network(
+          url,
+          headers: const {
+            'Referer': '$siteOrigin/',
+            'User-Agent': 'Mozilla/5.0 XingyuDesktop/$desktopVersion',
+          },
+          width: sticker ? 32 : null,
+          height: sticker ? 32 : null,
+          fit: BoxFit.contain,
+          errorBuilder: (_, _, _) => Text(
+            sticker ? (element.attributes['alt'] ?? '[表情]') : '[图片暂时无法加载]',
+          ),
+        );
+        if (sticker) {
+          return InlineCustomWidget(child: image);
+        }
+        return Align(
+          alignment: Alignment.centerLeft,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: maxImageHeight ?? double.infinity,
+              maxWidth: maxImageWidth ?? double.infinity,
+            ),
+            child: QrImageActions(
+              url: url,
+              child: Tooltip(
+                message: '点击查看原图 · 右键识别二维码',
+                child: InkWell(
+                  onTap: () => showImage(context, url: url),
+                  child: image,
+                ),
+              ),
             ),
           ),
         );
@@ -568,8 +614,13 @@ class RichContent extends StatelessWidget {
 
 class _RevealText extends StatefulWidget {
   final String html;
-  final double? fontSize;
-  const _RevealText(this.html, {this.fontSize});
+  final double? fontSize, maxImageHeight, maxImageWidth;
+  const _RevealText(
+    this.html, {
+    this.fontSize,
+    this.maxImageHeight,
+    this.maxImageWidth,
+  });
   @override
   State<_RevealText> createState() => _RevealTextState();
 }
@@ -589,7 +640,12 @@ class _RevealTextState extends State<_RevealText> {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
         child: revealed
-            ? RichContent(widget.html, fontSize: widget.fontSize)
+            ? RichContent(
+                widget.html,
+                fontSize: widget.fontSize,
+                maxImageHeight: widget.maxImageHeight,
+                maxImageWidth: widget.maxImageWidth,
+              )
             : const Text(
                 '点击显示隐藏文字',
                 style: TextStyle(color: Colors.white, fontSize: 12),

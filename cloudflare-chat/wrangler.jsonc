@@ -17,7 +17,9 @@
       "/announcements",
       "/announcements/*",
       "/media/*",
-      "/ai/*"
+      "/ai/*",
+      "/discovery",
+      "/discovery/*"
     ]
   },
   "durable_objects": {

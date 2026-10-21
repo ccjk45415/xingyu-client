@@ -92,9 +92,13 @@ final class ApiClient {
             return result;
         }finally{c.disconnect();}
     }
-    JSONObject upload(String path,String field,byte[] bytes,Map<String,String> fields)throws Exception {
+    JSONObject upload(String path,String field,byte[] bytes,Map<String,String> fields)throws Exception {return upload(path,field,bytes,fields,"image/jpeg");}
+    long sessionVersion(){return version();}
+    JSONObject upload(String path,String field,byte[] bytes,Map<String,String> fields,String mediaType)throws Exception {return upload(path,field,bytes,fields,mediaType,-1);}
+    JSONObject upload(String path,String field,byte[] bytes,Map<String,String> fields,String mediaType,long expectedVersion)throws Exception {
+        String extension;switch(mediaType){case "image/jpeg":extension="jpg";break;case "image/png":extension="png";break;case "image/gif":extension="gif";break;case "image/webp":extension="webp";break;default:throw new IOException("图片格式不支持");}
         if(!field.matches("[a-zA-Z]+")||bytes.length>2*1024*1024)throw new IOException("图片不得超过 2MB");
-        long requestGeneration=version();URI uri=URI.create(url(path,null));
+        long requestGeneration=version();if(expectedVersion>=0&&requestGeneration!=expectedVersion)throw new IOException("账号已切换，已取消上传");URI uri=URI.create(url(path,null));
         HttpURLConnection c=(HttpURLConnection)uri.toURL().openConnection();
         String boundary="Cangku"+UUID.randomUUID().toString().replace("-","");
         c.setRequestMethod("POST");c.setDoOutput(true);c.setInstanceFollowRedirects(false);c.setConnectTimeout(18000);c.setReadTimeout(35000);
@@ -108,7 +112,7 @@ final class ApiClient {
                     if(!e.getKey().matches("[a-zA-Z_]+"))throw new IOException("无效字段");
                     out.write(("--"+boundary+"\r\nContent-Disposition: form-data; name=\""+e.getKey()+"\"\r\n\r\n"+e.getValue()+"\r\n").getBytes(StandardCharsets.UTF_8));
                 }
-                out.write(("--"+boundary+"\r\nContent-Disposition: form-data; name=\""+field+"\"; filename=\"upload.jpg\"\r\nContent-Type: image/jpeg\r\n\r\n").getBytes(StandardCharsets.UTF_8));
+                out.write(("--"+boundary+"\r\nContent-Disposition: form-data; name=\""+field+"\"; filename=\"upload."+extension+"\"\r\nContent-Type: "+mediaType+"\r\n\r\n").getBytes(StandardCharsets.UTF_8));
                 out.write(bytes);out.write(("\r\n--"+boundary+"--\r\n").getBytes(StandardCharsets.UTF_8));
             }
             int status=c.getResponseCode();

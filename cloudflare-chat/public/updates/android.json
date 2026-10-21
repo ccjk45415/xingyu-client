@@ -1,11 +1,11 @@
 {
   "available": true,
   "package": "moe.cangku.reader",
-  "versionCode": 13,
-  "versionName": "0.9.0",
-  "notes": "修复上传正文图片未插入；新增原生可视化编辑与HTML源码双向切换，保留图片和排版；下载卡片、外部链接等按官网格式填写；Windows本机预览支持独立滚轮滚动。",
+  "versionCode": 14,
+  "versionName": "0.9.1",
+  "notes": "优化了一些已知问题",
   "minSdk": 26,
-  "url": "https://xingyu-chat-ccjk45415.pages.dev/releases/Cangku-Xingyu-0.9.0-debug.apk",
-  "size": 721618,
-  "sha256": "74a677d5d15317778bc5748a52efa16207464ea807960058a478b8574b6e1398"
+  "url": "https://xingyu-chat-ccjk45415.pages.dev/releases/Cangku-Xingyu-0.9.1-debug.apk",
+  "size": 738002,
+  "sha256": "792ec997a8a46951323397a226ff1008adfb4bc1259f6578ae6fb549c823b78f"
 }

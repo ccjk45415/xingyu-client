@@ -6,6 +6,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 
 import '../core/api.dart';
+import '../core/home_content.dart';
 import '../core/reader.dart';
 import '../core/state.dart';
 import '../ui/shared.dart';
@@ -161,11 +162,7 @@ class PostListPage extends StatelessWidget {
                         trailing: const Icon(Icons.chevron_right),
                         onTap: () => openRoute(
                           context,
-                          DeskRoute(
-                            'author',
-                            '作者主页',
-                            id: number(person['id']),
-                          ),
+                          DeskRoute('author', '作者主页', id: number(person['id'])),
                         ),
                       ),
                     ),
@@ -423,7 +420,9 @@ class _HomeBannerState extends State<HomeBanner> with WidgetsBindingObserver {
   Timer? rotation, heartbeat, retry;
   WebSocket? socket;
   SocketConnector? connector;
-  List<Json> notices = [];
+  Json board = {'schema': 1, 'revision': 0, 'updated_at': null, 'items': []};
+  Json discovery = Map.of(defaultDiscovery);
+  List<Json> get notices => rows(board['items']);
   bool online = false, active = true;
   int page = 0, generation = 0;
   DateTime touched = DateTime(2000);
@@ -444,7 +443,10 @@ class _HomeBannerState extends State<HomeBanner> with WidgetsBindingObserver {
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      notices = rows(object(stateOf(context).local['announcements'])['items']);
+      final local = stateOf(context).local;
+      board = validAnnouncements(local['announcements']) ?? board;
+      discovery = validDiscovery(local['discovery']) ?? discovery;
+      setState(() {});
       unawaited(connect());
     });
   }
@@ -459,15 +461,35 @@ class _HomeBannerState extends State<HomeBanner> with WidgetsBindingObserver {
     if (old != null) unawaited(old.close());
   }
 
+  void accept(Object? raw, int current, {bool live = true}) {
+    if (!mounted || !active || current != generation) return;
+    final data = validAnnouncements(raw);
+    if (data == null) return;
+    final next = validDiscovery(data['discovery']);
+    setState(() {
+      if (number(data['revision']) >= number(board['revision'])) board = data;
+      if (next != null &&
+          number(next['revision']) >= number(discovery['revision'])) {
+        discovery = next;
+      }
+      online = live;
+    });
+    final app = stateOf(context);
+    app.local['announcements'] = board;
+    app.local['discovery'] = discovery;
+    unawaited(app.persist().catchError((_) {}));
+  }
+
   Future<void> connect() async {
     stop();
     final current = generation;
     if (!active) return;
     final wire = connector ??= stateOf(context).socketFactory();
     try {
-      final ws = await wire.connect(
-        '${serviceOrigin.replaceFirst('https:', 'wss:')}/announcements/live',
-      );
+      final origin = stateOf(context).service.origin
+          .replaceFirst('https:', 'wss:')
+          .replaceFirst('http:', 'ws:');
+      final ws = await wire.connect('$origin/announcements/live');
       if (!mounted || !active || current != generation) {
         unawaited(ws.close());
         return;
@@ -477,22 +499,23 @@ class _HomeBannerState extends State<HomeBanner> with WidgetsBindingObserver {
         (raw) {
           if (!mounted || current != generation || raw == 'pong') return;
           try {
-            final data = object(object(jsonDecode(raw as String))['data']);
-            if (data['schema'] != 1) return;
-            setState(() {
-              notices = rows(data['items']);
-              online = true;
-            });
-            final app = stateOf(context);
-            app.local['announcements'] = data;
-            unawaited(app.persist().catchError((_) {}));
+            final event = object(jsonDecode(raw as String));
+            if (event['type'] == 'announcements') {
+              accept(event['data'], current);
+            }
           } catch (_) {}
         },
         onError: (_) => disconnected(current),
         onDone: () => disconnected(current),
       );
       heartbeat = Timer.periodic(const Duration(seconds: 35), (_) {
-        if (current == generation) ws.add('ping');
+        if (current == generation) {
+          try {
+            ws.add('ping');
+          } catch (_) {
+            disconnected(current);
+          }
+        }
       });
     } catch (_) {
       disconnected(current);
@@ -502,7 +525,17 @@ class _HomeBannerState extends State<HomeBanner> with WidgetsBindingObserver {
   void disconnected(int current) {
     if (!mounted || !active || current != generation) return;
     setState(() => online = false);
+    heartbeat?.cancel();
     if (retry?.isActive != true) {
+      // The same HTTP snapshot covers both cards when WebSocket upgrades are blocked.
+      unawaited(
+        stateOf(context).service
+            .request('/announcements')
+            .then((data) {
+              accept(data, current, live: false);
+            })
+            .catchError((_) {}),
+      );
       retry = Timer(const Duration(seconds: 10), connect);
     }
   }
@@ -527,6 +560,157 @@ class _HomeBannerState extends State<HomeBanner> with WidgetsBindingObserver {
     super.dispose();
   }
 
+  void details(String title, String content) => showDialog<void>(
+    context: context,
+    builder: (c) => AlertDialog(
+      title: Text(title),
+      content: SizedBox(
+        width: 580,
+        child: SingleChildScrollView(
+          child: SelectableText(content, style: const TextStyle(height: 1.8)),
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(c), child: const Text('知道了')),
+      ],
+    ),
+  );
+
+  Widget announcementCard() => Container(
+    decoration: BoxDecoration(
+      gradient: LinearGradient(
+        colors: Theme.of(context).brightness == Brightness.dark
+            ? [const Color(0xff3c3456), const Color(0xff53405d)]
+            : [const Color(0xffede5ff), const Color(0xffffeaf2)],
+      ),
+    ),
+    padding: const EdgeInsets.all(34),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Icon(Icons.campaign_outlined, color: violet),
+            const SizedBox(width: 10),
+            Text('星屿公告栏', style: Theme.of(context).textTheme.titleLarge),
+            const Spacer(),
+            Text(
+              online ? '实时公告' : '上次公告 · 等待连接',
+              style: const TextStyle(fontSize: 11, color: violet),
+            ),
+          ],
+        ),
+        const SizedBox(height: 20),
+        Expanded(
+          child: notices.isEmpty
+              ? const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    '暂时没有新公告。\n愿你今天也收获一份好心情。',
+                    style: TextStyle(fontSize: 20, height: 1.8),
+                  ),
+                )
+              : SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      for (final notice in notices)
+                        ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(
+                            text(notice['title']),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                          subtitle: Text(
+                            text(notice['content']),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          trailing: const Icon(Icons.north_east, size: 18),
+                          onTap: () => details(
+                            text(notice['title']),
+                            text(notice['content']),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+        ),
+      ],
+    ),
+  );
+
+  Widget discoveryCard() => Material(
+    child: InkWell(
+      onTap: () =>
+          details(text(discovery['title']), text(discovery['content'])),
+      child: Ink(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xffb4a1ed), Color(0xffded0f0), Color(0xffedd9e9)],
+          ),
+        ),
+        child: Stack(
+          children: [
+            const Positioned.fill(
+              child: CustomPaint(painter: UniversePainter()),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 38, vertical: 28),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text(
+                    'YOUR LITTLE UNIVERSE',
+                    style: TextStyle(
+                      color: Colors.white,
+                      letterSpacing: 2,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    text(discovery['title']),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 30,
+                      height: 1.25,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Flexible(
+                    child: Text(
+                      text(discovery['content']),
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    '你的每一种喜欢，都值得被收藏  ›',
+                    style: TextStyle(color: Colors.white70, fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+
   @override
   Widget build(BuildContext context) => Column(
     children: [
@@ -544,187 +728,7 @@ class _HomeBannerState extends State<HomeBanner> with WidgetsBindingObserver {
             child: PageView(
               controller: controller,
               onPageChanged: (p) => setState(() => page = p),
-              children: [
-                Container(
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Color(0xffb4a1ed),
-                        Color(0xffded0f0),
-                        Color(0xffedd9e9),
-                      ],
-                    ),
-                  ),
-                  child: Stack(
-                    children: [
-                      const Positioned.fill(
-                        child: CustomPaint(painter: UniversePainter()),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 38,
-                          vertical: 30,
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Text(
-                              'YOUR LITTLE UNIVERSE',
-                              style: TextStyle(
-                                color: Colors.white,
-                                letterSpacing: 2,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            const SizedBox(height: 20),
-                            const Text(
-                              '今天，也有新的心动。',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 34,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 1,
-                              ),
-                            ),
-                            const SizedBox(height: 14),
-                            const Text(
-                              '探索灵感 / 珍藏热爱 / 自在阅读',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                              ),
-                            ),
-                            const SizedBox(height: 20),
-                            Row(
-                              children: [
-                                Container(
-                                  width: 5,
-                                  height: 5,
-                                  decoration: const BoxDecoration(
-                                    color: Colors.white,
-                                    shape: BoxShape.circle,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                const Text(
-                                  '你的每一种喜欢，都值得被收藏',
-                                  style: TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: Theme.of(context).brightness == Brightness.dark
-                          ? [const Color(0xff3c3456), const Color(0xff53405d)]
-                          : [const Color(0xffede5ff), const Color(0xffffeaf2)],
-                    ),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(34),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            const Icon(Icons.campaign_outlined, color: violet),
-                            const SizedBox(width: 10),
-                            Text(
-                              '星屿公告栏',
-                              style: Theme.of(context).textTheme.titleLarge,
-                            ),
-                            const Spacer(),
-                            Text(
-                              online ? '实时公告' : '上次公告 · 等待连接',
-                              style: const TextStyle(
-                                fontSize: 11,
-                                color: violet,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 20),
-                        Expanded(
-                          child: notices.isEmpty
-                              ? const Align(
-                                  alignment: Alignment.centerLeft,
-                                  child: Text(
-                                    '暂时没有新公告。\n愿你今天也收获一份好心情。',
-                                    style: TextStyle(fontSize: 20, height: 1.8),
-                                  ),
-                                )
-                              : SingleChildScrollView(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      for (final notice in notices)
-                                        ListTile(
-                                          contentPadding: EdgeInsets.zero,
-                                          title: Text(
-                                            text(notice['title']),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.w700,
-                                            ),
-                                          ),
-                                          subtitle: Text(
-                                            text(notice['content']),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                          trailing: const Icon(
-                                            Icons.north_east,
-                                            size: 18,
-                                          ),
-                                          onTap: () => showDialog<void>(
-                                            context: context,
-                                            builder: (c) => AlertDialog(
-                                              title: Text(
-                                                text(notice['title']),
-                                              ),
-                                              content: SizedBox(
-                                                width: 580,
-                                                child: SingleChildScrollView(
-                                                  child: SelectableText(
-                                                    text(notice['content']),
-                                                    style: const TextStyle(
-                                                      height: 1.8,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                              actions: [
-                                                TextButton(
-                                                  onPressed: () =>
-                                                      Navigator.pop(c),
-                                                  child: const Text('知道了'),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
+              children: [announcementCard(), discoveryCard()],
             ),
           ),
         ),
@@ -734,23 +738,26 @@ class _HomeBannerState extends State<HomeBanner> with WidgetsBindingObserver {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           for (var i = 0; i < 2; i++)
-            InkWell(
-              onTap: () {
-                touched = DateTime.now();
-                controller.animateToPage(
-                  i,
-                  duration: const Duration(milliseconds: 400),
-                  curve: Curves.easeInOut,
-                );
-              },
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 250),
-                margin: const EdgeInsets.symmetric(horizontal: 3),
-                width: i == page ? 22 : 6,
-                height: 6,
-                decoration: BoxDecoration(
-                  color: i == page ? violet : violet.withValues(alpha: .2),
-                  borderRadius: BorderRadius.circular(8),
+            Tooltip(
+              message: i == 0 ? '公告' : '发现',
+              child: InkWell(
+                onTap: () {
+                  touched = DateTime.now();
+                  controller.animateToPage(
+                    i,
+                    duration: const Duration(milliseconds: 400),
+                    curve: Curves.easeInOut,
+                  );
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 250),
+                  margin: const EdgeInsets.symmetric(horizontal: 3),
+                  width: i == page ? 22 : 6,
+                  height: 6,
+                  decoration: BoxDecoration(
+                    color: i == page ? violet : violet.withValues(alpha: .2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                 ),
               ),
             ),

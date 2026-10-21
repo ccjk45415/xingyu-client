@@ -1,0 +1,93 @@
+{
+  "read_only": true,
+  "comments_or_uploads_written": 0,
+  "bundle": "https://cangku.moe/assets/web/static/js/app.a97ae13d.js",
+  "sha256": "259c33da4ac502c09242aff52374ed78bd72d768e98a8a5d9e33b787b0add765",
+  "index": "1 through length",
+  "resource_probes": [
+    {
+      "url": "https://cangku.moe/images/stickers/cangku_1/1.png",
+      "status": 200,
+      "mime": "image/png",
+      "bytes": 26180,
+      "sha256": "e84a549dd7f77c1f51bb530ecdfbedcdda7dca3febc236e236cc6b1085518f8f"
+    },
+    {
+      "url": "https://cangku.moe/images/stickers/cangku_1/9.png",
+      "status": 200,
+      "mime": "image/png",
+      "bytes": 26008,
+      "sha256": "989779533bb07d934176b38c298ee01bb67610abf0f805664d4d292934a69514"
+    },
+    {
+      "url": "https://cangku.moe/images/stickers/new_paopao/1.png",
+      "status": 200,
+      "mime": "image/png",
+      "bytes": 3753,
+      "sha256": "23f4ca8e8acb428e6e42c7f0e57191cea2537a42ec0a64d445bfcef381ac4c13"
+    },
+    {
+      "url": "https://cangku.moe/images/stickers/new_paopao/66.png",
+      "status": 200,
+      "mime": "image/png",
+      "bytes": 2862,
+      "sha256": "33876c4efdaf94db8e21070f84b174e5038756f954bccba45c58d110b5793d5c"
+    },
+    {
+      "url": "https://cangku.moe/images/stickers/paopao/1.png",
+      "status": 200,
+      "mime": "image/png",
+      "bytes": 5630,
+      "sha256": "964d5e31c41189ff2b9732e88a9276c82af74c64ed4525c69ef20ef9fe1a9cc9"
+    },
+    {
+      "url": "https://cangku.moe/images/stickers/paopao/33.png",
+      "status": 200,
+      "mime": "image/png",
+      "bytes": 5848,
+      "sha256": "63f73eb55ac75abb589985cc07c2395906f92ec0a0545b78d49cb516dcd244ee"
+    },
+    {
+      "url": "https://cangku.moe/images/stickers/qq/1.gif",
+      "status": 200,
+      "mime": "image/gif",
+      "bytes": 1973,
+      "sha256": "3bf256b83516fc241a0ff421377b6c62e2dfa311a72c45f48628730f287fcc1b"
+    },
+    {
+      "url": "https://cangku.moe/images/stickers/qq/92.gif",
+      "status": 200,
+      "mime": "image/gif",
+      "bytes": 9547,
+      "sha256": "1939ca0cf553c35964f0c571dbd1fc3ed7092643b6ef6a3f8fe963c26acdaaca"
+    },
+    {
+      "url": "https://cangku.moe/images/stickers/aru/1.png",
+      "status": 200,
+      "mime": "image/png",
+      "bytes": 1272,
+      "sha256": "6a70e842dd9e1fcbde52711269c465f669c6a186706596b396a3cd6caf2aaaeb"
+    },
+    {
+      "url": "https://cangku.moe/images/stickers/aru/122.png",
+      "status": 200,
+      "mime": "image/png",
+      "bytes": 2334,
+      "sha256": "3e45a14dc44000c367c46343cdf75e4b5cafa938d8c27d14166c18ccc5edddc2"
+    }
+  ],
+  "paste_upload": {
+    "path": "upload/image",
+    "multipart_field": "image",
+    "params": {},
+    "max_bytes": 1048576,
+    "comment_content": "raw URL / raw sticker token"
+  },
+  "trustedhost_option": {
+    "comment_trustedhost_whitelist": {
+      "value": "i.imgur.com\nimg.imoutomoe.net\nloli.io\n*.loli.net\nooo.0o0.ooo\n*.sinaimg.com\n*.sinaimg.cn\n*.galacg.me\n*.cangku.in\n*.cangku.one\n*.cangku.moe\n*.cangku.io\n*.cangku.icu\ngalacg.me\ncangku.in\ncangku.one\ncangku.moe\ncangku.io\ncangku.icu",
+      "hidden": "0"
+    }
+  },
+  "retained_bundle_matches": true
+}

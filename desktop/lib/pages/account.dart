@@ -1,6 +1,9 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
+
 import '../core/api.dart';
+import '../core/comment_content.dart';
 import '../core/media.dart';
 import '../core/updates.dart';
 import '../ui/shared.dart';
@@ -439,12 +442,16 @@ class SocialListPage extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         RichContent(
-          mine
-              ? text(n['content'])
-              : type == 'vote'
-              ? text(subject['title'], text(subject['content']))
-              : text(causer['content'], '原回复已删除或不可见'),
+          renderCommentContent(
+            mine
+                ? text(n['content'])
+                : type == 'vote'
+                ? text(subject['title'], text(subject['content']))
+                : text(causer['content'], '原回复已删除或不可见'),
+          ),
           fontSize: 15,
+          maxImageHeight: 300,
+          maxImageWidth: 480,
         ),
         if (!mine && type != 'vote' && subject.isNotEmpty) ...[
           const SizedBox(height: 10),
@@ -452,8 +459,12 @@ class SocialListPage extends StatelessWidget {
             padding: const EdgeInsets.all(14),
             color: violet.withValues(alpha: .06),
             child: RichContent(
-              text(subject['title'], text(subject['content'])),
+              renderCommentContent(
+                text(subject['title'], text(subject['content'])),
+              ),
               fontSize: 13,
+              maxImageHeight: 240,
+              maxImageWidth: 420,
             ),
           ),
         ],
