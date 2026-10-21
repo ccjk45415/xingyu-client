@@ -9,6 +9,8 @@
 - Flutter覆盖HTTPS接口规范、私网来源拒绝、HTML转义、来源关联、自定义长正文、直连密钥/无Cookie隔离、重定向拒绝及加密配置/窄窗组件；沿用Android基础54、社交14、编辑22和二维码53项检查。手机分组工具栏完成编译，尚无本次真机UI结果。
 - 密钥保存分别复用独立Android Keystore/Windows DPAPI存储。内置部署新增v5 SQLite DO与AI绑定，保留原聊天和公告数据；发布前扫描排除管理/账号凭据并验证两端包哈希。
 
+GitHub [v0.7.0](https://github.com/ccjk45415/xingyu-client/releases/tag/v0.7.0)与原更新入口已发布。Flutter静态分析无问题，23项测试通过、2项可选联网测试默认跳过；Windows真实引擎/DPAPI自检通过。GitHub匿名下载APK、Windows ZIP和校验文件均核对成功；源码提交 `9cf637ffaaed320bbf72c30732ab512337a165d4`。部署、版本与SHA256见release-0.7.0.json和github-release.json。
+
 ## Android 0.6.3 / Windows 0.1.2：独立图标工具栏
 
 - 两端移除HTML提示按钮及其菜单，39项功能直接以同一风格图标呈现。手机GridLayout按宽度换行并提供长按名称，桌面Wrap支持悬停提示；代码块使用文档/代码图标，HTML源码与预览开关另列。

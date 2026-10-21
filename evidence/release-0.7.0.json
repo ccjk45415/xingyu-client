@@ -55,5 +55,8 @@
   "public_downloads": {
     "android": "pass",
     "windows": "pass"
-  }
+  },
+  "github_release": "https://github.com/ccjk45415/xingyu-client/releases/tag/v0.7.0",
+  "github_source_commit": "9cf637ffaaed320bbf72c30732ab512337a165d4",
+  "github_anonymous_downloads": "3 assets passed"
 }
