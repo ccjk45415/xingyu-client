@@ -260,19 +260,70 @@ void main() {
       scope.open(const DeskRoute('editor', '新建投稿'));
       await frames(tester);
       expect(tester.takeException(), isNull, reason: 'editor layout');
-      await tester.tap(find.text('HTML 提示'));
-      await tester.pumpAndSettle();
-      expect(tester.takeException(), isNull, reason: 'HTML hints layout');
-      await capture(tester, key, 'desktop-html-hints');
-      expect(find.text('段落与换行'), findsOneWidget);
-      await tester.tap(find.text('插入').first);
+      expect(find.text('HTML 提示'), findsNothing);
+      await tester.ensureVisible(find.byTooltip('段落'));
+      await tester.tap(find.byTooltip('段落'));
       await frames(tester);
-      expect(tester.takeException(), isNull, reason: 'Inserted HTML preview');
       final input = tester.widget<TextField>(
         find.byKey(const Key('editor.content')),
       );
-      expect(input.controller!.text, contains('<p>第一段文字</p>'));
-      await tester.tap(find.text('插入代码块'));
+      expect(input.controller!.text, contains('<p>段落文字</p>'));
+      await capture(tester, key, 'desktop-editor-toolbar');
+      input.controller!.value = const TextEditingValue(
+        text: '星屿',
+        selection: TextSelection(baseOffset: 0, extentOffset: 2),
+      );
+      await frames(tester);
+      await tester.tap(find.byTooltip('加粗'));
+      await frames(tester);
+      expect(input.controller!.text, '<strong>星屿</strong>');
+      await tester.tap(find.byTooltip('正文字号'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('24 px'));
+      await frames(tester);
+      expect(
+        input.controller!.text,
+        '<strong><span style="font-size:24px">星屿</span></strong>',
+      );
+      await tester.tap(find.byTooltip('撤销'));
+      await frames(tester);
+      expect(input.controller!.text, '<strong>星屿</strong>');
+      await tester.tap(find.byTooltip('重做'));
+      await frames(tester);
+      expect(input.controller!.text, contains('font-size:24px'));
+      final beforeZoom = input.controller!.text;
+      await tester.ensureVisible(find.byTooltip('增大编辑字号'));
+      await tester.tap(find.byTooltip('增大编辑字号'));
+      await frames(tester);
+      expect(input.controller!.text, beforeZoom);
+      expect(
+        tester
+            .widget<TextField>(find.byKey(const Key('editor.content')))
+            .style
+            ?.fontSize,
+        15,
+      );
+      await tester.tap(find.byTooltip('查找与替换'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byKey(const Key('editor.find')), '星屿');
+      await tester.enterText(find.byKey(const Key('editor.replace')), '星际');
+      await tester.tap(find.text('全部替换'));
+      await tester.pump();
+      expect(input.controller!.text, contains('星际'));
+      await tester.tap(find.text('关闭'));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.byTooltip('撤销'));
+      await tester.tap(find.byTooltip('撤销'));
+      await frames(tester);
+      expect(input.controller!.text, beforeZoom);
+      tester.view.physicalSize = const Size(960, 640);
+      await frames(tester);
+      expect(tester.takeException(), isNull, reason: 'compact toolbar');
+      await capture(tester, key, 'desktop-editor-toolbar-compact');
+      tester.view.physicalSize = const Size(1440, 1000);
+      await frames(tester);
+      await tester.ensureVisible(find.byTooltip('插入代码块'));
+      await tester.tap(find.byTooltip('插入代码块'));
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull, reason: 'Code dialog layout');
       await tester.enterText(

@@ -1,12 +1,12 @@
 # 仓库 · 星屿 Windows
 
-Flutter Desktop 原生 Windows 客户端，版本 **0.1.1 / build 2**，独立于 Android 0.6.2。使用 Dart AOT、Flutter Windows 引擎和 Win32 窗口，不需要安卓模拟器或浏览器容器。
+Flutter Desktop 原生 Windows 客户端，版本 **0.1.2 / build 3**，独立于 Android 0.6.3。使用 Dart AOT、Flutter Windows 引擎和 Win32 窗口，不需要安卓模拟器或浏览器容器。
 
 ## 使用
 
-下载 `output/Xingyu-Windows-0.1.1-x64.zip`，**完整解压后运行 `Xingyu.exe`**。保留同目录的 DLL 和 `data` 文件夹。提供 Windows x64 免安装包，已包含所需 VC++ 运行库；当前为未签名的测试发布版。
+下载 `output/Xingyu-Windows-0.1.2-x64.zip`，**完整解压后运行 `Xingyu.exe`**。保留同目录的 DLL 和 `data` 文件夹。提供 Windows x64 免安装包，已包含所需 VC++ 运行库；当前为未签名的测试发布版。
 
-[公网下载](https://xingyu-chat-ccjk45415.pages.dev/releases/Xingyu-Windows-0.1.1-x64.zip)：14,215,300 字节，SHA-256 `4f4de63df6867256adca7864e58ef2f62b4ba8dd0fa9669aa9d2ba6873fb903a`。独立更新清单位于 `/updates/windows.json`。
+[公网下载](https://xingyu-chat-ccjk45415.pages.dev/releases/Xingyu-Windows-0.1.2-x64.zip)：14,238,006 字节，SHA-256 `2dfe03b70dd000d587d386a791850018752cd28a36a101e562c29f38d9fee032`。独立更新清单位于 `/updates/windows.json`。
 
 使用自己的仓库账号登录。密码不落盘；勾选保持登录后，仅将网站 Cookie 使用 Windows DPAPI 加密保存。聊天令牌也使用独立的、按 UID 区分的加密文件。加密绑定当前 Windows 用户，资料目录与 Android 分开。
 
@@ -73,3 +73,13 @@ flutter build windows --release
 ## 0.1.1 新增
 
 右键正文、资源预览和聊天图片可本机识别二维码；识别后可复制内容或选择打开链接。新增作品/作者搜索切换、作者列表与分页；投稿编辑器提供15项HTML代码提示，以及包含C++的17种语言代码块插入。代码会转义HTML字符并保留缩进，不会在客户端执行。
+
+## 0.1.2 编辑工具
+
+移除HTML提示入口，39个独立图标直接换行排列，与加粗、斜体、图片按钮使用一致样式。包含段落/换行、H1/H2/H3、列表、引用、链接、上传/网络图片、下载卡片、表格、行内代码、代码块、分隔线、正文选区字号、文字颜色/背景色、四种对齐、上下标、缩进、清除选区格式、实体字符、日期、查找替换、编辑字号及撤销重做。代码块改用带代码符号的文档图标。
+
+正文选区字号12–48px写入HTML；编辑区字号10–28仅在本机草稿中保存。查找替换区分大小写、按字面匹配，全部替换可以一次撤销；替换前计算结果上限，避免巨大分配。历史最多50步并限制累计200万字符，连续输入按750ms合并，不跨编辑会话保存。
+
+编辑区支持Ctrl+B/I/U、Ctrl+Z及Ctrl+Shift+Z、Ctrl+F；原有Ctrl+S与Ctrl+Enter保留。选区操作保留内容并处理纯文本转HTML时的位置映射。
+
+![编辑工具栏](../evidence/desktop-editor-toolbar.png)

@@ -62,8 +62,8 @@ final serviceOrigin = String.fromCharCodes(
     113,
   ].indexed.map((v) => v.$2 ^ ((0x6d + v.$1 * 31) & 255)),
 );
-const desktopVersion = '0.1.1';
-const desktopBuild = 2;
+const desktopVersion = '0.1.2';
+const desktopBuild = 3;
 bool safeExternal(String raw) {
   final u = Uri.tryParse(raw);
   return u != null &&

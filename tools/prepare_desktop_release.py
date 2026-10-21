@@ -2,7 +2,7 @@
 import hashlib,json,os,shutil,struct,zipfile
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1];OUT=ROOT/'output';OUT.mkdir(exist_ok=True)
-version='0.1.1';code=2
+version='0.1.2';code=3
 bundles=[ROOT/'desktop/build/windows/native-x64/runner',ROOT/'desktop/build/windows/x64/runner/Release']
 bundle=next((p for p in bundles if (p/'Xingyu.exe').is_file()),None)
 if bundle is None:raise SystemExit('Build the Windows release first')
@@ -12,7 +12,7 @@ exe=(bundle/'Xingyu.exe').read_bytes();offset=struct.unpack_from('<I',exe,0x3c)[
 assert exe[:2]==b'MZ' and exe[offset:offset+4]==b'PE\0\0' and struct.unpack_from('<H',exe,offset+4)[0]==0x8664,'Expected native x64 PE'
 files=[p for p in bundle.iterdir() if p.is_file() and p.suffix in ['.exe','.dll']]+[p for p in (bundle/'data').rglob('*') if p.is_file()]
 archive=OUT/f'Xingyu-Windows-{version}-x64.zip';prefix=Path(f'Xingyu-Windows-{version}')
-usage='''仓库 · 星屿 Windows 0.1.1（Flutter Desktop / x64）
+usage='''仓库 · 星屿 Windows 0.1.2（Flutter Desktop / x64）
 
 完整解压后，双击 Xingyu.exe 运行。不要只复制 EXE：请保留全部 DLL 与 data 文件夹。
 无需安装 Flutter 或安卓模拟器。本包已包含 VC++ 运行库，当前为未签名测试版本。
@@ -36,6 +36,6 @@ with zipfile.ZipFile(archive,'w',zipfile.ZIP_DEFLATED,compresslevel=9) as z:
     if license.is_file():z.write(license,prefix/'LICENSE.flutter.txt')
 if archive.stat().st_size>24*1024*1024:raise SystemExit('ZIP exceeds this free static release channel file size limit')
 public=ROOT/'cloudflare-chat/public';(public/'releases').mkdir(exist_ok=True);shutil.copy2(archive,public/'releases'/archive.name)
-metadata={'available':True,'product':'moe.cangku.xingyu.desktop','platform':'windows-x64','versionCode':code,'versionName':version,'notes':'新增右键图片识别二维码链接、作品与作者搜索切换、15项HTML代码提示，以及支持C++等17种语言的代码块插入。二维码本机识别，结果可复制或确认打开。','url':'https://xingyu-chat-ccjk45415.pages.dev/releases/'+archive.name,'size':archive.stat().st_size,'sha256':hashlib.sha256(archive.read_bytes()).hexdigest()}
+metadata={'available':True,'product':'moe.cangku.xingyu.desktop','platform':'windows-x64','versionCode':code,'versionName':version,'notes':'编辑器移除HTML提示入口，39项功能直接使用统一图标工具栏；新增正文选区字号、编辑字号、颜色、高亮、对齐、撤销重做、查找替换、缩进及格式清除，优化代码块图标。','url':'https://xingyu-chat-ccjk45415.pages.dev/releases/'+archive.name,'size':archive.stat().st_size,'sha256':hashlib.sha256(archive.read_bytes()).hexdigest()}
 (public/'updates/windows.json').write_text(json.dumps(metadata,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
 print(json.dumps({'archive':archive.name,'bytes':metadata['size'],'sha256':metadata['sha256'],'runtime_files':len(files),'platform':'windows-x64'},ensure_ascii=False))

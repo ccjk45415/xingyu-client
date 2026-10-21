@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 
 import '../core/api.dart';
 import '../core/editor_hints.dart';
+import '../core/editor_tools.dart';
 import '../core/media.dart';
 import '../core/reader.dart';
 import '../core/state.dart';
@@ -289,6 +290,10 @@ class _PostEditorState extends State<PostEditor> {
       tags = TextEditingController(),
       schedule = TextEditingController();
   final Set<int> categories = {};
+  final contentFocus = FocusNode();
+  EditorHistory? editHistory;
+  bool applyingEdit = false;
+  double sourceFontSize = 14;
   AppState? app;
   int owner = 0;
   String status = 'draft',
@@ -356,9 +361,17 @@ class _PostEditorState extends State<PostEditor> {
       }
       categories.addAll((source['category_ids'] as List? ?? []).map(number));
       html = source['html'] != false;
-      for (final c in [title, content, thumb, tags, schedule]) {
+      sourceFontSize =
+          (number(source['editor_font_size']) == 0
+                  ? 14
+                  : number(source['editor_font_size']))
+              .clamp(10, 28)
+              .toDouble();
+      editHistory = EditorHistory(captureEdit());
+      for (final c in [title, thumb, tags, schedule]) {
         c.addListener(changed);
       }
+      content.addListener(sourceChanged);
       setState(() => loading = false);
     } catch (e) {
       if (mounted) {
@@ -381,6 +394,7 @@ class _PostEditorState extends State<PostEditor> {
     'status': status,
     'oldStatus': oldStatus,
     'html': html,
+    'editor_font_size': sourceFontSize.toInt(),
     'category_ids': categories.toList(),
     'version': version,
     'baseline': baseline,
@@ -413,6 +427,7 @@ class _PostEditorState extends State<PostEditor> {
         app!.saveDraft(draftKey, snapshot(), owner: owner).catchError((_) {}),
       );
     }
+    contentFocus.dispose();
     for (final c in [title, content, thumb, tags, schedule]) {
       c.dispose();
     }
@@ -422,69 +437,541 @@ class _PostEditorState extends State<PostEditor> {
   String bodyHtml() => html
       ? content.text
       : '<p>${const HtmlEscape().convert(content.text).replaceAll('\n', '<br>')}</p>';
-  void insert(String value) {
-    if (!html) {
-      content.text = bodyHtml();
-      html = true;
+  EditorSnapshot captureEdit() => EditorSnapshot(
+    content.text,
+    content.selection.isValid ? content.selection.start : content.text.length,
+    content.selection.isValid ? content.selection.end : content.text.length,
+    html: html,
+  );
+  void sourceChanged() {
+    if (applyingEdit) return;
+    final next = captureEdit(), old = editHistory?.current;
+    editHistory?.record(next, typing: true);
+    if (old?.text != next.text) {
+      changed();
+    } else if (mounted) {
+      setState(() {});
     }
-    final selection = content.selection;
-    final start = selection.isValid ? selection.start : content.text.length,
-        end = selection.isValid ? selection.end : start;
+  }
+
+  void renderEdit(EditorSnapshot next) {
+    applyingEdit = true;
+    html = next.html;
     content.value = TextEditingValue(
-      text: content.text.replaceRange(start, end, value),
-      selection: TextSelection.collapsed(offset: start + value.length),
+      text: next.text,
+      selection: TextSelection(baseOffset: next.a, extentOffset: next.b),
     );
+    applyingEdit = false;
+    changed();
+    contentFocus.requestFocus();
+  }
+
+  void applyEdit(EditorSnapshot next) {
+    if (busy) return;
+    if (next.text.length > 1000000) {
+      message(context, '正文请控制在100万字符以内');
+      return;
+    }
+    editHistory?.select(captureEdit());
+    editHistory?.record(next);
+    renderEdit(next);
+  }
+
+  void insert(String value) => applyEdit(insertMarkup(captureEdit(), value));
+  void wrap(String before, String after, {String placeholder = '文字'}) =>
+      applyEdit(
+        wrapMarkup(captureEdit(), before, after, placeholder: placeholder),
+      );
+  void undoEdit(bool redo) {
+    if (busy) return;
+    editHistory?.select(captureEdit());
+    final next = redo ? editHistory?.redo() : editHistory?.undo();
+    if (next != null) renderEdit(next);
+  }
+
+  void editorZoom(int delta) {
+    setState(() => sourceFontSize = (sourceFontSize + delta).clamp(10, 28));
     changed();
   }
 
-  Future<void> showHtmlHints() async {
-    final result = await showDialog<String>(
+  Future<void> chooseFontSize() async {
+    final result = await showDialog<int>(
       context: context,
-      builder: (c) => AlertDialog(
-        title: const Text('HTML 提示'),
-        content: SizedBox(
-          width: 680,
-          height: 500,
-          child: ListView.separated(
-            itemCount: htmlHints.length,
-            separatorBuilder: (_, _) => const Divider(),
-            itemBuilder: (c, i) {
-              final hint = htmlHints[i];
-              return ListTile(
-                title: Text(hint.title),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(hint.note),
-                    const SizedBox(height: 6),
-                    SelectableText(
-                      hint.code,
-                      style: const TextStyle(
-                        fontFamily: 'Consolas',
-                        fontFamilyFallback: ['Microsoft YaHei UI'],
-                        fontSize: 13,
-                      ),
+      builder: (c) => SimpleDialog(
+        title: const Text('正文字号 · 应用于选区'),
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final size in [12, 14, 16, 18, 20, 24, 28, 32, 36, 48])
+                  SizedBox(
+                    width: 76,
+                    child: TextButton(
+                      onPressed: () => Navigator.pop(c, size),
+                      child: Text('$size px'),
                     ),
-                  ],
-                ),
-                trailing: TextButton(
-                  onPressed: () => Navigator.pop(c, hint.code),
-                  child: const Text('插入'),
-                ),
-              );
-            },
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(c),
-            child: const Text('关闭'),
+                  ),
+              ],
+            ),
           ),
         ],
       ),
     );
+    if (result != null && mounted) {
+      wrap(
+        '<span style="font-size:${result}px">',
+        '</span>',
+        placeholder: '调整字号的文字',
+      );
+    }
+  }
+
+  Future<void> chooseColor(bool highlight) async {
+    final result = await showDialog<String>(
+      context: context,
+      builder: (c) => SimpleDialog(
+        title: Text(highlight ? '文字背景色' : '文字颜色'),
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                for (final hex in [
+                  '#322c48',
+                  '#8a6adb',
+                  '#e797b7',
+                  '#e05252',
+                  '#e58b32',
+                  '#9b8435',
+                  '#3a926c',
+                  '#278da0',
+                  '#4078ce',
+                  '#795aaf',
+                  '#777777',
+                  '#ffffff',
+                ])
+                  Tooltip(
+                    message: hex,
+                    child: InkWell(
+                      onTap: () => Navigator.pop(c, hex),
+                      borderRadius: BorderRadius.circular(10),
+                      child: Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: Color(
+                            int.parse(hex.substring(1), radix: 16) | 0xff000000,
+                          ),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.grey.shade400),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+    if (result != null && mounted) {
+      wrap(
+        '<span style="${highlight ? 'background-color' : 'color'}:$result">',
+        '</span>',
+      );
+    }
+  }
+
+  Future<void> insertLinkDialog({bool image = false}) async {
+    final label = TextEditingController(text: '链接文字'),
+        url = TextEditingController();
+    String error = '';
+    final result = await showDialog<String>(
+      context: context,
+      builder: (c) => StatefulBuilder(
+        builder: (c, update) => AlertDialog(
+          title: Text(image ? '插入网络图片' : '插入链接'),
+          content: SizedBox(
+            width: 480,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: label,
+                  maxLength: 200,
+                  decoration: InputDecoration(
+                    labelText: image ? '图片说明' : '显示文字',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: url,
+                  maxLength: 3000,
+                  decoration: InputDecoration(
+                    labelText: image ? '图片 HTTP(S) 地址' : '链接地址',
+                    errorText: error.isEmpty ? null : error,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(c),
+              child: const Text('取消'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final value = url.text.trim(),
+                    uri = Uri.tryParse(url.text.trim());
+                if (!safeExternal(value) ||
+                    (image && !['http', 'https'].contains(uri?.scheme))) {
+                  update(() => error = '请输入有效链接');
+                  return;
+                }
+                final href = const HtmlEscape().convert(value),
+                    name = const HtmlEscape().convert(label.text);
+                Navigator.pop(
+                  c,
+                  image
+                      ? '<p><img src="$href" alt="$name"></p>'
+                      : '<a href="$href">$name</a>',
+                );
+              },
+              child: const Text('插入'),
+            ),
+          ],
+        ),
+      ),
+    );
+    await Future<void>.delayed(const Duration(milliseconds: 250));
+    label.dispose();
+    url.dispose();
     if (result != null && mounted) insert(result);
   }
+
+  Future<void> findReplace() async {
+    final find = TextEditingController(), replace = TextEditingController();
+    String status = '仅修改当前本机正文，区分大小写';
+    await showDialog<void>(
+      context: context,
+      builder: (c) => StatefulBuilder(
+        builder: (c, update) {
+          void run(String mode) {
+            final needle = find.text;
+            if (needle.isEmpty) {
+              update(() => status = '请填写查找文字');
+              return;
+            }
+            try {
+              final v = captureEdit();
+              if (mode == 'all') {
+                final result = replaceEditorText(v.text, needle, replace.text);
+                final count = needle.allMatches(v.text).length;
+                applyEdit(EditorSnapshot(result, 0, 0, html: html));
+                update(() => status = '已替换 $count 处，可使用撤销恢复');
+                return;
+              }
+              if (mode == 'one' && v.text.substring(v.a, v.b) == needle) {
+                final result = v.text.replaceRange(v.a, v.b, replace.text);
+                applyEdit(
+                  EditorSnapshot(
+                    result,
+                    v.a,
+                    v.a + replace.text.length,
+                    html: html,
+                  ),
+                );
+                update(() => status = '已替换当前匹配');
+                return;
+              }
+              var at = v.text.indexOf(needle, v.b);
+              if (at < 0) at = v.text.indexOf(needle);
+              if (at < 0) {
+                update(() => status = '没有找到匹配内容');
+                return;
+              }
+              content.selection = TextSelection(
+                baseOffset: at,
+                extentOffset: at + needle.length,
+              );
+              update(() => status = '已选中第 ${at + 1} 个字符处的匹配');
+            } catch (e) {
+              update(() => status = '$e');
+            }
+          }
+
+          return AlertDialog(
+            title: const Text('查找与替换'),
+            content: SizedBox(
+              width: 520,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  TextField(
+                    key: const Key('editor.find'),
+                    controller: find,
+                    maxLength: 300,
+                    decoration: const InputDecoration(labelText: '查找文字'),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    key: const Key('editor.replace'),
+                    controller: replace,
+                    maxLength: 2000,
+                    decoration: const InputDecoration(labelText: '替换为'),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(status),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(c),
+                child: const Text('关闭'),
+              ),
+              TextButton(
+                onPressed: () => run('find'),
+                child: const Text('查找下一个'),
+              ),
+              TextButton(
+                onPressed: () => run('one'),
+                child: const Text('替换当前'),
+              ),
+              FilledButton(
+                onPressed: () => run('all'),
+                child: const Text('全部替换'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    await Future<void>.delayed(const Duration(milliseconds: 250));
+    find.dispose();
+    replace.dispose();
+  }
+
+  Widget tool(String label, IconData icon, VoidCallback? run) => IconButton(
+    tooltip: label,
+    onPressed: busy ? null : run,
+    icon: Icon(icon, size: 21),
+    style: IconButton.styleFrom(
+      foregroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
+      minimumSize: const Size(40, 40),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
+    ),
+  );
+  Widget toolbar() => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      Wrap(
+        spacing: 2,
+        runSpacing: 4,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          tool(
+            '撤销',
+            Icons.undo_rounded,
+            editHistory?.canUndo == true ? () => undoEdit(false) : null,
+          ),
+          tool(
+            '重做',
+            Icons.redo_rounded,
+            editHistory?.canRedo == true ? () => undoEdit(true) : null,
+          ),
+          tool(
+            '加粗',
+            Icons.format_bold,
+            () => wrap('<strong>', '</strong>', placeholder: '加粗文字'),
+          ),
+          tool(
+            '斜体',
+            Icons.format_italic,
+            () => wrap('<em>', '</em>', placeholder: '斜体文字'),
+          ),
+          tool('下划线', Icons.format_underlined, () => wrap('<u>', '</u>')),
+          tool(
+            '删除线',
+            Icons.format_strikethrough,
+            () => wrap('<del>', '</del>'),
+          ),
+          for (final size in [1, 2, 3])
+            Tooltip(
+              message: '$size级标题',
+              child: IconButton(
+                onPressed: busy
+                    ? null
+                    : () => wrap('<h$size>', '</h$size>', placeholder: '标题'),
+                icon: Text(
+                  'H$size',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                style: IconButton.styleFrom(minimumSize: const Size(40, 40)),
+              ),
+            ),
+          tool(
+            '段落',
+            Icons.notes_rounded,
+            () => wrap('<p>', '</p>', placeholder: '段落文字'),
+          ),
+          tool('插入换行', Icons.keyboard_return_rounded, () => insert('<br>')),
+          tool(
+            '无序列表',
+            Icons.format_list_bulleted,
+            () => applyEdit(listMarkup(captureEdit(), false)),
+          ),
+          tool(
+            '有序列表',
+            Icons.format_list_numbered,
+            () => applyEdit(listMarkup(captureEdit(), true)),
+          ),
+          tool(
+            '引用',
+            Icons.format_quote_rounded,
+            () => wrap('<blockquote>', '</blockquote>', placeholder: '引用文字'),
+          ),
+          tool('插入链接', Icons.link_rounded, insertLinkDialog),
+          tool('上传正文图片', Icons.image_outlined, upload),
+          tool(
+            '插入网络图片',
+            Icons.add_photo_alternate_outlined,
+            () => insertLinkDialog(image: true),
+          ),
+          tool(
+            '插入下载卡片模板',
+            Icons.cloud_download_outlined,
+            () => insert(htmlHints.last.code),
+          ),
+          tool(
+            '插入表格',
+            Icons.table_chart_outlined,
+            () => insert(htmlHints[10].code),
+          ),
+          tool(
+            '行内代码',
+            Icons.code_rounded,
+            () => wrap('<code>', '</code>', placeholder: 'code'),
+          ),
+          tool(
+            '插入代码块',
+            Icons.integration_instructions_outlined,
+            showCodeDialog,
+          ),
+          tool(
+            '水平分隔线',
+            Icons.horizontal_rule_rounded,
+            () => insert('\n<hr>\n'),
+          ),
+          tool('正文字号', Icons.format_size, chooseFontSize),
+          tool('文字颜色', Icons.format_color_text, () => chooseColor(false)),
+          tool('文字背景色', Icons.format_color_fill, () => chooseColor(true)),
+          tool(
+            '左对齐',
+            Icons.format_align_left,
+            () => wrap('<p style="text-align:left">', '</p>'),
+          ),
+          tool(
+            '居中',
+            Icons.format_align_center,
+            () => wrap('<p style="text-align:center">', '</p>'),
+          ),
+          tool(
+            '右对齐',
+            Icons.format_align_right,
+            () => wrap('<p style="text-align:right">', '</p>'),
+          ),
+          tool(
+            '两端对齐',
+            Icons.format_align_justify,
+            () => wrap('<p style="text-align:justify">', '</p>'),
+          ),
+          tool('上标', Icons.superscript, () => wrap('<sup>', '</sup>')),
+          tool('下标', Icons.subscript, () => wrap('<sub>', '</sub>')),
+          tool(
+            '增加缩进',
+            Icons.format_indent_increase,
+            () => applyEdit(indentSource(captureEdit(), false)),
+          ),
+          tool(
+            '减少缩进',
+            Icons.format_indent_decrease,
+            () => applyEdit(indentSource(captureEdit(), true)),
+          ),
+          tool('清除选区格式', Icons.format_clear, () {
+            if (captureEdit().a == captureEdit().b) {
+              message(context, '请先选择需要清除格式的正文');
+              return;
+            }
+            applyEdit(removeSelectionFormat(captureEdit()));
+          }),
+          tool(
+            'HTML特殊字符',
+            Icons.text_fields,
+            () => insert('&lt;标签&gt; &amp; 文本'),
+          ),
+          tool('插入当前日期', Icons.today_outlined, () {
+            final d = DateTime.now().toUtc().add(const Duration(hours: 8));
+            insert(
+              '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}',
+            );
+          }),
+          tool('查找与替换', Icons.find_replace_rounded, findReplace),
+          tool(
+            '减小编辑字号',
+            Icons.text_decrease,
+            sourceFontSize > 10 ? () => editorZoom(-1) : null,
+          ),
+          tool(
+            '增大编辑字号',
+            Icons.text_increase,
+            sourceFontSize < 28 ? () => editorZoom(1) : null,
+          ),
+        ],
+      ),
+      const SizedBox(height: 10),
+      Wrap(
+        spacing: 12,
+        runSpacing: 6,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          FilterChip(
+            label: const Text('HTML源码'),
+            selected: html,
+            onSelected: busy
+                ? null
+                : (v) {
+                    if (!v && content.text.isNotEmpty) {
+                      message(context, '已有正文时保留HTML排版，避免丢失格式');
+                      return;
+                    }
+                    applyEdit(EditorSnapshot(content.text, 0, 0, html: v));
+                  },
+          ),
+          FilterChip(
+            label: const Text('实时预览'),
+            selected: preview,
+            onSelected: (v) => setState(() => preview = v),
+          ),
+          Text(
+            '源码 ${content.text.runes.length} 字符 · 选中 ${captureEdit().b - captureEdit().a} · 编辑字号 ${sourceFontSize.toInt()}',
+            style: const TextStyle(fontSize: 11, color: Colors.grey),
+          ),
+        ],
+      ),
+    ],
+  );
 
   Future<void> showCodeDialog() async {
     final code = TextEditingController();
@@ -870,84 +1357,63 @@ class _PostEditorState extends State<PostEditor> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Wrap(
-                    spacing: 7,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      IconButton(
-                        onPressed: busy
-                            ? null
-                            : () => insert('<strong>加粗文字</strong>'),
-                        tooltip: '加粗',
-                        icon: const Icon(Icons.format_bold),
-                      ),
-                      IconButton(
-                        onPressed: busy ? null : () => insert('<em>强调文字</em>'),
-                        tooltip: '斜体',
-                        icon: const Icon(Icons.format_italic),
-                      ),
-                      IconButton(
-                        onPressed: busy ? null : upload,
-                        tooltip: '上传正文图片',
-                        icon: const Icon(Icons.image_outlined),
-                      ),
-                      IconButton(
-                        onPressed: busy
-                            ? null
-                            : () => insert(
-                                '[dlbox title="资源下载" info="资源说明" link1="网盘|https://example.com"][/dlbox]',
-                              ),
-                        tooltip: '插入下载卡片模板',
-                        icon: const Icon(Icons.cloud_download_outlined),
-                      ),
-                      FilterChip(
-                        label: const Text('HTML源码'),
-                        selected: html,
-                        onSelected: busy
-                            ? null
-                            : (v) {
-                                html = v;
-                                changed();
-                              },
-                      ),
-                      OutlinedButton.icon(
-                        onPressed: busy ? null : showHtmlHints,
-                        icon: const Icon(Icons.help_outline),
-                        label: const Text('HTML 提示'),
-                      ),
-                      OutlinedButton.icon(
-                        onPressed: busy ? null : showCodeDialog,
-                        icon: const Icon(Icons.code),
-                        label: const Text('插入代码块'),
-                      ),
-                      FilterChip(
-                        label: const Text('实时预览'),
-                        selected: preview,
-                        onSelected: (v) => setState(() => preview = v),
-                      ),
-                    ],
-                  ),
+                  toolbar(),
                   const Divider(height: 30),
                   LayoutBuilder(
                     builder: (c, size) {
-                      final editor = TextField(
-                            key: const Key('editor.content'),
-                            controller: content,
-                            enabled: !busy,
-                            minLines: 21,
-                            maxLines: 45,
-                            style: const TextStyle(
-                              fontSize: 14,
-                              height: 1.8,
-                              fontFamily: 'Consolas',
-                              fontFamilyFallback: [
-                                'Microsoft YaHei UI',
-                                'Microsoft YaHei',
-                              ],
-                            ),
-                            decoration: const InputDecoration(
-                              hintText: '从这里开始，把灵感变成作品…',
-                              fillColor: Colors.transparent,
+                      final editor = CallbackShortcuts(
+                            bindings: {
+                              const SingleActivator(
+                                LogicalKeyboardKey.keyB,
+                                control: true,
+                              ): () =>
+                                  wrap('<strong>', '</strong>'),
+                              const SingleActivator(
+                                LogicalKeyboardKey.keyI,
+                                control: true,
+                              ): () =>
+                                  wrap('<em>', '</em>'),
+                              const SingleActivator(
+                                LogicalKeyboardKey.keyU,
+                                control: true,
+                              ): () =>
+                                  wrap('<u>', '</u>'),
+                              const SingleActivator(
+                                LogicalKeyboardKey.keyZ,
+                                control: true,
+                              ): () =>
+                                  undoEdit(false),
+                              const SingleActivator(
+                                LogicalKeyboardKey.keyZ,
+                                control: true,
+                                shift: true,
+                              ): () =>
+                                  undoEdit(true),
+                              const SingleActivator(
+                                LogicalKeyboardKey.keyF,
+                                control: true,
+                              ): findReplace,
+                            },
+                            child: TextField(
+                              key: const Key('editor.content'),
+                              controller: content,
+                              focusNode: contentFocus,
+                              enabled: !busy,
+                              minLines: 21,
+                              maxLines: 45,
+                              style: TextStyle(
+                                fontSize: sourceFontSize,
+                                height: 1.8,
+                                fontFamily: 'Consolas',
+                                fontFamilyFallback: [
+                                  'Microsoft YaHei UI',
+                                  'Microsoft YaHei',
+                                ],
+                              ),
+                              decoration: const InputDecoration(
+                                hintText: '从这里开始，把灵感变成作品…',
+                                fillColor: Colors.transparent,
+                              ),
                             ),
                           ),
                           rendered = Surface(

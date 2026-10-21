@@ -2,10 +2,10 @@
   "available": true,
   "product": "moe.cangku.xingyu.desktop",
   "platform": "windows-x64",
-  "versionCode": 2,
-  "versionName": "0.1.1",
-  "notes": "新增右键图片识别二维码链接、作品与作者搜索切换、15项HTML代码提示，以及支持C++等17种语言的代码块插入。二维码本机识别，结果可复制或确认打开。",
-  "url": "https://xingyu-chat-ccjk45415.pages.dev/releases/Xingyu-Windows-0.1.1-x64.zip",
-  "size": 14215300,
-  "sha256": "4f4de63df6867256adca7864e58ef2f62b4ba8dd0fa9669aa9d2ba6873fb903a"
+  "versionCode": 3,
+  "versionName": "0.1.2",
+  "notes": "编辑器移除HTML提示入口，39项功能直接使用统一图标工具栏；新增正文选区字号、编辑字号、颜色、高亮、对齐、撤销重做、查找替换、缩进及格式清除，优化代码块图标。",
+  "url": "https://xingyu-chat-ccjk45415.pages.dev/releases/Xingyu-Windows-0.1.2-x64.zip",
+  "size": 14238006,
+  "sha256": "2dfe03b70dd000d587d386a791850018752cd28a36a101e562c29f38d9fee032"
 }

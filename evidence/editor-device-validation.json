@@ -1,0 +1,8 @@
+{
+  "attempt": "isolated Internet-disabled APK installation",
+  "installation": "timed out after 30 seconds",
+  "native_ui_test_executed": false,
+  "production_client_modified": false,
+  "cleanup": "own test package absent (confirmed by package list)",
+  "synthetic_data_only": true
+}

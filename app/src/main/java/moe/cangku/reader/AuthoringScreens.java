@@ -26,6 +26,13 @@ final class AuthoringScreens {
     private String uploadType;
     private EditText contentInput;
     private CheckBox htmlToggle;
+    private EditorBuffer.History editHistory;
+    private Editor historyOwner;
+    private boolean applyingEdit;
+    private int sourceFontSize=14;
+    private TextView sourceStats;
+    private View undoTool,redoTool;
+
     private final Runnable autosave=()->persist();
     static final String[] STATUSES={"publish","future","draft","pending","rejected","trash"};
     static final String[] STATUS_LABELS={"已发布","定时发布","草稿","待审核","已退回","回收站"};
@@ -50,7 +57,7 @@ final class AuthoringScreens {
     boolean keepDuringConfig(){return busy||dirty;}
     private void changed(){dirty=true;handler.removeCallbacks(autosave);if(formKind.equals("editor"))handler.postDelayed(autosave,650);}
     void persist(){handler.removeCallbacks(autosave);if(edit!=null&&formKind.equals("editor")&&dirty){try{drafts.edit().putString("user."+edit.user+".post."+edit.id,edit.json().toString()).commit();}catch(Exception ignored){}}}
-    void suspend(){persist();setBusy(false);dirty=false;formKind="";edit=null;uploaded=null;contentInput=null;}
+    void suspend(){persist();setBusy(false);dirty=false;formKind="";edit=null;uploaded=null;contentInput=null;editHistory=null;historyOwner=null;sourceStats=null;}
     private String key(long id){return "user."+uid()+".post."+id;}
     void leave(Runnable next){
         if(busy){host.toast("正在提交，请等待结果后再离开");return;}
@@ -125,12 +132,18 @@ final class AuthoringScreens {
         html.setOnCheckedChangeListener((view,checked)->{
             if(checked==edit.html)return;
             if(!checked){view.setChecked(true);host.toast("已有 HTML 排版时保留源码模式，可新建纯文本投稿");return;}
-            edit.source=AuthoringRules.bodyHtml(edit.source,false);edit.html=true;changed();if(contentInput!=null)contentInput.setText(edit.source);
+            applyEdit(captureEdit().asHtml());
         });
-        HorizontalScrollView tools=new HorizontalScrollView(host);tools.setHorizontalScrollBarEnabled(false);LinearLayout row=ui().row();
-        tool(row,"加粗",()->format("<strong>","</strong>"));tool(row,"斜体",()->format("<em>","</em>"));tool(row,"小标题",()->format("<h2>","</h2>"));tool(row,"引用",()->format("<blockquote>","</blockquote>"));tool(row,"链接",this::insertLink);tool(row,"图片",()->chooseImage("post",url->insert("<p><img src=\""+ReaderContent.escape(url)+"\"></p>")));tool(row,"下载卡片",this::insertDownload);tools.addView(row);body().addView(tools);ui().space(body(),12);
-        LinearLayout help=ui().row();tool(help,"HTML 提示",this::htmlHints);tool(help,"插入代码块",this::insertCode);body().addView(help);ui().space(body(),10);
-        contentInput=field(edit.html?"正文 · HTML / 短代码":"正文 · 纯文本",edit.source,12,1000000,s->edit.source=s);contentInput.setTypeface(android.graphics.Typeface.MONOSPACE);contentInput.setTextSize(14);
+        buildToolbar();
+        sourceStats=ui().text("",11,ui().muted,false);body().addView(sourceStats);ui().space(body(),8);
+        contentInput=field(edit.html?"正文 · HTML / 短代码":"正文 · 纯文本",edit.source,12,1000000,s->edit.source=s);contentInput.setTypeface(Typeface.MONOSPACE);sourceFontSize=drafts.getInt("editor.font."+uid(),14);contentInput.setTextSize(sourceFontSize);
+        if(historyOwner!=edit||editHistory==null||!editHistory.current.text.equals(edit.source)){editHistory=new EditorBuffer.History(captureEdit());historyOwner=edit;}
+        contentInput.addTextChangedListener(new TextWatcher(){
+            public void beforeTextChanged(CharSequence value,int start,int count,int after){if(!applyingEdit&&editHistory!=null)editHistory.select(new EditorBuffer.State(value.toString(),Math.max(0,contentInput.getSelectionStart()),Math.max(0,contentInput.getSelectionEnd()),edit.html));}
+            public void onTextChanged(CharSequence value,int start,int before,int count){}
+            public void afterTextChanged(Editable value){if(!applyingEdit&&editHistory!=null)editHistory.record(captureEdit(),true,android.os.SystemClock.uptimeMillis());refreshEditorTools();}
+        });
+        contentInput.setOnTouchListener((v,event)->{handler.post(this::refreshEditorTools);return false;});refreshEditorTools();
         EditText thumb=field("封面图片 URL",edit.thumb,1,3000,s->edit.thumb=s);
         button("上传封面图片",()->chooseImage("post",url->{edit.thumb=url;thumb.setText(url);changed();}));
         TextView categories=ui().button(categorySummary(),false,()->selectCategories());body().addView(categories,new LinearLayout.LayoutParams(-1,-2));ui().space(body(),16);
@@ -144,17 +157,63 @@ final class AuthoringScreens {
         TextView local=ui().button("保存到本机",false,()->{dirty=true;persist();host.toast("已保存到本机，尚未提交网站");});body().addView(local,new LinearLayout.LayoutParams(-1,-2));ui().space(body(),10);
         TextView submit=ui().button(edit.id==0?"提交投稿":"保存修改",true,this::submitEditor);body().addView(submit,new LinearLayout.LayoutParams(-1,ui().dp(54)));ui().space(body(),18);
     }
-    private void tool(LinearLayout row,String text,Runnable action){TextView t=ui().chip(text,false,action);LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-2,-2);p.rightMargin=ui().dp(7);row.addView(t,p);}
-    private void ensureHtml(){if(edit!=null&&!edit.html){int start=contentInput==null?edit.source.length():Math.max(0,contentInput.getSelectionStart()),end=contentInput==null?start:Math.max(start,contentInput.getSelectionEnd());int mappedStart=AuthoringRules.plainOffset(edit.source,start),mappedEnd=AuthoringRules.plainOffset(edit.source,end);edit.source=AuthoringRules.editablePlainHtml(edit.source);edit.html=true;if(htmlToggle!=null)htmlToggle.setChecked(true);if(contentInput!=null){contentInput.setText(edit.source);contentInput.setSelection(mappedStart,mappedEnd);}}}
-    private void format(String before,String after){if(edit==null||contentInput==null)return;ensureHtml();int start=contentInput.getSelectionStart(),end=contentInput.getSelectionEnd();contentInput.setText(AuthoringRules.wrap(edit.source,start,end,before,after));contentInput.setSelection(Math.min(contentInput.length(),Math.max(0,start)+before.length()));changed();}
-    private void insert(String html){if(edit==null||contentInput==null)return;ensureHtml();int start=Math.max(0,contentInput.getSelectionStart()),end=Math.max(start,contentInput.getSelectionEnd());contentInput.getText().replace(start,end,html);changed();}
+    private EditorBuffer.State captureEdit(){String source=contentInput==null?edit.source:contentInput.getText().toString();return new EditorBuffer.State(source,contentInput==null?source.length():Math.max(0,contentInput.getSelectionStart()),contentInput==null?source.length():Math.max(0,contentInput.getSelectionEnd()),edit.html);}
+    private void renderEdit(EditorBuffer.State next){
+        applyingEdit=true;edit.source=next.text;edit.html=next.html;if(htmlToggle!=null)htmlToggle.setChecked(edit.html);contentInput.setText(next.text);contentInput.setSelection(next.a,next.b);applyingEdit=false;changed();refreshEditorTools();
+    }
+    private void applyEdit(EditorBuffer.State next){
+        if(busy||edit==null||contentInput==null)return;if(next.text.length()>1000000){host.toast("正文请控制在100万字符以内");return;}
+        if(editHistory!=null){editHistory.select(captureEdit());editHistory.record(next,false,android.os.SystemClock.uptimeMillis());}renderEdit(next);
+    }
+    private void format(String before,String after){format(before,after,"文字");}
+    private void format(String before,String after,String placeholder){applyEdit(EditorBuffer.wrap(captureEdit(),before,after,placeholder));}
+    private void insert(String html){applyEdit(EditorBuffer.insert(captureEdit(),html));}
+    private void undoEdit(boolean redo){if(editHistory==null||busy)return;editHistory.select(captureEdit());EditorBuffer.State next=redo?editHistory.redo():editHistory.undo();if(next!=null)renderEdit(next);}
+    private void refreshEditorTools(){
+        if(sourceStats!=null&&edit!=null&&contentInput!=null){EditorBuffer.State s=captureEdit();sourceStats.setText("源码 "+s.text.codePointCount(0,s.text.length())+" 字符 · 选中 "+(s.b-s.a)+" · 编辑字号 "+sourceFontSize);}
+        if(undoTool!=null){undoTool.setEnabled(editHistory!=null&&editHistory.canUndo());undoTool.setAlpha(undoTool.isEnabled()?1f:.35f);}
+        if(redoTool!=null){redoTool.setEnabled(editHistory!=null&&editHistory.canRedo());redoTool.setAlpha(redoTool.isEnabled()?1f:.35f);}
+    }
+    private FrameLayout editorTool(GridLayout grid,String label,String glyph,Runnable action){
+        FrameLayout button=new FrameLayout(host);button.setContentDescription(label);button.setTooltipText(label);button.setBackground(new android.graphics.drawable.RippleDrawable(android.content.res.ColorStateList.valueOf(0x227D69EB),null,ui().round(0xffffffff,9)));
+        EditorToolIcon icon=new EditorToolIcon(host,glyph,ui().text);button.addView(icon,new FrameLayout.LayoutParams(ui().dp(22),ui().dp(22),Gravity.CENTER));ui().click(button,()->{if(!busy)action.run();});
+        int index=grid.getChildCount(),columns=grid.getColumnCount();GridLayout.LayoutParams params=new GridLayout.LayoutParams(GridLayout.spec(index/columns),GridLayout.spec(index%columns,1f));params.width=0;params.height=ui().dp(48);grid.addView(button,params);return button;
+    }
+    private void buildToolbar(){
+        GridLayout grid=new GridLayout(host);int columns=Math.max(4,Math.min(12,(host.getResources().getConfiguration().screenWidthDp-60)/48));grid.setColumnCount(columns);grid.setBackground(ui().round(ui().surface,16));ui().pad(grid,6,6,6,6);
+        undoTool=editorTool(grid,"撤销","undo",()->undoEdit(false));redoTool=editorTool(grid,"重做","redo",()->undoEdit(true));
+        editorTool(grid,"加粗","bold",()->format("<strong>","</strong>","加粗文字"));editorTool(grid,"斜体","italic",()->format("<em>","</em>","斜体文字"));
+        editorTool(grid,"下划线","underline",()->format("<u>","</u>"));editorTool(grid,"删除线","strike",()->format("<del>","</del>"));
+        for(int n=1;n<=3;n++){final int level=n;editorTool(grid,n+"级标题","h"+n,()->format("<h"+level+">","</h"+level+">","标题"));}
+        editorTool(grid,"段落","paragraph",()->format("<p>","</p>","段落文字"));editorTool(grid,"插入换行","return",()->insert("<br>"));
+        editorTool(grid,"无序列表","list",()->applyEdit(EditorBuffer.list(captureEdit(),false)));editorTool(grid,"有序列表","ordered",()->applyEdit(EditorBuffer.list(captureEdit(),true)));editorTool(grid,"引用","quote",()->format("<blockquote>","</blockquote>","引用文字"));
+        editorTool(grid,"插入链接","link",this::insertLink);editorTool(grid,"上传正文图片","image",()->chooseImage("post",url->insert("<p><img src=\""+ReaderContent.escape(url)+"\"></p>")));editorTool(grid,"插入网络图片","imageUrl",this::insertNetworkImage);editorTool(grid,"下载卡片","download",this::insertDownload);
+        editorTool(grid,"插入表格","table",()->insert(EditorHints.ITEMS[10][2]));editorTool(grid,"行内代码","code",()->format("<code>","</code>","code"));editorTool(grid,"插入代码块","codeBlock",this::insertCode);editorTool(grid,"水平分隔线","rule",()->insert("\n<hr>\n"));
+        editorTool(grid,"正文字号","size",this::chooseFontSize);editorTool(grid,"文字颜色","textColor",()->chooseColor(false));editorTool(grid,"文字背景色","fillColor",()->chooseColor(true));
+        editorTool(grid,"左对齐","left",()->format("<p style=\"text-align:left\">","</p>"));editorTool(grid,"居中","center",()->format("<p style=\"text-align:center\">","</p>"));editorTool(grid,"右对齐","right",()->format("<p style=\"text-align:right\">","</p>"));editorTool(grid,"两端对齐","justify",()->format("<p style=\"text-align:justify\">","</p>"));
+        editorTool(grid,"上标","sup",()->format("<sup>","</sup>"));editorTool(grid,"下标","sub",()->format("<sub>","</sub>"));editorTool(grid,"增加缩进","indent",()->applyEdit(EditorBuffer.indent(captureEdit(),false)));editorTool(grid,"减少缩进","outdent",()->applyEdit(EditorBuffer.indent(captureEdit(),true)));
+        editorTool(grid,"清除选区格式","clear",()->{EditorBuffer.State v=captureEdit();if(v.a==v.b){host.toast("请先选择需要清除格式的正文");return;}if(!v.html)return;String plain=Html.fromHtml(v.text.substring(v.a,v.b),Html.FROM_HTML_MODE_COMPACT).toString();String replacement=ReaderContent.escape(plain).replace("\n","<br>");applyEdit(new EditorBuffer.State(v.text.substring(0,v.a)+replacement+v.text.substring(v.b),v.a,v.a+replacement.length(),v.html));});
+        editorTool(grid,"HTML特殊字符","entity",()->insert("&lt;标签&gt; &amp; 文本"));editorTool(grid,"插入当前日期","date",()->{SimpleDateFormat f=new SimpleDateFormat("yyyy-MM-dd",Locale.ROOT);f.setTimeZone(TimeZone.getTimeZone("Asia/Shanghai"));insert(f.format(new Date()));});editorTool(grid,"查找与替换","find",this::findReplace);
+        editorTool(grid,"减小编辑字号","zoomOut",()->editorZoom(-1));editorTool(grid,"增大编辑字号","zoomIn",()->editorZoom(1));body().addView(grid,new LinearLayout.LayoutParams(-1,-2));ui().space(body(),8);note("长按图标查看功能名称；正文字号用于文章，编辑字号仅改变输入区显示。");
+    }
+    private void editorZoom(int delta){sourceFontSize=Math.max(10,Math.min(28,sourceFontSize+delta));contentInput.setTextSize(sourceFontSize);drafts.edit().putInt("editor.font."+uid(),sourceFontSize).apply();refreshEditorTools();}
+    private void chooseFontSize(){String[] labels={"12 px","14 px","16 px","18 px","20 px","24 px","28 px","32 px","36 px","48 px"};int[] sizes={12,14,16,18,20,24,28,32,36,48};dialog().setTitle("正文字号 · 应用于选区").setItems(labels,(d,i)->format("<span style=\"font-size:"+sizes[i]+"px\">","</span>","调整字号的文字")).setNegativeButton("取消",null).show();}
+    private void chooseColor(boolean highlight){
+        String[] colors={"#322c48","#8a6adb","#e797b7","#e05252","#e58b32","#9b8435","#3a926c","#278da0","#4078ce","#795aaf","#777777","#ffffff"};
+        GridLayout grid=new GridLayout(host);grid.setColumnCount(4);ui().pad(grid,20,16,20,16);AlertDialog picker=dialog().setTitle(highlight?"文字背景色":"文字颜色").setView(grid).setNegativeButton("取消",null).create();
+        for(int i=0;i<colors.length;i++){final String color=colors[i];View swatch=new View(host);android.graphics.drawable.GradientDrawable shape=ui().round(Color.parseColor(color),8);shape.setStroke(ui().dp(1),ui().line);swatch.setBackground(shape);swatch.setContentDescription(color);swatch.setTooltipText(color);ui().click(swatch,()->{format("<span style=\""+(highlight?"background-color":"color")+":"+color+"\">","</span>");picker.dismiss();});GridLayout.LayoutParams p=new GridLayout.LayoutParams(GridLayout.spec(i/4),GridLayout.spec(i%4,1f));p.width=0;p.height=ui().dp(48);p.setMargins(ui().dp(5),ui().dp(5),ui().dp(5),ui().dp(5));grid.addView(swatch,p);}picker.show();
+    }
+    private void insertNetworkImage(){LinearLayout box=ui().column();ui().pad(box,20,12,20,12);EditText alt=dialogInput(box,"图片说明"),url=dialogInput(box,"HTTPS 图片地址");AlertDialog d=dialog().setTitle("插入网络图片").setView(box).setNegativeButton("取消",null).setPositiveButton("插入",null).create();d.setOnShowListener(x->d.getButton(-1).setOnClickListener(v->{String link=url.getText().toString().trim();if(!UrlPolicy.isImage(link)){url.setError("请输入有效HTTPS图片地址");return;}insert("<p><img src=\""+ReaderContent.escape(link)+"\" alt=\""+ReaderContent.escape(alt.getText().toString())+"\"></p>");d.dismiss();}));d.show();}
+    private void findReplace(){
+        LinearLayout box=ui().column();ui().pad(box,20,12,20,12);EditText find=dialogInput(box,"查找文字"),replacement=dialogInput(box,"替换为");find.setFilters(new InputFilter[]{new InputFilter.LengthFilter(300)});replacement.setFilters(new InputFilter[]{new InputFilter.LengthFilter(2000)});TextView status=ui().text("区分大小写，仅修改当前本机正文",12,ui().muted,false);box.addView(status);TextView all=ui().button("全部替换",false,()->{});box.addView(all);
+        java.util.function.Consumer<String> run=mode->{String needle=find.getText().toString(),replace=replacement.getText().toString();if(needle.isEmpty()){status.setText("请填写查找文字");return;}try{EditorBuffer.State v=captureEdit();if(mode.equals("all")){String result=EditorBuffer.replaceAll(v.text,needle,replace);int count=0,at=0;while((at=v.text.indexOf(needle,at))>=0){count++;at+=needle.length();}applyEdit(new EditorBuffer.State(result,0,0,v.html));status.setText("已替换 "+count+" 处，可使用撤销恢复");return;}
+            if(mode.equals("one")&&v.text.substring(v.a,v.b).equals(needle)){applyEdit(new EditorBuffer.State(v.text.substring(0,v.a)+replace+v.text.substring(v.b),v.a,v.a+replace.length(),v.html));status.setText("已替换当前匹配");return;}int at=v.text.indexOf(needle,v.b);if(at<0)at=v.text.indexOf(needle);if(at<0){status.setText("没有找到匹配内容");return;}contentInput.setSelection(at,at+needle.length());refreshEditorTools();status.setText("已选中第 "+(at+1)+" 个字符处的匹配");
+        }catch(Exception error){status.setText(error.getMessage());}};
+        ui().click(all,()->run.accept("all"));AlertDialog d=dialog().setTitle("查找与替换").setView(box).setNegativeButton("关闭",null).setNeutralButton("替换当前",null).setPositiveButton("查找下一个",null).create();d.setOnShowListener(x->{d.getButton(-1).setOnClickListener(v->run.accept("find"));d.getButton(-3).setOnClickListener(v->run.accept("one"));});d.show();
+    }
     private void insertLink(){
         LinearLayout box=ui().column();ui().pad(box,20,8,20,8);EditText name=dialogInput(box,"链接文字"),url=dialogInput(box,"https://...");
         AlertDialog d=dialog().setTitle("插入链接").setView(box).setNegativeButton("取消",null).setPositiveButton("插入",null).create();d.setOnShowListener(x->d.getButton(-1).setOnClickListener(v->{String link=url.getText().toString().trim();if(!UrlPolicy.canOpen(link)){url.setError("请输入有效链接");return;}insert("<a href=\""+ReaderContent.escape(link)+"\">"+ReaderContent.escape(name.getText().toString())+"</a>");d.dismiss();}));d.show();
-    }
-    private void htmlHints(){
-        String[] titles=new String[EditorHints.ITEMS.length];for(int i=0;i<titles.length;i++)titles[i]=EditorHints.ITEMS[i][0]+" · "+EditorHints.ITEMS[i][1];
-        dialog().setTitle("HTML 提示 · 选择查看代码").setItems(titles,(d,which)->{String[] item=EditorHints.ITEMS[which];TextView code=ui().text(item[2],14,ui().text,false);code.setTypeface(android.graphics.Typeface.MONOSPACE);code.setTextIsSelectable(true);ui().pad(code,20,16,20,16);ScrollView scroll=new ScrollView(host);scroll.addView(code);dialog().setTitle(item[0]).setView(scroll).setNegativeButton("返回",(a,b)->htmlHints()).setPositiveButton("插入光标处",(a,b)->insert(item[2])).show();}).setNegativeButton("关闭",null).show();
     }
     private void insertCode(){
         LinearLayout box=ui().column();ui().pad(box,20,12,20,12);Spinner language=new Spinner(host);language.setAdapter(new ArrayAdapter<String>(host,android.R.layout.simple_spinner_dropdown_item,EditorHints.LANGUAGE_NAMES));box.addView(language);

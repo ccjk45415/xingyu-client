@@ -304,7 +304,7 @@ public class MainActivity extends Activity {
                 BitmapDrawable d=new BitmapDrawable(getResources(),bitmap);d.setBounds(0,0,width,height);placeholder.content=d;placeholder.setBounds(0,0,width,height);t.setText(t.getText());t.requestLayout();
             });return placeholder;
         };
-        Spanned parsed=Html.fromHtml(html,Html.FROM_HTML_MODE_COMPACT,getter,null);SpannableStringBuilder safe=new SpannableStringBuilder(parsed);
+        Spanned parsed=Html.fromHtml(EditorStyles.markFontSizes(html),Html.FROM_HTML_MODE_COMPACT,getter,new NativeEditorStyles(getResources().getDisplayMetrics().scaledDensity));SpannableStringBuilder safe=new SpannableStringBuilder(parsed);
         final ImageSpan[] pressed={null};
         t.setOnTouchListener((v,event)->{
             if(event.getActionMasked()==MotionEvent.ACTION_DOWN){
@@ -396,14 +396,14 @@ public class MainActivity extends Activity {
         menu("我的","编辑个人资料","昵称 / 简介 / 头像 / 空间背景",()->go(new Route("editProfile","编辑个人资料")));
         menu("设置","账号安全","更改邮箱与密码",()->go(new Route("security","账号安全")));
         menu("设置","阅读与外观","夜间主题 / 正文字号",()->go(new Route("appearance","阅读与外观")));
-        menu("设置","检查更新","当前版本 0.6.2",()->updates.check(true));
+        menu("设置","检查更新","当前版本 0.6.3",()->updates.check(true));
     }
     private void settings(){
         toolbar("阅读与外观",true,()->render());section("让阅读更合心意","设置保存在这台设备上");
         menu("设置",library.dark()?"夜间星空 · 已开启":"日间晴空 · 已开启","点击切换明暗主题",()->{library.dark(!library.dark());render();});
         ui.space(body,16);TextView size=ui.text("正文字号  "+library.textSize()+" sp",16,ui.text,true);body.addView(size);SeekBar slider=new SeekBar(this);slider.setMax(10);slider.setProgress(library.textSize()-14);body.addView(slider,new LinearLayout.LayoutParams(-1,ui.dp(56)));TextView preview=ui.text("把喜欢的世界，装进口袋。\n每一次翻页，都是新的相遇。",library.textSize(),ui.text,false);preview.setLineSpacing(ui.dp(8),1.2f);ui.pad(preview,20,22,20,22);preview.setBackground(ui.round(ui.surface,20));body.addView(preview);slider.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){public void onProgressChanged(SeekBar s,int p,boolean from){library.textSize(p+14);size.setText("正文字号  "+(p+14)+" sp");preview.setTextSize(p+14);}public void onStartTrackingTouch(SeekBar s){}public void onStopTrackingTouch(SeekBar s){}});
         section("本地数据","");body.addView(ui.button("清空阅读足迹",false,()->new AlertDialog.Builder(this).setTitle("清空阅读足迹？").setMessage("将删除这个账号在当前设备上的阅读记录。").setNegativeButton("取消",null).setPositiveButton("清空",(d,w)->{library.clearHistory();toast("阅读足迹已清空");}).show()));
-        section("关于星屿","仓库 · 星屿  0.6.2");TextView about=ui.text("非官方安卓客户端。网站内容与账号服务由 cangku.moe 提供。\n\n聊天室与私信共用仓库认证，显示官网昵称、UID和头像；认证时临时使用官网会话核验，不保存该会话或密码。\n\n开通独立私信时，经你同意会把官网会话临时发送至 Cloudflare 服务验证身份，不保存该会话；官网密码不会发送。私信双方需安装并开通，消息保留7天。\n\n密码不落盘，本机会话与私信令牌由 Android Keystore 加密。\n\n网站可能调整接口。遇到特殊内容，可以通过文章底部的原文入口查看。",13,ui.muted,false);about.setLineSpacing(ui.dp(5),1.1f);body.addView(about);
+        section("关于星屿","仓库 · 星屿  0.6.3");TextView about=ui.text("非官方安卓客户端。网站内容与账号服务由 cangku.moe 提供。\n\n聊天室与私信共用仓库认证，显示官网昵称、UID和头像；认证时临时使用官网会话核验，不保存该会话或密码。\n\n开通独立私信时，经你同意会把官网会话临时发送至 Cloudflare 服务验证身份，不保存该会话；官网密码不会发送。私信双方需安装并开通，消息保留7天。\n\n密码不落盘，本机会话与私信令牌由 Android Keystore 加密。\n\n网站可能调整接口。遇到特殊内容，可以通过文章底部的原文入口查看。",13,ui.muted,false);about.setLineSpacing(ui.dp(5),1.1f);body.addView(about);
     }
     private void menu(String icon,String title,String subtitle,Runnable action){
         LinearLayout item=ui.row();ui.pad(item,16,16,16,16);item.setBackground(ui.round(ui.surface,20));FrameLayout mark=new FrameLayout(this);mark.setBackground(ui.round(ui.soft,14));FrameLayout.LayoutParams ip=new FrameLayout.LayoutParams(ui.dp(23),ui.dp(23),Gravity.CENTER);mark.addView(ui.icon(icon,ui.accent),ip);item.addView(mark,new LinearLayout.LayoutParams(ui.dp(44),ui.dp(44)));LinearLayout words=ui.column();ui.pad(words,14,0,0,0);words.addView(ui.text(title,16,ui.text,true));ui.space(words,5);words.addView(ui.text(subtitle,11,ui.muted,false));item.addView(words,new LinearLayout.LayoutParams(0,-2,1));item.addView(ui.text("›",25,ui.muted,false));ui.click(item,action);body.addView(item,new LinearLayout.LayoutParams(-1,-2));ui.space(body,10);

@@ -1,0 +1,33 @@
+{
+  "repository": "https://github.com/ccjk45415/xingyu-client",
+  "release_url": "https://github.com/ccjk45415/xingyu-client/releases/tag/v0.6.2",
+  "tag": "v0.6.2",
+  "public": true,
+  "license": "MIT",
+  "source_files": 216,
+  "source_commit": "fa6db7d9034132d34664247b8857425d420750fd",
+  "private_paths_excluded": true,
+  "assets": [
+    {
+      "name": "Cangku-Xingyu-0.6.2-debug.apk",
+      "bytes": 455296,
+      "sha256": "f477ef2ea5c678948ed34249ca047c943f3c3604c2b685746c13bb3b8960c2f7",
+      "download_url": "https://github.com/ccjk45415/xingyu-client/releases/download/v0.6.2/Cangku-Xingyu-0.6.2-debug.apk",
+      "unauthenticated_download": "pass"
+    },
+    {
+      "name": "Release-SHA256SUMS.txt",
+      "bytes": 193,
+      "sha256": "ba25cac6c5408efd9aa8d52277eb6104c79dea2b3a7ed57121223d637964f934",
+      "download_url": "https://github.com/ccjk45415/xingyu-client/releases/download/v0.6.2/Release-SHA256SUMS.txt",
+      "unauthenticated_download": "pass"
+    },
+    {
+      "name": "Xingyu-Windows-0.1.1-x64.zip",
+      "bytes": 14215300,
+      "sha256": "4f4de63df6867256adca7864e58ef2f62b4ba8dd0fa9669aa9d2ba6873fb903a",
+      "download_url": "https://github.com/ccjk45415/xingyu-client/releases/download/v0.6.2/Xingyu-Windows-0.1.1-x64.zip",
+      "unauthenticated_download": "pass"
+    }
+  ]
+}

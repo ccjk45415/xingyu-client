@@ -3,9 +3,9 @@
   "health": "pass",
   "protocol": 3,
   "channels": 2,
-  "versionCode": 8,
-  "apk_bytes": 455296,
-  "sha256": "f477ef2ea5c678948ed34249ca047c943f3c3604c2b685746c13bb3b8960c2f7",
+  "versionCode": 9,
+  "apk_bytes": 467584,
+  "sha256": "2ae0400d19effdf2f500470c0cc73e146baea2f06857fdcfe4977ec19a0f3210",
   "public_messages_sent": 0,
   "public_load_tested": false
 }

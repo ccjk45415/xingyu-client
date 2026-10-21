@@ -3,7 +3,7 @@ import hashlib,json,re,tomllib,zipfile
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 manifest=json.loads((ROOT/'cloudflare-chat/public/updates/android.json').read_text(encoding='utf-8'))
-apk=ROOT/'output/Cangku-Xingyu-0.6.2-debug.apk'
+apk=ROOT/'output/Cangku-Xingyu-0.6.3-debug.apk'
 assert manifest['sha256']==hashlib.sha256(apk.read_bytes()).hexdigest() and manifest['size']==apk.stat().st_size
 assert manifest['url']=='https://xingyu-chat-ccjk45415.pages.dev/releases/'+apk.name
 source=(ROOT/'app/src/main/java/moe/cangku/reader/ServiceEndpoint.java').read_text(encoding='utf-8')
