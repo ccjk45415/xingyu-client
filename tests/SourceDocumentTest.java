@@ -1,0 +1,17 @@
+package moe.cangku.reader;
+import org.json.*;import java.nio.file.*;import java.util.*;
+public final class SourceDocumentTest{
+    static int checks;static void check(boolean v){checks++;if(!v)throw new AssertionError("source document check "+checks);}
+    public static void main(String[] args)throws Exception{
+        String raw=Files.readString(Path.of(args[0]));JSONObject s=SourceDocument.parse(raw,"https://www.dlsite.com/maniax/work/=/product_id/RJ00000001.html");JSONArray b=s.getJSONArray("blocks");String all=s.getString("text");
+        check(s.getString("title").equals("小さな冒険"));check(!all.contains("SEO"));check(!all.contains("DO_NOT_COPY"));check(all.contains("Find all three keys."));check(b.getJSONObject(2).getString("kind").equals("image"));check(b.getJSONObject(2).getString("url").equals("https://cdn.example.com/detail-a.jpg"));check(b.getJSONObject(3).getString("text").equals("First half"));check(b.getJSONObject(4).getString("kind").equals("image"));check(b.getJSONObject(5).getString("text").equals("second half."));
+        check(SourceDocument.desktopUrl("https://www.dlsite.com/maniax-touch/work/=/product_id/RJ1.html").contains("/maniax/"));check(SourceDocument.desktopUrl("https://example.com/maniax-touch/foo").contains("-touch/"));
+        JSONArray sources=new JSONArray().put(s);SourceTranslation.Plan plan=new SourceTranslation.Plan(sources);Map<String,String> values=new HashMap<>();for(JSONArray chunk:plan.chunks){JSONArray translated=new JSONArray();for(int i=0;i<chunk.length();i++){JSONObject v=chunk.getJSONObject(i);translated.put(new JSONObject().put("id",v.getString("id")).put("text",v.getString("text")));}values.putAll(SourceTranslation.translations(new JSONObject().put("translations",translated).toString(),chunk));}
+        JSONObject out=plan.assemble(sources,"auto",values);String html=SourceTranslation.body(out.getJSONArray("blocks"));check(html.contains("<img src=\"https://cdn.example.com/detail-a.jpg\""));check(html.indexOf("First half")<html.indexOf("detail-b.png"));check(html.indexOf("detail-b.png")<html.indexOf("second half."));check(html.contains("日本語の画像"));
+        String longText="A".repeat(799)+"😀"+"全文".repeat(1800);JSONArray longSources=new JSONArray().put(new JSONObject().put("url","https://example.com/work").put("title","").put("blocks",new JSONArray().put(new JSONObject().put("kind","p").put("text",longText))));SourceTranslation.Plan big=new SourceTranslation.Plan(longSources);Map<String,String> same=new HashMap<>();for(JSONArray c:big.chunks)for(int i=0;i<c.length();i++)same.put(c.getJSONObject(i).getString("id"),c.getJSONObject(i).getString("text"));check(big.assemble(longSources,"auto",same).getJSONArray("blocks").getJSONObject(0).getString("text").equals(longText));
+        try{SourceTranslation.translations("{\"translations\":[]}",plan.chunks.get(0));throw new AssertionError("missing translations accepted");}catch(java.io.IOException expected){checks++;}
+        check(out.getJSONArray("tags").length()==0);check(out.getJSONArray("metadata").length()==0);
+        try{SourceDocument.parse("<div class=error_box_work>お住いの国・地域からは購入できません。</div>","https://www.dlsite.com/maniax/work");throw new AssertionError("region error accepted");}catch(java.io.IOException expected){check(expected.getMessage().contains("出口地区"));}
+        System.out.println("PASS "+checks+" native detailed extraction, ordered images, exact segment join and translation schema assertions");
+    }
+}

@@ -1,47 +1,50 @@
-# AI 投稿助手
+# AI投稿助手：详细介绍翻译与图片导入
 
-Android 0.7.1、Windows 0.2.1 在投稿工具栏中增加「AI助手」。输入1至3个公开 HTTPS 作品链接，提取介绍，检查并删改素材，再生成草稿。网页无法直接提取时，保留来源链接并选择「使用粘贴素材」。不绕过登录、年龄确认、验证码或网站访问限制；复杂动态页面可能需要手动粘贴。
+Android 0.8.0、Windows 0.3.0。输入1至3个公开HTTPS作品链接，提取详细介绍，逐段翻译成中文，预览后选择导入。AI不再编写简介、补充作品资料或生成标签；现有标签默认保留，不自动发表。
 
-支持自动识别或手动选择游戏、漫画/同人志、ASMR/音声、动画和其他作品。Steam 使用公开作品信息接口，其他网页提取标题、描述和正文；仅读取公开页面，不带仓库 Cookie。来源提取不执行网页脚本，仍使用原生客户端，无内置浏览器。客户端会拒绝内部网络来源，限制跳转、响应大小和超时。
+## 原文、段落和图片
 
-草稿包括标题、简介、对应类型的作品信息、段落、标签和来源。来源封面 URL 可单独选中导入，默认不替换封面。预览后选择标题/正文/标签/封面，正文可追加或替换；正文作为一次编辑操作进入撤销历史。网站字段原有上限仍生效。只有用户点击原投稿提交按钮，才会写入官网；助手不自动上传图片或发布。
+- DLsite手机版链接读取同一作品官方电脑版的详细介绍 `.work_parts_container`，不把SEO描述或 `work_outline` 资料表当介绍。未识别详情时明确失败，不用摘要代替。Steam读取公开接口完整介绍，其他网站优先选择详情、article或main内容。
+- 标题、段落、列表与介绍图片按DOM顺序保存，包含段内插图和常见懒加载地址。排除网页脚本、导航、表单和页脚，只重建受控正文HTML，不复制网站CSS。复杂动态、登录/验证页面仍可能需要手动粘贴，不绕过访问控制。
+- 图片以原始公开HTTPS链接进入正文，不交给AI、不做OCR或翻译、不自动上传。默认随正文导入；封面是另一个可选字段，默认不替换。图片后续可用性及外链规则仍适用，预览失败保留链接。
+- 「原文已是中文：跳过AI，原样带入」可保留文字与图片，不调用AI、不消耗次数。
+- 翻译按编号逐段对应、合并，图片和顺序由程序恢复。缺失、重复或错位的译文被拒绝，保留原文，不用摘要或半篇内容冒充完成。译文仍需用户核对。
+- 移除精简原文及截取前700字的功能。超出内置免费预算时先提示使用自定义AI，原文不截断。
 
-## 代理网络兼容
+## 内置翻译
 
-0.7.1/0.2.1修复Fake-IP误判。系统DNS返回198.18.0.0/15虚拟地址时，客户端仅把来源域名发送给Google Public DNS的HTTPS解析接口，网络异常时再尝试Cloudflare DoH；不发送完整作品链接、官网Cookie、API密钥或素材。核实为公开地址后，仍以原域名通过当前代理连接，不切换为直连IP，保留系统HTTPS证书和主机名验证。普通公网DNS结果不增加此请求。真正私网地址、混合私网答案、无效公共解析以及跳转到私网仍拒绝。核实失败会显示代理DNS提示，可重试或粘贴公开介绍，无需关闭代理。
+复用仓库认证，没有身份时先明确同意会话核验。只将所选公开文字交给Cloudflare Workers AI，不发送官网密码、Cookie、聊天内容或自定义密钥。
 
-客户端仅内存缓存成功核实的域名1分钟，关闭助手即清除。没有修改系统DNS、代理配置、证书或网站访问限制。规则回归使用`python tools/test_source_network.py`；已构建Android后可用`--live`运行真实AiClient网络校验，测试jar不进入APP或源码包。
+固定模型 `@cf/qwen/qwen3-30b-a3b-fp8`、翻译指令和JSON输出模式，无通用聊天、自定义系统提示或工具权限。新增 `/ai/v2/draft`，v1保留旧客户端兼容并规范化可选字段。
 
-参考：[Mihomo Fake-IP](https://wiki.metacubex.one/config/dns/#fake-ip-range)、[Google DNS JSON接口](https://developers.google.com/speed/public-dns/docs/doh/json)、[Cloudflare DNS JSON接口](https://developers.cloudflare.com/1.1.1.1/encryption/dns-over-https/make-api-requests/dns-json/)。
+- 每UID每UTC日3个任务，同UID同时1个任务，服务最多4个。UTC零点即北京时间08:00刷新。
+- 全站共享16份推理批次预算。每批最多800个原文UTF-16字符、40个文字片段及3000输出tokens，一次完整任务最多8批。个人按完整任务计1次，共享按预留批次计数。图片不占翻译tokens。
+- 单请求最多200000 UTF-8字节、400个结构块和80张图片。所有限制都是上限，没有最低字数。任务过长时拒绝，不删减原文。
+- SQLite事务在模型调用前一次预留完整任务全部批次。预算不足不开始半篇翻译。每批按500 neurons保守预留，全日最多8000，为账号其他使用留余量；这是应用估算，不是平台实时余额。未开通付费套餐。
+- 编号幂等，1小时内读取相同完成结果不再次推理或扣次；同编号改原文拒绝。取消/连接中断后可恢复结果，不自动重试模型调用，已预留的共享预算不退回。
+- 升级补偿：每UID首次使用v2时，若有当天v1失败记录，恢复一次个人重试机会，每UID仅一次，共享预算不退回。额外只记录公开UID的补偿标记，不含会话或原文。
+- 输入不持久保存。缓存结果按UID隔离，1小时后不可读，定时清理正文（一般2小时内）；请求编号、摘要和计数约3天清理。管理凭据不进入模型或客户端。
 
-## 内置 AI
+## 自定义AI
 
-- 与聊天室、私信复用仓库认证。没有有效身份时先明确同意会话核验；网站密码不会发送，核验会话不持久保存。只把所选的公开作品素材交给 AI，不发送官网会话、聊天消息或 API 密钥。
-- 固定 Cloudflare Workers AI 模型 `@cf/qwen/qwen3-30b-a3b-fp8`，固定任务和结构，不提供通用聊天接口、模型切换、系统提示或工具权限。仅接受 `request_id/type/sources/material`。
-- 每仓库 UID 每 UTC 日3次，全体共享每日16次保守预算，每 UID 同时1个任务、服务同时最多4个。UTC零点即北京时间08:00重置。用户、账号令牌和两端客户端共用额度，换设备/新建令牌不会重置。
-- 单次请求不超过12000 UTF-8字节，最多3个来源；输出最多3000 tokens，实际正文最多2500字符，没有最低字数。素材过长时可以主动精简。模型可能因资料不足或格式错误拒绝生成，不自动扩写凑字数。
-- SQLite Durable Object 在推理前事务预留个人/全局次数。保守按每次500 neurons、每日最多8000 neurons预留预算，为账号其他使用留出余量；这是按固定输入/输出包络估算的应用预算，不是 Cloudflare 的实时余额计量。未开通付费套餐；平台本身的免费上限、可用性和同账号其他使用仍适用。
-- 每次生成有幂等编号，1小时内可通过「恢复上次结果」读取同一完成结果，不重复推理或扣次；同编号改素材被拒绝。取消、连接中断、模型失败不退还已预留次数，避免反复取消绕过限额。失败不会自动重试。
-- 不持久保存输入素材、Bearer明文或官网会话。结果按 UID 隔离，1小时后不可读取，定时清理缓存正文（一般2小时内）；请求编号/摘要/计数最多保留约3天用于幂等和额度。管理员部署凭据不在模型上下文或客户端。
+填写HTTPS地址、API Key和模型名，使用常见Chat Completions兼容协议。根地址补 `/v1/chat/completions`，以 `/v1` 结尾补 `/chat/completions`；也可填完整接口地址。不跟随API跳转，不自动兼容全部厂商专有协议。
 
-## 自定义 AI
+客户端直连用户指定服务，密钥不经过星屿后台。Android独立Keystore AES-GCM、Windows当前用户绑定DPAPI，按仓库UID隔离。密钥不进普通草稿、源码、日志或发布包。测试连接仅点击时调用，可能消耗提供商额度。
 
-填写 HTTPS API地址、API Key和模型名，支持常见 Chat Completions兼容协议。根地址自动补 `/v1/chat/completions`，以 `/v1` 结尾自动补 `/chat/completions`，也可以填完整 `/chat/completions` 地址。首版不自动适配每个厂商专有格式，不跟随 API 重定向。可留空密钥以适配无需认证的自有服务。
+自定义仍逐段翻译、检查对应关系，不占内置次数，无内置8批或2500字上限；仍受服务商和设备容量限制。单响应4MiB、单次120秒与编辑器100万字符等保护保留；内置完整多批任务最长等待240秒。
 
-请求由客户端直接发给用户选择的服务，不经过星屿 Cloudflare。Android 使用独立 Android Keystore AES-GCM 存储，Windows 使用当前用户绑定的 DPAPI；配置按仓库 UID 隔离，密钥输入框遮蔽，不进入普通草稿、源码或发布包。仓库会话和服务身份不发给自定义提供商。建议使用单独的有限额度密钥，只填写可信提供商。
+## 代理和安全
 
-「测试连接」仅在用户点击时发起极短请求，可能消耗提供商额度。自定义模式不占内置次数，也没有内置2500字上限；仍有4MiB响应、120秒等待、取消任务和编辑器100万字符等设备保护，服务商仍有各自限额与规则。生成也要求结构化作品草稿；不是聊天或“破限”入口。
+保留Fake-IP兼容：遇到198.18.0.0/15代理虚拟地址，用固定HTTPS公共DNS核实域名，再通过原域名、原代理连接；不关闭代理，不修改系统DNS，不放宽证书/主机名验证。真正私网、混合私网与跳转私网仍拒绝。DNS只接收域名，不接收作品完整链接、Cookie、密钥或素材。普通公网DNS不增加查询。
 
-## 提示注入与事实核对
+网页和模型输出均视为不可信。固定任务、白名单、预算、编号对应和HTML转义降低注入风险；模型无投稿写入、密钥或聊天访问权限。无法保证模型永不出错或完全免疫提示注入，服务商规则正常生效，需预览核对。
 
-页面、粘贴文字和模型输出均视为不可信内容。客户端剥离脚本、导航和表单，把素材放入独立数据字段；服务端固定指令、限制输入字段/预算、检查资源类型/结构/来源下标；客户端用转义后的文字生成受控 HTML，不执行模型提供的HTML或代码。模型无网站写入、外部工具、密钥或聊天数据访问权。
+## 构建与验证
 
-这些措施降低滥用与费用风险，不能保证模型永不被提示注入影响，也不构成事实自动核验。来源关联只证明引用了所选链接，不证明每句话真实。用户需对照来源核实；没有依据的汉化、版本、大小、下载链接、密码等不应导入。漫画/音声等只整理中性元数据与简介，内置模型的内容规则正常生效。
+Android新增MIT jsoup 1.23.2解析器，SHA256固定，许可随APK提供；手动SDK构建及Gradle均包含依赖，不使用其网络客户端。两端无WebView或内置浏览器。
 
-## 部署与验证
+Worker保留原命名空间、迁移v1–v5和聊天数据；在现有AiDraftHub内兼容新增协议字段和补偿标记，不删除计数。先 `python tools/cloudflare.py deploy --keep-vars`，再发布客户端与Pages更新入口。
 
-保留原ChatHub/DmHub/AnnouncementHub/VerifiedChatHub、迁移v1–v4和数据库；新增 `AiDraftHub` SQLite DO迁移v5、`AI_DRAFTS`与 `AI`绑定。Worker和Pages把 `/ai/*` 路由到内部服务，公共 `/internal/*` 仍不可访问。更新部署使用 `python tools/cloudflare.py deploy --keep-vars`，再准备和发布Pages；不能启用付费套餐。
+`python tools/test_source_document.py --live`在JVM执行生产Android提取与翻译辅助代码，读取指定公开介绍与图片，不调用AI；JSON-java仅测试时替代平台org.json，不随APP提供。`python tools/test_cloudflare.py --pages`验证整任务预算、幂等、补偿、旧表升级及原聊天功能。Flutter默认回归及联网来源测试记录在evidence，不保存网站正文或实际译文。
 
-运行 `python tools/test_cloudflare.py --pages` 验证认证、并发、额度、幂等、恶意字段、异常及原聊天回归；`flutter test` 验证直连隔离、响应转义、来源、短正文/自定义长正文与界面。`python tools/check_desktop_live.py --ai` 仅在明确授权后通过 stdin 接收账号密码，临时认证、提取公开Steam作品并生成一次草稿，再撤销临时身份；不会发布投稿或消息。结果不记录账号或草稿原文。
-
-参考：[Cloudflare模型与参数](https://developers.cloudflare.com/workers-ai/models/qwen3-30b-a3b-fp8/)、[免费额度](https://developers.cloudflare.com/workers-ai/platform/pricing/)、[AI绑定](https://developers.cloudflare.com/workers-ai/configuration/bindings/)、[OpenAI Docs：兼容请求参考](https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/create)。
+参考：[Cloudflare JSON Mode](https://developers.cloudflare.com/workers-ai/features/json-mode/)、[模型](https://developers.cloudflare.com/workers-ai/models/qwen3-30b-a3b-fp8/)、[免费额度](https://developers.cloudflare.com/workers-ai/platform/pricing/)、[jsoup](https://jsoup.org/download)、[Google DNS](https://developers.google.com/speed/public-dns/docs/doh/json)。

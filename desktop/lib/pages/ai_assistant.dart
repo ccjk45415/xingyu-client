@@ -3,6 +3,10 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 
 import '../core/ai.dart';
+import '../core/translation.dart';
+
+import 'package:flutter_widget_from_html_core/flutter_widget_from_html_core.dart';
+
 import '../core/api.dart';
 import '../core/state.dart';
 import '../ui/shared.dart';
@@ -46,9 +50,10 @@ class _AiAssistantDialogState extends State<AiAssistantDialog> {
   bool custom = false,
       busy = false,
       loaded = false,
+      keepOriginal = false,
       importTitle = true,
       importBody = true,
-      importTags = true,
+      importTags = false,
       importCover = false,
       append = true;
   String type = 'auto', status = '';
@@ -107,7 +112,7 @@ class _AiAssistantDialogState extends State<AiAssistantDialog> {
     final id = ++run;
     setState(() {
       busy = true;
-      status = '处理中…';
+      status = '正在处理；介绍将逐段翻译，请勿重复生成…';
     });
     try {
       await work();
@@ -168,24 +173,56 @@ class _AiAssistantDialogState extends State<AiAssistantDialog> {
   Json? previous;
   Future<void> generate({bool recover = false}) async {
     final job = run, io = transport;
-    await save();
+    await save(validate: !keepOriginal);
     if (!current || run != job) return;
     if (!recover) {
       if (sources.isEmpty) throw ApiFailure(400, '请先提取链接，或填链接并使用粘贴素材');
-      final data = {
-        'request_id': nonce(),
-        'type': type,
-        'sources': rows(jsonDecode(jsonEncode(sources))),
-        'material': material.text.trim(),
-      };
-      if (!custom && utf8.encode(jsonEncode(data)).length > 12000) {
-        throw ApiFailure(413, '内置素材过长，请使用“精简内置素材”或删除无关介绍');
+      final data = translationRequest(sources, material.text, type, nonce());
+      if (!custom && !keepOriginal) {
+        final planned = rows(jsonDecode(jsonEncode(data['sources'])));
+        if (material.text.trim().isNotEmpty) {
+          final blocks = rows(planned.first['blocks']);
+          blocks.add({'kind': 'p', 'text': material.text});
+          planned.first['blocks'] = blocks;
+        }
+        final plan = TranslationPlan(planned);
+        if (plan.chunks.length > 8 ||
+            utf8.encode(jsonEncode(data)).length > 200000) {
+          throw ApiFailure(413, '详细介绍较长，内置免费预算无法完整翻译。请选择自定义AI，原文不会被截断');
+        }
       }
       previous = data;
       draft = null;
     }
     final data = previous;
     if (data == null) throw ApiFailure(400, '还没有可恢复的任务');
+    if (keepOriginal) {
+      final originals = rows(jsonDecode(jsonEncode(data['sources'])));
+      if (text(data['material']).trim().isNotEmpty) {
+        final blocks = rows(originals.first['blocks']);
+        blocks.add({'kind': 'p', 'text': text(data['material'])});
+        originals.first['blocks'] = blocks;
+      }
+      final plan = TranslationPlan(originals), values = <String, String>{};
+      for (final chunk in plan.chunks) {
+        for (final v in chunk) {
+          values[text(v['id'])] = text(v['text']);
+        }
+      }
+      final original = AiDraft.parse(
+        plan.assemble(originals, type, values),
+        originals,
+        service: true,
+      );
+      if (current && run == job) {
+        setState(() {
+          draft = original;
+          status = '已按原文带入，没有调用AI，也没有消耗内置次数';
+        });
+      }
+      return;
+    }
+
     if (custom) {
       final result = await io.custom(
         address.text,
@@ -196,24 +233,25 @@ class _AiAssistantDialogState extends State<AiAssistantDialog> {
       if (current && run == job) {
         setState(() {
           draft = result;
-          status = '草稿已生成，请核对来源并选择导入字段';
+          status = '已逐段翻译，介绍图片保留原顺序；请核对原文后导入';
         });
       }
     } else {
       await verify();
       if (!current || run != job) return;
       final result = await io.json(
-        Uri.parse('$serviceOrigin/ai/v1/draft'),
+        Uri.parse('$serviceOrigin/ai/v2/draft'),
         body: data,
         token: widget.app.token,
         builtin: true,
+        timeout: const Duration(seconds: 240),
       );
       final d = AiDraft.parse(result['draft'], sources, service: true);
       if (current && run == job) {
         setState(() {
           draft = d;
           status =
-              '今日个人剩余 ${result['remaining']} 次 · 共享预算剩余 ${result['shared_remaining']} 次，UTC零点重置';
+              '今日个人剩余 ${result['remaining']} 次 · 共享翻译预算剩余 ${result['shared_remaining']} 段，UTC零点重置';
         });
       }
     }
@@ -242,7 +280,7 @@ class _AiAssistantDialogState extends State<AiAssistantDialog> {
         previous = null;
         status = manual
             ? '已采用链接及手动素材，粘贴作品介绍后生成'
-            : '已提取 ${found.length} 个来源，请检查并删去无关内容';
+            : '已提取完整介绍：${found.fold<int>(0, (n, s) => n + text(s['text']).length)}字 / ${found.fold<int>(0, (n, s) => n + rows(s['blocks']).where((b) => b['kind'] == 'image').length)}张图片，原文不会精简';
       });
     }
   }
@@ -298,8 +336,8 @@ class _AiAssistantDialogState extends State<AiAssistantDialog> {
                   const SizedBox(height: 12),
                   Text(
                     custom
-                        ? '直连你填写的服务；密钥以Windows DPAPI加密保存。不占内置次数，无内置字数上限，仍受服务商及设备容量限制。'
-                        : '仓库认证后每UID每天3次，全体共享16次保守预算。正文最多2500字，没有最低字数；开始生成即占用次数，失败不自动重试。',
+                        ? '直连你填写的服务，逐段忠实翻译，不改写；图片原样带入。密钥由Windows DPAPI加密保存，不占内置额度，仍受服务商与设备容量限制。'
+                        : '只翻译原文，不概括或补写；段落与介绍图片按原顺序保留。内置每UID每天3次，全体共享16段翻译预算；长介绍分段处理，超出预算提示切换自定义AI，不截断内容。',
                     style: const TextStyle(fontSize: 12),
                   ),
                   if (custom) ...[
@@ -372,15 +410,7 @@ class _AiAssistantDialogState extends State<AiAssistantDialog> {
                     ),
                   ],
                   const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
-                    initialValue: type,
-                    decoration: const InputDecoration(labelText: '作品类型'),
-                    items: [
-                      for (final e in aiTypes.entries)
-                        DropdownMenuItem(value: e.key, child: Text(e.value)),
-                    ],
-                    onChanged: busy ? null : (v) => setState(() => type = v!),
-                  ),
+                  const Text('原文逐段翻译 · 不概括，不补写，图片保持原样'),
                   const SizedBox(height: 12),
                   TextField(
                     controller: links,
@@ -416,11 +446,13 @@ class _AiAssistantDialogState extends State<AiAssistantDialog> {
                           '${sources[i]['url']}-${sources[i]['text'].hashCode}',
                         ),
                         initialValue: text(sources[i]['text']),
+                        readOnly: rows(sources[i]['blocks']).isNotEmpty,
                         enabled: !busy,
                         minLines: 2,
                         maxLines: 5,
                         decoration: InputDecoration(
-                          labelText: '来源 ${i + 1} · 可删改',
+                          labelText:
+                              '来源 ${i + 1} · 完整介绍 / ${rows(sources[i]['blocks']).where((b) => b['kind'] == 'image').length}张图片',
                           helperText: text(sources[i]['url']),
                           helperMaxLines: 1,
                         ),
@@ -429,6 +461,15 @@ class _AiAssistantDialogState extends State<AiAssistantDialog> {
                         },
                       ),
                     ),
+                  CheckboxListTile(
+                    value: keepOriginal,
+                    onChanged: busy
+                        ? null
+                        : (v) => setState(() => keepOriginal = v!),
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('原文已是中文：跳过AI，原样带入'),
+                    subtitle: const Text('文字和图片保持原样，不消耗AI次数'),
+                  ),
                   TextField(
                     controller: material,
                     enabled: !busy,
@@ -439,33 +480,6 @@ class _AiAssistantDialogState extends State<AiAssistantDialog> {
                       hintText: '网页无法提取时粘贴公开介绍。不要填写密码、会话或私人资料。',
                     ),
                   ),
-                  if (!custom)
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: TextButton(
-                        onPressed: busy
-                            ? null
-                            : () {
-                                setState(() {
-                                  for (final s in sources) {
-                                    final t = text(s['text']);
-                                    s['text'] = t.substring(
-                                      0,
-                                      t.length.clamp(0, 700),
-                                    );
-                                  }
-                                  if (material.text.length > 700) {
-                                    material.text = material.text.substring(
-                                      0,
-                                      700,
-                                    );
-                                  }
-                                  status = '已截取每个来源前700字，请核对关键信息是否保留';
-                                });
-                              },
-                        child: const Text('精简内置素材'),
-                      ),
-                    ),
                   const SizedBox(height: 12),
                   if (busy) const LinearProgressIndicator(),
                   if (status.isNotEmpty)
@@ -486,11 +500,26 @@ class _AiAssistantDialogState extends State<AiAssistantDialog> {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    SelectableText(
-                      '${text(draft!.data['summary'])}\n\n${rows(draft!.data['metadata']).map((m) => '${m['label']}：${m['value']}').join('\n')}\n\n${rows(draft!.data['sections']).map((m) => '${m['heading']}\n${m['text']}').join('\n\n')}\n\n标签：${draft!.tags.join('、')}\n来源：${rows(draft!.data['sources']).map((s) => s['url']).join('\n')}',
-                    ),
+                    if (draft!.data['blocks'] is List)
+                      HtmlWidget(
+                        draft!.body,
+                        textStyle: const TextStyle(fontSize: 13),
+                        customWidgetBuilder: (element) {
+                          if (element.localName == 'img') {
+                            return Image.network(
+                              element.attributes['src'] ?? '',
+                              fit: BoxFit.contain,
+                              errorBuilder: (c, e, st) =>
+                                  const Text('[原文图片暂时无法加载，链接仍会保留]'),
+                            );
+                          }
+                          return null;
+                        },
+                      )
+                    else
+                      SelectableText(text(draft!.data['summary'])),
                     const Text(
-                      '内容由AI整理，请对照来源核实。导入仅修改本机草稿，不会发表或上传图片。',
+                      'AI仅翻译文字，图片不翻译；请核对译文。导入只修改本机草稿，图片以原始HTTPS链接插入，不会自动发表。',
                       style: TextStyle(fontSize: 12),
                     ),
                     Wrap(
@@ -498,7 +527,6 @@ class _AiAssistantDialogState extends State<AiAssistantDialog> {
                         for (final entry in [
                           ('标题', importTitle, 0),
                           ('正文', importBody, 1),
-                          ('标签', importTags, 2),
                           ('封面URL', importCover, 3),
                           ('正文追加', append, 4),
                         ])
@@ -543,14 +571,14 @@ class _AiAssistantDialogState extends State<AiAssistantDialog> {
         child: const Text('关闭'),
       ),
       if (busy) TextButton(onPressed: cancel, child: const Text('取消任务')),
-      if (!busy && previous != null && !custom)
+      if (!busy && previous != null && !custom && !keepOriginal)
         TextButton(
           onPressed: () => action(() => generate(recover: true)),
           child: const Text('恢复上次结果'),
         ),
       FilledButton.tonal(
         onPressed: busy || !loaded ? null : () => action(() => generate()),
-        child: const Text('生成草稿'),
+        child: const Text('翻译并生成草稿'),
       ),
       if (draft != null)
         FilledButton(

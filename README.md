@@ -4,26 +4,26 @@ cangku.moe 的非官方 Android 与 Flutter Windows 客户端。界面以淡紫�
 
 Android 0.6.1修复改名后聊天室资料不同步，并为作品详情页增加右侧滚动条。0.6.0加入统一设置、作者UID复制、首页实时公告轮播，以及仓库认证聊天室、聊天室/私信图片、@和引用回复；详细说明见[0.6.0修改说明](docs/PENDING_CHANGES.md)。
 
-当前版本：**Android 0.7.1 / Windows 0.2.1**。修复代理Fake-IP导致公开作品链接被误判内网；保留内置/自定义AI投稿助手；手机编辑器按功能分组，每个按钮显示图标与中文名称，长按查看操作说明。见[更新记录](CHANGELOG.md)。
+当前版本：**Android 0.8.0 / Windows 0.3.0**。修复详细介绍提取和AI草稿字段错误，改为逐段翻译、不概括不补写，正文图片按原顺序带入。保留代理Fake-IP兼容及内置/自定义AI；手机编辑器按功能分组，按钮显示图标与中文名称。见[更新记录](CHANGELOG.md)。
 
 ## 下载
 
 | 平台 | 版本 | GitHub下载 |
 | --- | --- | --- |
-| Android 8.0及以上 | 0.7.1 | [APK安装包](https://github.com/ccjk45415/xingyu-client/releases/download/v0.7.1/Cangku-Xingyu-0.7.1-debug.apk) |
-| Windows x64 | 0.2.1 | [完整免安装ZIP](https://github.com/ccjk45415/xingyu-client/releases/download/v0.7.1/Xingyu-Windows-0.2.1-x64.zip) |
+| Android 8.0及以上 | 0.8.0 | [APK安装包](https://github.com/ccjk45415/xingyu-client/releases/download/v0.8.0/Cangku-Xingyu-0.8.0-debug.apk) |
+| Windows x64 | 0.3.0 | [完整免安装ZIP](https://github.com/ccjk45415/xingyu-client/releases/download/v0.8.0/Xingyu-Windows-0.3.0-x64.zip) |
 
 [全部发布记录与校验文件](https://github.com/ccjk45415/xingyu-client/releases)。Android可覆盖前一版本；Windows完整解压后运行 `Xingyu.exe`，保留全部DLL和data文件夹。当前为自用测试发布，Android使用原测试签名，Windows尚未进行代码签名。
 
 ## Windows 桌面版
 
-Flutter Desktop **0.2.1 / Windows x64** 已制作，采用原生 Windows 引擎与重新设计的侧栏、封面网格和宽屏阅读/聊天布局。完整解压 `output/Xingyu-Windows-0.2.1-x64.zip` 后运行 `Xingyu.exe`。复用现有网站账号和认证聊天服务，支持评论通知、投稿管理、图片、艾特和引用回复。详见 [Windows 使用与构建说明](desktop/README.md)。Windows 版本及更新清单与安卓独立。
+Flutter Desktop **0.3.0 / Windows x64** 已制作，采用原生 Windows 引擎与重新设计的侧栏、封面网格和宽屏阅读/聊天布局。完整解压 `output/Xingyu-Windows-0.3.0-x64.zip` 后运行 `Xingyu.exe`。复用现有网站账号和认证聊天服务，支持评论通知、投稿管理、图片、艾特和引用回复。详见 [Windows 使用与构建说明](desktop/README.md)。Windows 版本及更新清单与安卓独立。
 
-[下载 Windows 0.2.1 x64 免安装包](https://xingyu-chat-ccjk45415.pages.dev/releases/Xingyu-Windows-0.2.1-x64.zip)（约13.6 MiB）。
+[下载 Windows 0.3.0 x64 免安装包](https://xingyu-chat-ccjk45415.pages.dev/releases/Xingyu-Windows-0.3.0-x64.zip)（约13.6 MiB）。
 
 ## Android 安装
 
-安装包：`output/Cangku-Xingyu-0.7.1-debug.apk`。使用与上一版相同的测试签名，可覆盖升级。
+安装包：`output/Cangku-Xingyu-0.8.0-debug.apk`。使用与上一版相同的测试签名，可覆盖升级。
 
 安装后输入自己的仓库账号密码。项目、安装包与交付压缩包不包含预置账号、密码或登录 Cookie。默认仅在本次进程内保持会话；勾选“保持登录”后，会话通过 Android Keystore 的 AES-GCM 密钥加密保存。密码始终不写入磁盘。
 
@@ -35,7 +35,7 @@ Flutter Desktop **0.2.1 / Windows x64** 已制作，采用原生 Windows 引擎�
 
 ## AI投稿助手
 
-两端输入作品链接即可提取介绍，支持游戏、漫画/同人志、ASMR/音声、动画与其他作品；预览后选择导入，不自动发布。内置AI按仓库UID每日3次，全体共享16次保守预算，正文最多2500字，无最低字数。自定义AI支持HTTPS Chat Completions兼容地址、密钥和模型，设备加密保存，直连提供商，不占内置额度。复杂网页可粘贴公开介绍；详细流程、数据处理与限制见[AI助手说明](docs/AI_ASSISTANT.md)。
+读取详细介绍与正文图片，AI只逐段翻译成中文，不概括、不补写、不生成标签；图片按原顺序以HTTPS链接导入。已是中文可跳过AI直接原样带入，不消耗次数。修复“AI草稿字段错误”，不再精简/截断介绍。内置每UID每日3个任务、共享16份翻译批次预算，超出预算明确提示使用自定义AI。密钥设备加密保存并直连提供商。预览后选择导入，不自动发表；详见[完整流程与限制](docs/AI_ASSISTANT.md)。
 
 ## 功能
 

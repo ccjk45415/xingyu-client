@@ -2,7 +2,7 @@
 import hashlib,json,os,shutil,struct,zipfile
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1];OUT=ROOT/'output';OUT.mkdir(exist_ok=True)
-version='0.2.1';code=5
+version='0.3.0';code=6
 bundles=[ROOT/'desktop/build/windows/native-x64/runner',ROOT/'desktop/build/windows/x64/runner/Release']
 bundle=next((p for p in bundles if (p/'Xingyu.exe').is_file()),None)
 if bundle is None:raise SystemExit('Build the Windows release first')
@@ -12,7 +12,7 @@ exe=(bundle/'Xingyu.exe').read_bytes();offset=struct.unpack_from('<I',exe,0x3c)[
 assert exe[:2]==b'MZ' and exe[offset:offset+4]==b'PE\0\0' and struct.unpack_from('<H',exe,offset+4)[0]==0x8664,'Expected native x64 PE'
 files=[p for p in bundle.iterdir() if p.is_file() and p.suffix in ['.exe','.dll']]+[p for p in (bundle/'data').rglob('*') if p.is_file()]
 archive=OUT/f'Xingyu-Windows-{version}-x64.zip';prefix=Path(f'Xingyu-Windows-{version}')
-usage='''仓库 · 星屿 Windows 0.2.1（Flutter Desktop / x64）
+usage='''仓库 · 星屿 Windows 0.3.0（Flutter Desktop / x64）
 
 完整解压后，双击 Xingyu.exe 运行。不要只复制 EXE：请保留全部 DLL 与 data 文件夹。
 无需安装 Flutter 或安卓模拟器。本包已包含 VC++ 运行库，当前为未签名测试版本。
@@ -36,6 +36,6 @@ with zipfile.ZipFile(archive,'w',zipfile.ZIP_DEFLATED,compresslevel=9) as z:
     if license.is_file():z.write(license,prefix/'LICENSE.flutter.txt')
 if archive.stat().st_size>24*1024*1024:raise SystemExit('ZIP exceeds this free static release channel file size limit')
 public=ROOT/'cloudflare-chat/public';(public/'releases').mkdir(exist_ok=True);shutil.copy2(archive,public/'releases'/archive.name)
-metadata={'available':True,'product':'moe.cangku.xingyu.desktop','platform':'windows-x64','versionCode':code,'versionName':version,'notes':'修复使用代理时DLsite等公开作品链接被误判为内网地址，增加Fake-IP公开DNS核实兼容，保持原代理与HTTPS证书验证；真正内网地址仍拦截。','url':'https://xingyu-chat-ccjk45415.pages.dev/releases/'+archive.name,'size':archive.stat().st_size,'sha256':hashlib.sha256(archive.read_bytes()).hexdigest()}
+metadata={'available':True,'product':'moe.cangku.xingyu.desktop','platform':'windows-x64','versionCode':code,'versionName':version,'notes':'修复详细介绍提取与AI草稿字段错误；改为逐段翻译原文，不概括、不补写，正文图片按原顺序带入且不翻译。中文可跳过AI原样导入；长介绍分批处理，超预算提示，不截断。','url':'https://xingyu-chat-ccjk45415.pages.dev/releases/'+archive.name,'size':archive.stat().st_size,'sha256':hashlib.sha256(archive.read_bytes()).hexdigest()}
 (public/'updates/windows.json').write_text(json.dumps(metadata,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
 print(json.dumps({'archive':archive.name,'bytes':metadata['size'],'sha256':metadata['sha256'],'runtime_files':len(files),'platform':'windows-x64'},ensure_ascii=False))

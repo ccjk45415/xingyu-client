@@ -3,7 +3,7 @@
   "ingress": "Pages -> internal binding",
   "protocol": 3,
   "verified_capacity": 300,
-  "checks": 357,
+  "checks": 362,
   "images": "chat + private ACL passed",
   "mentions_and_replies": "passed",
   "production_messages_sent": 0,

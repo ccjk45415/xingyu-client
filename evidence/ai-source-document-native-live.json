@@ -1,0 +1,7 @@
+{
+  "transport": "production Android AiClient.source + SourceDocument on JVM; pinned JSON-java substitutes org.json",
+  "source_id": "RJ01726046",
+  "result": "PASS actual Android detailed source transport on JVM: chars=2344, introduction_images=4, original_order=true; no AI calls",
+  "real_ai_calls": 0,
+  "device_ui_tested": false
+}

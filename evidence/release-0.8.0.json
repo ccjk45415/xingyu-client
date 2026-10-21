@@ -1,0 +1,43 @@
+{
+  "date": "2026-10-21T10:15:18.676566+00:00",
+  "android": {
+    "available": true,
+    "package": "moe.cangku.reader",
+    "versionCode": 12,
+    "versionName": "0.8.0",
+    "notes": "修复详细介绍提取与AI草稿字段错误；改为逐段翻译原文，不概括、不补写，正文图片按原顺序带入且不翻译。中文可跳过AI原样导入；长介绍分批处理，超预算提示，不截断。",
+    "minSdk": 26,
+    "url": "https://xingyu-chat-ccjk45415.pages.dev/releases/Cangku-Xingyu-0.8.0-debug.apk",
+    "size": 680658,
+    "sha256": "620b3814de6f57aa0e05ca8a9851f6ce1ec427375f3487e264419a5c875a0b3e"
+  },
+  "windows": {
+    "available": true,
+    "product": "moe.cangku.xingyu.desktop",
+    "platform": "windows-x64",
+    "versionCode": 6,
+    "versionName": "0.3.0",
+    "notes": "修复详细介绍提取与AI草稿字段错误；改为逐段翻译原文，不概括、不补写，正文图片按原顺序带入且不翻译。中文可跳过AI原样导入；长介绍分批处理，超预算提示，不截断。",
+    "url": "https://xingyu-chat-ccjk45415.pages.dev/releases/Xingyu-Windows-0.3.0-x64.zip",
+    "size": 14319207,
+    "sha256": "8294c14da6965a3fca191b1fa516f4a34af7e1f37505e2915a9535336090bcf5"
+  },
+  "worker_version": "c4ace08b-7ec3-453f-b3d0-aee3c760df56",
+  "backend_tests": 36,
+  "local_pages_sqlite_chat_checks": 362,
+  "native_source_translation_assertions": 20,
+  "native_dns_assertions": 50,
+  "flutter_tests_passed": 29,
+  "flutter_optional_network_tests_skipped": 3,
+  "flutter_analyze": "clean",
+  "real_model_probe": "two neutral synthetic segments, JSON object mode; both IDs returned as Chinese",
+  "previous_live_source_chars": 2344,
+  "previous_live_intro_images": 4,
+  "last_source_recheck": "website region-restricted current test exit; explicit error regression passed",
+  "phone_ui_device_verified": false,
+  "production_posts_or_messages_sent": 0,
+  "pages_deployment": "d344cc53",
+  "public_android_download_verified": true,
+  "public_windows_download_verified": true,
+  "windows_native_diagnostics": "pass"
+}

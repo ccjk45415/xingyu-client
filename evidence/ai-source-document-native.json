@@ -1,0 +1,7 @@
+{
+  "helpers": "exact production SourceDocument + SourceTranslation",
+  "result": "PASS 20 native detailed extraction, ordered images, exact segment join and translation schema assertions",
+  "synthetic_fixture": true,
+  "real_ai_calls": 0,
+  "device_ui_tested": false
+}

@@ -1,0 +1,9 @@
+{
+  "model": "@cf/qwen/qwen3-30b-a3b-fp8",
+  "json_object_mode": true,
+  "neutral_synthetic_segments": 2,
+  "all_ids_returned": true,
+  "chinese_translation": true,
+  "actual_translation_text_saved": false,
+  "official_remote_ai_binding": true
+}

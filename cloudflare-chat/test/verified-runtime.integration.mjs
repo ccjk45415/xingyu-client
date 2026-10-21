@@ -25,6 +25,8 @@ try{
   check((await api('/ai/v1/draft',{token:ta,body:{...aiInput,material:'changed'}})).status,409);
   for(let n=0;n<2;n++)check((await api('/ai/v1/draft',{token:ta,body:{...aiInput,request_id:crypto.randomUUID()}})).status,200);
   check((await api('/ai/v1/draft',{token:ta,body:{...aiInput,request_id:crypto.randomUUID()}})).status,429);
+  const translation={request_id:crypto.randomUUID(),type:'auto',sources:[{url:'https://example.com/work',title:'A title',cover:'',blocks:[{kind:'p',text:'a'.repeat(1500)},{kind:'image',url:'https://cdn.example.com/unchanged.png',alt:'original'}]}],material:''};
+  const tr=await api('/ai/v2/draft',{token:tc,body:translation});check(tr.status,200);check(tr.data.remaining,2);check(tr.data.draft.blocks[0].text.length,1500);check(tr.data.draft.blocks[1].url,'https://cdn.example.com/unchanged.png');check((await api('/ai/v2/draft',{token:tc,body:translation})).data.cached,true);
   check(a.events[0].user.id,1);check(a.events[0].user.nickname,'仓库用户1');check(a.events[0].user.avatar,'https://images.example/1.jpg');
   const peers=[];for(let i=0;i<297;i++)peers.push(await open(await session(100+i),i%2?'1':'2'));
   let refused=0;try{await open(await session(999),'1');}catch(e){refused=e.status;}check(refused,503);for(const peer of peers)peer.terminate();await pause(150);

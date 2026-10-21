@@ -775,16 +775,24 @@ class _PostEditorState extends State<PostEditor> {
     final app = stateOf(context), owner = stateOf(context).uid;
     final result = await showAiAssistant(context);
     if (!mounted || result == null || app.uid != owner) return;
+    final nextBody = result.body
+        ? (result.append && content.text.isNotEmpty
+              ? '${content.text}\n${result.draft.body}'
+              : result.draft.body)
+        : null;
+    if (nextBody != null && nextBody.length > 1000000) {
+      message(context, '导入后超出编辑器容量，现有内容未修改');
+      return;
+    }
     if (result.title) title.text = result.draft.title;
     if (result.tags) tags.text = result.draft.tags.join(', ');
     if (result.cover && result.draft.cover.isNotEmpty) {
       thumb.text = result.draft.cover;
     }
-    if (result.body) {
-      final body = result.append && content.text.isNotEmpty
-          ? '${content.text}\n${result.draft.body}'
-          : result.draft.body;
-      applyEdit(EditorSnapshot(body, body.length, body.length, html: true));
+    if (nextBody != null) {
+      applyEdit(
+        EditorSnapshot(nextBody, nextBody.length, nextBody.length, html: true),
+      );
     }
     changed();
   }

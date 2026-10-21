@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:html/parser.dart' as html;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:xingyu_desktop/core/ai.dart';
+import 'package:xingyu_desktop/core/translation.dart';
 import 'package:xingyu_desktop/core/api.dart';
 
 final sample = <String, dynamic>{
@@ -288,7 +289,14 @@ void main() {
             jsonEncode({
               'choices': [
                 {
-                  'message': {'content': jsonEncode(sample)},
+                  'message': {
+                    'content': jsonEncode({
+                      'translations': [
+                        {'id': '0', 'text': '测试作品'},
+                        {'id': '1', 'text': '游戏介绍'},
+                      ],
+                    }),
+                  },
                 },
               ],
             }),
@@ -300,7 +308,19 @@ void main() {
       'https://provider.example/v1',
       'synthetic-user-key',
       'user-model',
-      {'type': 'auto', 'sources': sources, 'material': ''},
+      translationRequest(
+        [
+          {
+            'url': 'https://example.com/work',
+            'title': 'Test',
+            'text': 'A game',
+            'cover': '',
+          },
+        ],
+        '',
+        'auto',
+        'f' * 48,
+      ),
     );
     expect(draft.title, '测试作品');
     expect(client.target!.host, 'provider.example');

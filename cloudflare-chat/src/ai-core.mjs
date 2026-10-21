@@ -1,3 +1,4 @@
+import {TRANSLATION_LIMITS,TRANSLATION_SYSTEM,translationInput,translationPlan,translatedSegments,translatedDraft} from './translation.mjs';
 // No public-page fetching, website cookies, user-supplied model, tools or chat history here.
 // Native clients extract public pages locally. All submitted material remains untrusted data.
 export const AI_POLICY=Object.freeze({per_uid_day:3,global_day:16,reserved_neurons:500,global_neurons:8000,max_input_bytes:12000,max_body_chars:2500,max_output_tokens:3000,model:'@cf/qwen/qwen3-30b-a3b-fp8'});
@@ -24,6 +25,7 @@ export function draft(raw,b){
   if(!raw||raw.error||!AI_TYPES.slice(1).includes(raw.type)||typeof raw.title!=='string'||!raw.title.trim())fail('未发现可整理的作品资料',422);
   const str=(v,max)=>{if(typeof v!=='string'||v.length>max)fail('AI草稿格式不符合要求',502);return v.trim();};
   const title=str(raw.title,500),summary=str(raw.summary,2500);
+  raw={...raw,metadata:raw.metadata==null?[]:Array.isArray(raw.metadata)?raw.metadata:typeof raw.metadata==='object'?Object.entries(raw.metadata).map(([label,value])=>({label,value:String(value)})):raw.metadata,sections:raw.sections??[],tags:raw.tags==null?[]:typeof raw.tags==='string'?raw.tags.split(/[,，、]/).map(v=>v.trim()).filter(Boolean):raw.tags};
   if(!Array.isArray(raw.metadata)||raw.metadata.length>15||!Array.isArray(raw.sections)||raw.sections.length>10||!Array.isArray(raw.tags)||raw.tags.length>12)fail('AI草稿字段错误',502);
   const metadata=raw.metadata.map(v=>({label:str(v.label,40),value:str(v.value,500)})),sections=raw.sections.map(v=>({heading:str(v.heading,80),text:str(v.text,2500)})),tags=raw.tags.map(v=>str(v,40));
   if(summary.length+metadata.reduce((n,v)=>n+v.label.length+v.value.length,0)+sections.reduce((n,v)=>n+v.heading.length+v.text.length,0)>2500)fail('AI草稿超过2500字上限，请使用更短素材',502);
@@ -31,35 +33,51 @@ export function draft(raw,b){
   return {type:raw.type,title,summary,metadata,sections,tags,sources:[...new Set(raw.source_indices)].map(i=>({url:b.sources[i].url,cover:b.sources[i].cover}))};
 }
 export function createAiHub(Base,{clock=()=>Date.now(),infer}={}){return class extends Base{
-  constructor(ctx,env){super(ctx,env);this.ctx=ctx;this.env=env;this.sql=ctx.storage.sql;this.active=new Set();this.sql.exec('CREATE TABLE IF NOT EXISTS ai_counts(day INTEGER,uid INTEGER,n INTEGER,PRIMARY KEY(day,uid))');this.sql.exec('CREATE TABLE IF NOT EXISTS ai_runs(uid INTEGER,id TEXT,hash TEXT,state TEXT,result TEXT,created INTEGER,PRIMARY KEY(uid,id))');}
+  constructor(ctx,env){super(ctx,env);this.ctx=ctx;this.env=env;this.sql=ctx.storage.sql;this.active=new Set();this.sql.exec('CREATE TABLE IF NOT EXISTS ai_counts(day INTEGER,uid INTEGER,n INTEGER,PRIMARY KEY(day,uid))');this.sql.exec('CREATE TABLE IF NOT EXISTS ai_runs(uid INTEGER,id TEXT,hash TEXT,state TEXT,result TEXT,created INTEGER,protocol INTEGER NOT NULL DEFAULT 1,PRIMARY KEY(uid,id))');if(!this.sql.exec('PRAGMA table_info(ai_runs)').toArray().some(v=>v.name==='protocol'))this.sql.exec('ALTER TABLE ai_runs ADD COLUMN protocol INTEGER NOT NULL DEFAULT 1');this.sql.exec('CREATE TABLE IF NOT EXISTS ai_translation_credits(uid INTEGER PRIMARY KEY,created INTEGER)');}
   first(q,...p){return this.sql.exec(q,...p).toArray()[0];}
   count(day,uid){return this.first('SELECT n FROM ai_counts WHERE day=? AND uid=?',day,uid)?.n||0;}
-  quota(day,uid){return {remaining:Math.max(0,3-this.count(day,uid)),shared_remaining:Math.max(0,16-this.count(day,0)),reset_at:new Date((day+1)*86400000).toISOString(),policy:AI_POLICY};}
+  quota(day,uid){return {translation:TRANSLATION_LIMITS,remaining:Math.max(0,3-this.count(day,uid)),shared_remaining:Math.max(0,16-this.count(day,0)),reset_at:new Date((day+1)*86400000).toISOString(),policy:AI_POLICY};}
   async fetch(req){try{
     const path=new URL(req.url).pathname,auth=req.headers.get('Authorization')||'';if(!/^Bearer [a-f0-9]{64}$/.test(auth))fail('请先认证绑定仓库账号',401);
     const token_hash=await digest(auth.slice(7)),identity=await this.env.DM.get(this.env.DM.idFromName('xingyu-dm-v1')).fetch(new Request('https://internal.invalid/internal/identity',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token_hash})}));
     if(!identity.ok)fail('仓库认证已过期或不可用，请重新认证',identity.status);const uid=(await identity.json()).user.id,now=clock(),day=Math.floor(now/86400000);
     if(path==='/ai/v1/quota'&&req.method==='GET')return json(this.quota(day,uid));
-    if(path!=='/ai/v1/draft'||req.method!=='POST')fail('接口不存在',404);
+    const translating=path==='/ai/v2/draft';if(!['/ai/v1/draft','/ai/v2/draft'].includes(path)||req.method!=='POST')fail('接口不存在',404);
     if(!req.headers.get('Content-Type')?.startsWith('application/json'))fail('请求格式错误');
-    let size=0,chunks=[];const reader=req.body?.getReader();if(!reader)fail('请求为空');for(;;){const r=await reader.read();if(r.done)break;size+=r.value.length;if(size>12000){await reader.cancel();fail('内置模式素材过长',413);}chunks.push(r.value);}const bytes=new Uint8Array(size);let at=0;for(const c of chunks){bytes.set(c,at);at+=c.length;}let parsed;try{parsed=JSON.parse(new TextDecoder().decode(bytes));}catch{fail('JSON格式错误');}
-    const b=input(parsed),fingerprint=await digest(JSON.stringify(b));let cached;
+    let size=0,chunks=[];const reader=req.body?.getReader();if(!reader)fail('请求为空');for(;;){const r=await reader.read();if(r.done)break;size+=r.value.length;if(size>(translating?200000:12000)){await reader.cancel();fail('内置模式素材过长',413);}chunks.push(r.value);}const bytes=new Uint8Array(size);let at=0;for(const c of chunks){bytes.set(c,at);at+=c.length;}let parsed;try{parsed=JSON.parse(new TextDecoder().decode(bytes));}catch{fail('JSON格式错误');}
+    const b=translating?translationInput(parsed,sourceUrl):input(parsed),plan=translating?translationPlan(b):null,units=translating?plan.chunks.length:1,fingerprint=await digest(JSON.stringify(b));let cached;
     this.ctx.storage.transactionSync(()=>{
       // Keep nonce tombstones for the entire quota day, even after cached draft expiry.
       this.sql.exec("UPDATE ai_runs SET result='' WHERE created<?",now-3600000);this.sql.exec('DELETE FROM ai_runs WHERE created<?',now-2*86400000);this.sql.exec('DELETE FROM ai_counts WHERE day<?',day-2);
       cached=this.first('SELECT * FROM ai_runs WHERE uid=? AND id=?',uid,b.request_id);
       if(cached){if(cached.hash!==fingerprint)fail('不能复用请求编号修改素材',409);if(cached.state==='done'&&cached.created>now-3600000)return;fail(cached.state==='running'?'任务正在处理，请稍后重试':'该任务已结束，请重新生成',409);}
+      // One upgrade retry for an old v1 failure. Actual shared inference spending is never refunded.
+      if(translating&&!this.first('SELECT uid FROM ai_translation_credits WHERE uid=?',uid)){
+        if(this.first("SELECT id FROM ai_runs WHERE uid=? AND protocol=1 AND state='failed' AND created>=? LIMIT 1",uid,day*86400000))this.sql.exec('UPDATE ai_counts SET n=MAX(0,n-1) WHERE day=? AND uid=?',day,uid);
+        this.sql.exec('INSERT INTO ai_translation_credits(uid,created) VALUES(?,?)',uid,now);
+      }
       if(this.active.has(uid)||this.first("SELECT uid FROM ai_runs WHERE uid=? AND state='running' AND created>?",uid,now-5*60000))fail('该账号已有生成任务',409);
       if(this.active.size>=4)fail('服务正忙，请稍后再试',429);
-      if(this.count(day,uid)>=3)fail('今日3次内置AI额度已用完',429);if(this.count(day,0)>=16)fail('今日共享免费预算已用完，请明天再试或切换自定义AI',429);
-      for(const id of [uid,0])this.sql.exec('INSERT INTO ai_counts(day,uid,n) VALUES(?,?,1) ON CONFLICT(day,uid) DO UPDATE SET n=n+1',day,id);
-      this.sql.exec('INSERT INTO ai_runs(uid,id,hash,state,result,created) VALUES(?,?,?,\'running\',\'\',?)',uid,b.request_id,fingerprint,now);
+      if(this.count(day,uid)>=3)fail('今日3次内置AI额度已用完',429);if(this.count(day,0)+units>16)fail('今日共享免费预算已用完，请明天再试或切换自定义AI',429);
+      this.sql.exec('INSERT INTO ai_counts(day,uid,n) VALUES(?,?,1) ON CONFLICT(day,uid) DO UPDATE SET n=n+1',day,uid);this.sql.exec('INSERT INTO ai_counts(day,uid,n) VALUES(?,0,?) ON CONFLICT(day,uid) DO UPDATE SET n=n+excluded.n',day,units);
+      this.sql.exec('INSERT INTO ai_runs(uid,id,hash,state,result,created,protocol) VALUES(?,?,?,\'running\',\'\',?,?)',uid,b.request_id,fingerprint,now,translating?2:1);
     });
     if(cached)return json({draft:JSON.parse(cached.result),...this.quota(day,uid),cached:true});
     this.active.add(uid);if(!await this.ctx.storage.getAlarm())await this.ctx.storage.setAlarm(now+3600000);
     try{
-      const args={messages:[{role:'system',content:AI_SYSTEM},{role:'user',content:JSON.stringify({type:b.type,sources:b.sources,material:b.material})}],max_tokens:3000,temperature:0.2,stream:false};
-      const out=await (infer?infer(args):this.env.AI.run(AI_POLICY.model,args));const raw=out?.choices?.[0]?.message?.content??out?.response;const result=draft(raw,b);
+      let result;
+      if(translating){
+        const values=new Map();
+        for(const chunk of plan.chunks){
+          const args={messages:[{role:'system',content:TRANSLATION_SYSTEM},{role:'user',content:JSON.stringify({segments:chunk})}],max_tokens:3000,temperature:0,stream:false,response_format:{type:'json_object'}};
+          const out=await (infer?infer(args):this.env.AI.run(AI_POLICY.model,args));
+          for(const [id,text] of translatedSegments(out?.choices?.[0]?.message?.content??out?.response,chunk))values.set(id,text);
+        }
+        result=translatedDraft(b,plan,values);
+      }else{
+        const args={messages:[{role:'system',content:AI_SYSTEM},{role:'user',content:JSON.stringify({type:b.type,sources:b.sources,material:b.material})}],max_tokens:3000,temperature:0.2,stream:false};
+        const out=await (infer?infer(args):this.env.AI.run(AI_POLICY.model,args));result=draft(out?.choices?.[0]?.message?.content??out?.response,b);
+      }
       this.sql.exec("UPDATE ai_runs SET state='done',result=? WHERE uid=? AND id=?",JSON.stringify(result),uid,b.request_id);return json({draft:result,...this.quota(day,uid)});
     }catch(e){this.sql.exec("UPDATE ai_runs SET state='failed',result='' WHERE uid=? AND id=?",uid,b.request_id);if(e.status)throw e;fail('内置AI暂时不可用，额度已预留；可稍后使用自定义AI',503);}finally{this.active.delete(uid);}
   }catch(e){return json({error:e.status?e.message:'投稿助手暂时不可用'},e.status||503);}}

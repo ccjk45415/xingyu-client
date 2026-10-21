@@ -1,7 +1,7 @@
 name: xingyu_desktop
 description: 仓库 · 星屿 Windows 原生 Flutter 客户端
 publish_to: none
-version: 0.2.1+5
+version: 0.3.0+6
 environment:
   sdk: ">=3.13.0 <4.0.0"
   flutter: ">=3.47.0"

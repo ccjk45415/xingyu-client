@@ -1,9 +1,9 @@
 {
   "windows_zip": "pass",
   "platform": "windows-x64",
-  "version": "0.2.1",
-  "size": 14303822,
-  "sha256": "8bb6f107f0f8f8012eaa001a595b658510a25a9f0b91d8125a6fa895d8f49cb0",
+  "version": "0.3.0",
+  "size": 14319207,
+  "sha256": "8294c14da6965a3fca191b1fa516f4a34af7e1f37505e2915a9535336090bcf5",
   "complete_native_runtime": true,
   "live_credentials_excluded": true,
   "endpoint_literal_absent_from_aot": true,
