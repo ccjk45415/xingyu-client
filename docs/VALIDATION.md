@@ -12,6 +12,8 @@
 
 已部署翻译Worker版本 `c4ace08b-7ec3-453f-b3d0-aee3c760df56`，Pages部署 `d344cc53`；两端新更新清单与公开下载包SHA256核对通过。Windows真实原生引擎、DPAPI加密、防篡改及健康检查通过。
 
+GitHub [v0.8.0](https://github.com/ccjk45415/xingyu-client/releases/tag/v0.8.0)已公开，源码提交 `308d1e5c909fedd6275fd7dddce4a7523423521a`，280个源码文件；APK、完整Windows ZIP及校验文件三项匿名下载SHA256全部通过。发布包排除Cloudflare/GitHub令牌、公告管理密钥及官网账号密码的检查通过。
+
 ## Android 0.7.1 / Windows 0.2.1：代理DNS误判修复
 
 - 在当前真实代理环境复现www.dlsite.com被解析为198.18.5.104，旧版直接误判内网；经HTTPS公共DNS确认公开解析后，通过原代理提取用户提供的RJ01721474作品介绍和封面成功。测试不记录作品正文，也不调用AI。

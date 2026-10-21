@@ -39,5 +39,8 @@
   "pages_deployment": "d344cc53",
   "public_android_download_verified": true,
   "public_windows_download_verified": true,
-  "windows_native_diagnostics": "pass"
+  "windows_native_diagnostics": "pass",
+  "github_release": "https://github.com/ccjk45415/xingyu-client/releases/tag/v0.8.0",
+  "github_source_commit": "308d1e5c909fedd6275fd7dddce4a7523423521a",
+  "github_three_anonymous_asset_hash_checks": "pass"
 }
