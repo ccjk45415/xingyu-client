@@ -1,0 +1,27 @@
+{
+  "stage": "pre-publication",
+  "status": "pass",
+  "secrets_excluded": true,
+  "notes_exact": true,
+  "packages": [
+    {
+      "file": "Cangku-Xingyu-0.9.10-debug.apk",
+      "size": 779039,
+      "sha256": "b5e9260cf0f73907001428084d4417cfdfe218dbf399ce28e6ba2fdd5b0751d4",
+      "version": "0.9.10",
+      "code": 23
+    },
+    {
+      "file": "Xingyu-Windows-0.4.7-x64.zip",
+      "size": 14561218,
+      "sha256": "e7807edb0d550c3840eadd6df466dd3b0c33fd7a4792ecc16a2cc857837aaca9",
+      "version": "0.4.7",
+      "code": 14
+    },
+    {
+      "file": "Cangku-Xingyu-source.zip",
+      "size": 3905850,
+      "sha256": "cabe6a0b06cfdfa03edc7ba43200fd444476056b9333ba8919a8f6af2dd9eaf2"
+    }
+  ]
+}

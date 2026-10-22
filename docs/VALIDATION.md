@@ -1,8 +1,9 @@
-# 2026-10-22：Android 0.9.10 / Windows 0.4.7 两端诊断信息发布验证
+# 2026-10-22：Android 0.9.10 / Windows 0.4.7 已发布并验收
 
 - 用户本次明确授权完成诊断后上传。两端设置与登录页新增入口，最多10条记录、查看/复制/确认清空。Android私有存储，Windows DPAPI加密；不自动联网发送日志，原始异常消息与请求内容不记录。
 - Flutter 96项通过，3项需显式现场凭据/本地服务的检查跳过；最终诊断字体/布局7项通过，analyze无问题。1100×740及450×600诊断面板绘制、复制与清空验证，并检查中文字体。
 - Android原签名构建、源码/资源编译、真实Android 13临时进程表单/绘制/滚动/AI输入/诊断历史上限/隐私/清空检查通过；Windows真实原生引擎安全存储、自检和Unicode路径通过。未获得Android 16三星再次实测结果。
+- 已发布 GitHub v0.9.10、Pages ac85f542、Worker d1f64ddb-89d7-43b1-bb52-8b7881ae0651；更新入口版本23/14，GitHub latest=v0.9.10。两处下载包与本地SHA-256一致，源码与校验文件已上传。
 - 后台41项测试通过。发布说明严格采用 docs/RELEASE-0.9.10.md 原文。包完整性/凭证排除见 evidence/diagnostics-release-test-packages.json，线上最终验收见 evidence/release-0.9.10.json。
 
 # 2026-10-22：Android 0.9.9 投稿滚动条绘制异常修复
