@@ -1,17 +1,21 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+
 import 'core/api.dart';
 import 'core/state.dart';
 import 'core/chat.dart';
 import 'pages/discovery.dart';
 import 'pages/reading.dart';
 import 'pages/account.dart';
+import 'pages/following.dart';
 import 'pages/conversation.dart';
 import 'pages/private.dart';
 import 'pages/authoring.dart';
 import 'ui/shared.dart';
+import 'pages/diagnostics.dart';
 
 class XingyuApp extends StatelessWidget {
   final AppState app;
@@ -175,9 +179,8 @@ class _LoginPageState extends State<LoginPage> {
               const SizedBox(height: 44),
               Text(
                 '欢迎回到你的小宇宙',
-                style: Theme.of(c).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
+                style: Theme.of(c).textTheme.headlineSmall
+                    ?.copyWith(fontWeight: FontWeight.w800),
               ),
               const SizedBox(height: 12),
               const Text(
@@ -267,6 +270,11 @@ class _LoginPageState extends State<LoginPage> {
               const Text(
                 '非官方客户端 · 密码不保存在本机\n保持登录的会话由 Windows 安全存储保护',
                 style: TextStyle(color: Colors.grey, fontSize: 11, height: 1.8),
+              ),
+              TextButton.icon(
+                onPressed: () => showDiagnostics(context),
+                icon: const Icon(Icons.bug_report_outlined, size: 17),
+                label: const Text('诊断信息'),
               ),
             ],
           ),
@@ -438,6 +446,8 @@ class _DesktopShellState extends State<DesktopShell> {
     'rank' ||
     'favorites' ||
     'authorPosts' => PostListPage(route, key: ValueKey(route.key)),
+    'followingFeed' => FollowingFeedPage(route, key: ValueKey(route.key)),
+    'followPeople' => FollowPeoplePage(route, key: ValueKey(route.key)),
     'categories' => CategoryPage(key: ValueKey(route.key)),
     'article' => ArticlePage(route.id, key: ValueKey(route.key)),
     'author' => AuthorPage(route.id, key: ValueKey(route.key)),
@@ -470,6 +480,7 @@ class _DesktopShellState extends State<DesktopShell> {
           body: LayoutBuilder(
             builder: (c, constraints) {
               final full = constraints.maxWidth >= 1120;
+              final short = constraints.maxHeight < 760;
               final selected =
                   [
                     'article',
@@ -480,6 +491,7 @@ class _DesktopShellState extends State<DesktopShell> {
                   ].contains(route.kind)
                   ? 'home'
                   : [
+                      'followPeople',
                       'inbox',
                       'dm',
                       'dmPeople',
@@ -515,9 +527,9 @@ class _DesktopShellState extends State<DesktopShell> {
                         Padding(
                           padding: EdgeInsets.fromLTRB(
                             full ? 27 : 16,
-                            35,
+                            short ? 18 : 35,
                             16,
-                            40,
+                            short ? 20 : 40,
                           ),
                           child: Row(
                             children: [
@@ -572,6 +584,7 @@ class _DesktopShellState extends State<DesktopShell> {
                           (Icons.interests_outlined, '分类', 'categories'),
                           (Icons.local_fire_department_outlined, '排行', 'rank'),
                           (Icons.forum_outlined, '聊天室', 'chat'),
+                          (Icons.rss_feed_rounded, '动态', 'followingFeed'),
                           (Icons.person_outline_rounded, '我的', 'mine'),
                         ])
                           Padding(
@@ -601,9 +614,9 @@ class _DesktopShellState extends State<DesktopShell> {
                                           size: 22,
                                           color: selected == nav.$3
                                               ? violet
-                                              : Theme.of(
-                                                  c,
-                                                ).colorScheme.onSurfaceVariant,
+                                              : Theme.of(c)
+                                                    .colorScheme
+                                                    .onSurfaceVariant,
                                         ),
                                         if (full) ...[
                                           const SizedBox(width: 15),
@@ -635,7 +648,7 @@ class _DesktopShellState extends State<DesktopShell> {
                             ),
                           ),
                         const Spacer(),
-                        if (full)
+                        if (full && !short)
                           Padding(
                             padding: const EdgeInsets.all(18),
                             child: Surface(

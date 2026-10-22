@@ -4,6 +4,7 @@
 #include <flutter/dart_project.h>
 #include "secure_storage.h"
 #include "image_clipboard.h"
+#include "editor_ime.h"
 #include <flutter/flutter_view_controller.h>
 
 #include <memory>
@@ -28,6 +29,7 @@ class FlutterWindow : public Win32Window {
   // The project to run.
   std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>> storage_channel_;
   std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>> image_clipboard_channel_;
+  std::unique_ptr<EditorIme> editor_ime_;
   flutter::DartProject project_;
 
   // The Flutter instance hosted by this window.

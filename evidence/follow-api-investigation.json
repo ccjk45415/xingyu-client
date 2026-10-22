@@ -1,0 +1,12 @@
+{
+  "skill": "reverse-engineer-anything",
+  "public_frontend_read_on": "2026-10-22",
+  "artifact_sha256": "a025772f7d097e483a4b019e9d08892afcdfa75e1c74d61b3416034478e5de85",
+  "rea_parent_evidence": "ev_908a6ea2b742b0c5af79815c245d2bc54e0b7235da74e177e3b248e379906e75",
+  "scripts": 10,
+  "parse_failures": 0,
+  "coverage": "Application inventory complete; semantic graph partial/ceiling reached. Static observations do not prove runtime behavior.",
+  "findings": "Public front end exposes followableIdList; bounded search did not establish author follow mutation/list flows. User authorized independent app follows.",
+  "read_only_live_api_probe": "evidence/follow-site-contract.json",
+  "credentials_saved": false
+}

@@ -8,7 +8,7 @@ if not jar.is_file():jar.write_bytes(urllib.request.urlopen('https://repo.maven.
 assert hashlib.sha256(jar.read_bytes()).hexdigest()=='3cf6cd6892e32e2b4c1c39e0f52f5248a2f5b37646fdfbb79a66b46b618414ed'
 out=ROOT/'app/build/source-document-tests';out.mkdir(exist_ok=True,parents=True)
 cp=os.pathsep.join(map(str,[out,ROOT/'app/build/manual/classes',jar,prepare(),ROOT/'.toolchain/android-sdk/platforms/android-35/android.jar']))
-subprocess.run([str(jdk/'bin/javac.exe'),'-encoding','UTF-8','-cp',cp,'-d',str(out),str(ROOT/'tests/SourceDocumentTest.java')],check=True)
+subprocess.run([str(jdk/'bin/javac.exe'),'-encoding','UTF-8','-cp',cp,'-d',str(out),str(ROOT/'app/src/main/java/moe/cangku/reader/SourceTranslation.java'),str(ROOT/'app/src/main/java/moe/cangku/reader/SourceDocument.java'),str(ROOT/'tests/SourceDocumentTest.java')],check=True)
 result=subprocess.run([str(jdk/'bin/java.exe'),'-Dfile.encoding=UTF-8','-ea','-cp',cp,'moe.cangku.reader.SourceDocumentTest',str(ROOT/'tests/fixtures/source-introduction.html')],check=True,capture_output=True,text=True,encoding='utf-8');print(result.stdout.strip())
 (ROOT/'evidence/ai-source-document-native.json').write_text(json.dumps({'helpers':'exact production SourceDocument + SourceTranslation','result':result.stdout.strip(),'synthetic_fixture':True,'real_ai_calls':0,'device_ui_tested':False},indent=2)+'\n',encoding='utf-8')
 if '--live' in sys.argv:

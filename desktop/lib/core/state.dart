@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
+
 import 'api.dart';
 
 class AppState extends ChangeNotifier {
@@ -16,7 +18,8 @@ class AppState extends ChangeNotifier {
   double fontSize = 17;
   String? startupError;
   Directory? directory;
-  int generation = 0;
+  int generation = 0, socialRevision = 0;
+  final Map<int, Json> authorCache = {};
   VoidCallback? onLogout;
   bool _syncing = false;
   DateTime _checkedProfile = DateTime(2000);
@@ -31,9 +34,8 @@ class AppState extends ChangeNotifier {
   String get token => text(identity?['token']);
   bool get verified =>
       token.isNotEmpty &&
-      DateTime.tryParse(
-            text(identity?['expires_at']),
-          )?.isAfter(DateTime.now()) ==
+      DateTime.tryParse(text(identity?['expires_at']))
+              ?.isAfter(DateTime.now()) ==
           true;
   List<Json> get history => rows(object(local['history'])['$uid']);
   Json get drafts => object(object(local['drafts'])['$uid']);
@@ -97,10 +99,13 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> loadCategories() async {
+    final owner = uid, current = generation;
     try {
-      categories = rows(
+      final result = rows(
         (await get('category/list', {'all': '1', 'type': 'post'}))['data'],
       );
+      if (uid != owner || generation != current) return;
+      categories = result;
       notifyListeners();
     } catch (_) {}
   }
@@ -121,6 +126,31 @@ class AppState extends ChangeNotifier {
       if ([301, 302, 303, 401, 419].contains(e.status)) await logout();
       rethrow;
     }
+  }
+
+  Future<Json> social(String path, {Json? body}) async {
+    final owner = uid, current = generation, secret = token;
+    if (!verified) throw ApiFailure(401, '请先认证仓库账号');
+    try {
+      final value = await service.request(path, token: secret, body: body);
+      if (uid != owner || generation != current) throw ApiFailure(409, '账号已切换');
+      return value;
+    } on ApiFailure catch (e) {
+      if (e.status == 401 &&
+          uid == owner &&
+          generation == current &&
+          token == secret) {
+        identity = null;
+        await site.storage.delete(key: 'chat.$owner');
+        notifyListeners();
+      }
+      rethrow;
+    }
+  }
+
+  void socialChanged() {
+    socialRevision++;
+    notifyListeners();
   }
 
   Future<void> refreshUser() async {
@@ -202,6 +232,8 @@ class AppState extends ChangeNotifier {
     user = null;
     identity = null;
     categories = [];
+    authorCache.clear();
+    socialRevision++;
     notifyListeners();
     await site.clear();
     if (owner > 0) await site.storage.delete(key: 'chat.$owner');
@@ -233,6 +265,36 @@ class AppState extends ChangeNotifier {
   Future<void> _writes = Future.value();
   Future<void> setDark(bool value) async {
     dark = value;
+    notifyListeners();
+    await persist();
+  }
+
+  bool get categoryTopNavigation =>
+      object(local['categoryLayout'])['$uid'] == 'tabs';
+  Set<int>? get homeCategories {
+    final pref = object(object(local['homeCategories'])['$uid']);
+    if (pref['enabled'] != true) return null;
+    return (pref['ids'] as List? ?? [])
+        .map(number)
+        .where((id) => id > 0)
+        .toSet();
+  }
+
+  String get homeFilterKey => homeCategories == null
+      ? 'all'
+      : ((homeCategories!.toList()..sort()).join(','));
+  Future<void> setHomeCategories(Set<int>? value) async {
+    final accounts = object(local['homeCategories']);
+    accounts['$uid'] = {'enabled': value != null, 'ids': value?.toList() ?? []};
+    local['homeCategories'] = accounts;
+    notifyListeners();
+    await persist();
+  }
+
+  Future<void> setCategoryLayout(bool tabs) async {
+    final accounts = object(local['categoryLayout']);
+    accounts['$uid'] = tabs ? 'tabs' : 'cards';
+    local['categoryLayout'] = accounts;
     notifyListeners();
     await persist();
   }

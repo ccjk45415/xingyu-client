@@ -22,6 +22,15 @@ public class RichEditorDocumentTest {
   try{EditorTemplates.download("x","","","","",Arrays.asList(new EditorTemplates.Link("x","javascript:alert(1)")));throw new AssertionError("unsafe accepted");}catch(IllegalArgumentException expected){n++;}
   try{EditorTemplates.external("https://example.com/[/iframe]");throw new AssertionError("shortcode injection accepted");}catch(IllegalArgumentException expected){n++;}
   RichEditorDocument literalCode=new RichEditorDocument("<pre><code>[dlbox title=\"example\"][/dlbox]</code></pre>");ok(literalCode.text.contains("[dlbox"));ok(!literalCode.text.contains("\uFFFC"));ok(literalCode.source.equals("<pre><code>[dlbox title=\"example\"][/dlbox]</code></pre>"));
+   String linked="<p>前 <a class='keep' target='_blank' href='https://example.com/a?a=1&amp;b=2'><strong>原始 &amp; 链接</strong></a> 后</p>";
+   RichEditorDocument links=new RichEditorDocument(linked);int cursor=links.text.indexOf("原始")+1;RichEditorDocument.Link link=links.linkAt(cursor,cursor);
+   ok(link!=null&&link.url.equals("https://example.com/a?a=1&b=2"));ok(link.label.equals("原始 & 链接"));
+   String newUrl=links.updateLink(link,link.label,"https://example.com/new?a=3&b=4",false);ok(newUrl.contains("<strong>原始 &amp; 链接</strong>"));ok(newUrl.contains("class='keep' target='_blank'"));ok(newUrl.contains("href=\"https://example.com/new?a=3&amp;b=4\""));ok(new RichEditorDocument(newUrl).text.equals(links.text));
+   String renamed=links.updateLink(link,"新 <名字>",link.url,false);ok(renamed.contains(">新 &lt;名字&gt;</a>"));ok(renamed.startsWith("<p>前 ")&&renamed.endsWith(" 后</p>"));
+   ok(links.updateLink(link,link.label,link.url,true).equals("<p>前 <strong>原始 &amp; 链接</strong> 后</p>"));
+   ok(links.linkAt(0,1)==null);ok(links.linkAt(cursor,links.text.length())==null);ok(links.linkAt(cursor,cursor+2)!=null);
+   ok(new RichEditorDocument("<pre><code>&lt;a href='x'&gt;例子&lt;/a&gt;</code></pre>").linkAt(1,1)==null);
+   ok(new RichEditorDocument("<a href='https://example.com'><img src='https://example.com/x.png'></a>").linkAt(0,0)==null);
   System.out.println("PASS "+n+" native visual source, image, formatting, entity and website template checks");
  }
 }

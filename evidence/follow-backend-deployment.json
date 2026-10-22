@@ -1,0 +1,36 @@
+{
+  "origin": "https://xingyu-chat-ccjk45415.pages.dev",
+  "worker_version": "c5f21ec4-3080-4388-b933-9cad79375de8",
+  "follow_capability": 1,
+  "protocol": 3,
+  "channels": 2,
+  "unauthenticated_follow_access": "rejected 401",
+  "versions": {
+    "android": {
+      "version": "0.9.2",
+      "code": 15,
+      "manifest_sha256": "b656f0045cd59db9773654be9ddd43a48f9a1e0b00654eabff6021c97e5e17e9",
+      "existing_download_hash_verified": true
+    },
+    "windows": {
+      "version": "0.4.1",
+      "code": 8,
+      "manifest_sha256": "fd69467c6a6c2bd3a056df71f27d8a3e281c7e9e15516f2c18ef73ccf31f7a43",
+      "existing_download_hash_verified": true
+    }
+  },
+  "new_client_packages_uploaded": false,
+  "github_release_published": false,
+  "pages_deployed": false,
+  "server_change": "additive follow table and routes in existing DM object; additive health capability",
+  "existing_translation_unchanged": true,
+  "production_follow_mutations": 0,
+  "production_identity_sessions_created": 0,
+  "authenticated_production_follow_flow_tested": false,
+  "deployed_source_sha256": {
+    "dm-core.mjs": "674b5178dae55bdce7aee94a927ef43cd9652ba4b2828bf69b810307f2b5a8d7",
+    "follows.mjs": "6fb0dcdb46be5efa0aa73ae3a8f3b8631ed868dad9e464ff32beb6415f7f6084",
+    "worker.js": "3bd23d0a98f03fd3bf4a2e0bb5dabe7ac759288f7b6e068719879f0aa641022c",
+    "translation.mjs": "fd85d55a3229e27b3af18ca386eaeff10d3ed386a8b1a2653874ff17eab97266"
+  }
+}

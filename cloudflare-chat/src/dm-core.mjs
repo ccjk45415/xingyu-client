@@ -1,3 +1,4 @@
+import {initFollows,serveFollows} from './follows.mjs';
 import {initMedia,serveMedia,claimMedia,cleanMedia,mediaId} from './media.mjs';
 // Independent private messages. No website password, cookie, or response body is persisted.
 export const DM_LIMITS=Object.freeze({days:7,session_days:7,characters:500,gap_ms:3000,minute:15,user_day:100,global_day:2000,contacts_day:10,verification_ip_day:20,verification_user_day:20,verification_global_day:1000,users:10000,sessions:20000});
@@ -58,7 +59,7 @@ export function createDmHub(Base,{verify=verifySiteIdentity,clock=()=>Date.now()
         'CREATE TABLE IF NOT EXISTS dm_contacts(sender INTEGER NOT NULL,recipient INTEGER NOT NULL,day INTEGER NOT NULL,PRIMARY KEY(sender,recipient,day))',
         'CREATE TABLE IF NOT EXISTS dm_attempts(ip TEXT PRIMARY KEY,day INTEGER NOT NULL,n INTEGER NOT NULL)'
       ])this.sql.exec(q);
-      initMedia(this.sql);
+      initMedia(this.sql);initFollows(this.sql);
       if(!this.rows('PRAGMA table_info(dm_messages)').some(c=>c.name==='image_id'))this.sql.exec('ALTER TABLE dm_messages ADD COLUMN image_id TEXT');
     }
     rows(q,...args){return this.sql.exec(q,...args).toArray();}
@@ -100,6 +101,7 @@ export function createDmHub(Base,{verify=verifySiteIdentity,clock=()=>Date.now()
         const image=claimMedia(this,user,b.image_id,'chat',b.channel,b.client_id);return json({image});
       }
       const u=await this.user(req);this.budget(u.id,now);
+      if(path==='/dm/v1/follows'||path.startsWith('/dm/v1/follows/'))return await serveFollows(this,req,url,u,body);
       if(path==='/dm/v1/profile/sync'&&req.method==='POST'){
         const b=await body(req);keys(b,['site_cookie']);
         // Existing verified sessions may refresh their own profile, never choose a UID/name.
@@ -168,7 +170,7 @@ export function createDmHub(Base,{verify=verifySiteIdentity,clock=()=>Date.now()
       this.sql.exec('DELETE FROM dm_pairs WHERE last_id NOT IN (SELECT id FROM dm_messages)');
       this.sql.exec('DELETE FROM dm_counts WHERE day<?',dayStart(cutoff));this.sql.exec('DELETE FROM dm_contacts WHERE day<?',dayStart(cutoff));this.sql.exec('DELETE FROM dm_attempts WHERE day<?',dayStart(now)-DAY);
       // Preserve moderation and block decisions; remove inactive ordinary identities only after history expires.
-      this.sql.exec('DELETE FROM dm_users WHERE id IN (SELECT u.id FROM dm_users u WHERE u.enrolled_until<? AND u.banned=0 AND u.muted=0 AND NOT EXISTS(SELECT 1 FROM dm_messages m WHERE m.sender=u.id OR m.recipient=u.id) AND NOT EXISTS(SELECT 1 FROM dm_blocks b WHERE b.owner=u.id OR b.peer=u.id) LIMIT 100)',cutoff);
+      this.sql.exec('DELETE FROM dm_users WHERE id IN (SELECT u.id FROM dm_users u WHERE u.enrolled_until<? AND u.banned=0 AND u.muted=0 AND NOT EXISTS(SELECT 1 FROM dm_messages m WHERE m.sender=u.id OR m.recipient=u.id) AND NOT EXISTS(SELECT 1 FROM dm_blocks b WHERE b.owner=u.id OR b.peer=u.id) AND NOT EXISTS(SELECT 1 FROM social_follows f WHERE f.owner=u.id OR f.peer=u.id) LIMIT 100)',cutoff);
       await this.ctx.storage.setAlarm(now+3600000);
     }
   };

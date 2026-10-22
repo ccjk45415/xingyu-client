@@ -1,12 +1,12 @@
 # 仓库 · 星屿 Windows
 
-Flutter Desktop 原生 Windows 客户端，版本 **0.4.1 / build 8**，独立于 Android 0.9.1。使用 Dart AOT、Flutter Windows 引擎和 Win32 窗口，不需要安卓模拟器或浏览器容器。
+Flutter Desktop 原生 Windows 客户端，版本 **0.4.7 / build 14**，独立于 Android 0.9.10。使用 Dart AOT、Flutter Windows 引擎和 Win32 窗口，不需要安卓模拟器或浏览器容器。
 
 ## 使用
 
-下载 `output/Xingyu-Windows-0.4.1-x64.zip`，**完整解压后运行 `Xingyu.exe`**。保留同目录的 DLL 和 `data` 文件夹。提供 Windows x64 免安装包，已包含所需 VC++ 运行库；当前为未签名的测试发布版。
+下载 `output/Xingyu-Windows-0.4.7-x64.zip`，**完整解压后运行 `Xingyu.exe`**。保留同目录的 DLL 和 `data` 文件夹。提供 Windows x64 免安装包，已包含所需 VC++ 运行库；当前为未签名的测试发布版。
 
-[公网下载](https://xingyu-chat-ccjk45415.pages.dev/releases/Xingyu-Windows-0.4.1-x64.zip)，包大小和SHA256见发布页的 `Release-SHA256SUMS.txt`。独立更新清单位于 `/updates/windows.json`。
+[公网下载](https://xingyu-chat-ccjk45415.pages.dev/releases/Xingyu-Windows-0.4.7-x64.zip)，包大小和SHA256见发布页的 `Release-SHA256SUMS.txt`。独立更新清单位于 `/updates/windows.json`。
 
 使用自己的仓库账号登录。密码不落盘；勾选保持登录后，仅将网站 Cookie 使用 Windows DPAPI 加密保存。聊天令牌也使用独立的、按 UID 区分的加密文件。加密绑定当前 Windows 用户，资料目录与 Android 分开。
 
@@ -90,4 +90,8 @@ flutter build windows --release
 
 ## 可视化投稿与独立预览
 
-0.4.1默认正常编辑，点击HTML源码双向切换；修复上传正文图片丢失，补齐官网格式模板与编辑表单。本机预览有独立滚动条，鼠标位于预览区时滚轮只滚动预览。完整说明见[投稿编辑器](../docs/EDITOR.md)。
+0.4.7默认正常编辑，点击HTML源码双向切换；修复上传正文图片丢失，补齐官网格式模板与编辑表单。本机预览有独立滚动条，鼠标位于预览区时滚轮只滚动预览。完整说明见[投稿编辑器](../docs/EDITOR.md)。
+
+## 诊断信息
+
+登录页和「我的 → 设置 → 诊断信息」可查看、复制与清空最近10条本机异常。Flutter、Dart未处理异常及通用操作异常会记录类型与安全调用位置，原始异常消息与请求数据不落盘。记录使用 Windows DPAPI 加密，手动复制后自行发给开发者，不自动上传。系统强制结束或原生引擎崩溃可能无法保存。

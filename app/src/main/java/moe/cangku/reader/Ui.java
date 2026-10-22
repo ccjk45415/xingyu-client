@@ -37,6 +37,7 @@ final class Ui {
             switch(name){
                 case "搜索":canvas.drawCircle(10.5f,10.5f,6.5f,p);canvas.drawLine(16,16,21,21,p);break;
                 case "返回":path.moveTo(14.5f,5);path.lineTo(7.5f,12);path.lineTo(14.5f,19);canvas.drawPath(path,p);break;
+                case "动态":canvas.drawCircle(12,12,3,p);canvas.drawArc(3,3,21,21,30,120,false,p);canvas.drawArc(3,3,21,21,210,120,false,p);break;
                 case "首页":path.moveTo(3,10);path.lineTo(12,3);path.lineTo(21,10);path.lineTo(21,21);path.lineTo(15,21);path.lineTo(15,14);path.lineTo(9,14);path.lineTo(9,21);path.lineTo(3,21);path.close();canvas.drawPath(path,p);break;
                 case "分类":for(int x=0;x<2;x++)for(int y=0;y<2;y++)canvas.drawRoundRect(3+x*11,3+y*11,10+x*11,10+y*11,2,2,p);break;
                 case "排行":canvas.drawRoundRect(3,13,7,21,1,1,p);canvas.drawRoundRect(10,4,14,21,1,1,p);canvas.drawRoundRect(17,9,21,21,1,1,p);break;

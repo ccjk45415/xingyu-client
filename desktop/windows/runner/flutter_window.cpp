@@ -28,6 +28,7 @@ bool FlutterWindow::OnCreate() {
   storage_channel_ = RegisterSecureStorage(flutter_controller_->engine()->messenger());
   image_clipboard_channel_ = RegisterImageClipboard(flutter_controller_->engine()->messenger());
   SetChildContent(flutter_controller_->view()->GetNativeWindow());
+  editor_ime_ = std::make_unique<EditorIme>(flutter_controller_->engine()->messenger(), flutter_controller_->view()->GetNativeWindow());
 
   flutter_controller_->engine()->SetNextFrameCallback([&]() {
     this->Show();
@@ -42,6 +43,7 @@ bool FlutterWindow::OnCreate() {
 }
 
 void FlutterWindow::OnDestroy() {
+  editor_ime_.reset();
   image_clipboard_channel_.reset();
   storage_channel_.reset();
   if (flutter_controller_) {

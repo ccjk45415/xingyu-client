@@ -35,6 +35,36 @@ public final class RichEditorDocument {
         }
         appendText(at,html.length(),out);if(!units.isEmpty()){Unit last=units.get(units.size()-1);if(last.kind.equals("break")&&out.length()>0&&out.charAt(out.length()-1)=='\n'){units.remove(units.size()-1);out.setLength(out.length()-1);}}text=out.toString();
     }
+    public static final class Link {
+        public final int start,openEnd,closeStart,end;public final String url,label;
+        Link(int a,int b,int c,int d,String href,String text){start=a;openEnd=b;closeStart=c;end=d;url=href;label=text;}
+    }
+    /** Resolve a whole existing anchor from a caret or selection without nesting anchors. */
+    public Link linkAt(int a,int b){
+        int low=Math.min(a,b),high=Math.max(a,b);ArrayDeque<int[]> stack=new ArrayDeque<>();int literal=0;Matcher token=TOKEN.matcher(source);
+        while(token.find()){
+            String raw=token.group();if(!raw.startsWith("<")||raw.startsWith("<!--"))continue;
+            Matcher tag=Pattern.compile("^<(/?)\\s*([a-zA-Z0-9]+)").matcher(raw);if(!tag.find())continue;
+            String name=tag.group(2).toLowerCase(Locale.ROOT);boolean close=!tag.group(1).isEmpty();
+            if(name.equals("pre")||name.equals("code")){literal+=close?-1:1;literal=Math.max(0,literal);continue;}if(literal>0||!name.equals("a"))continue;
+            if(!close)stack.addLast(new int[]{token.start(),token.end()});else if(!stack.isEmpty()){
+                int[] open=stack.removeLast();int va=visibleOffset(open[1]),vb=visibleOffset(token.start());
+                if(low>=va&&high<=vb&&(low<vb||low==high&&low==vb)){
+                    Element anchor=Jsoup.parseBodyFragment(source.substring(open[0],token.end())).selectFirst("a");
+                    if(anchor!=null&&anchor.selectFirst("img")!=null)return null;
+                    return new Link(open[0],open[1],token.start(),token.end(),anchor==null?"":anchor.attr("href"),new RichEditorDocument(source.substring(open[1],token.start())).text);
+                }
+            }
+        }return null;
+    }
+    public String updateLink(Link link,String label,String url,boolean remove){
+        String inner=source.substring(link.openEnd,link.closeStart);if(remove)return source.substring(0,link.start)+inner+source.substring(link.end);
+        String opening=source.substring(link.start,link.openEnd);Matcher href=Pattern.compile("(?i)\\s+href\\s*=\\s*(?:\"[^\"]*\"|'[^']*'|[^\\s>]+)").matcher(opening);
+        String attr=" href=\""+ReaderContent.escape(url)+"\"";
+        opening=href.find()?opening.substring(0,href.start())+attr+opening.substring(href.end()):opening.substring(0,opening.length()-1)+attr+">";
+        if(!label.equals(link.label))inner=ReaderContent.escape(label).replace("\n","<br>");
+        return source.substring(0,link.start)+opening+inner+source.substring(link.closeStart);
+    }
     private static boolean block(String tag){return Arrays.asList("p","div","h1","h2","h3","h4","h5","h6","li","blockquote","pre","tr","table","details").contains(tag);}
     private void appendText(int a,int b,StringBuilder out){if(!units.isEmpty()){Unit last=units.get(units.size()-1);if(last.kind.equals("join"))a=Math.max(a,last.end);}for(int i=a;i<b;){int n=Character.charCount(source.codePointAt(i));add(i,i+n,source.substring(i,i+n),"text","",out);i+=n;}}
     private void add(int a,int b,String value,String kind,String detail,StringBuilder out){if(value.isEmpty())return;units.add(new Unit(a,b,value,kind,detail));out.append(value);}

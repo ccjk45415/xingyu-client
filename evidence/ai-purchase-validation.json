@@ -1,0 +1,67 @@
+{
+  "status": "awaiting_user_test",
+  "uploaded": false,
+  "public_update_metadata_unchanged": true,
+  "complete_native_runtime": true,
+  "live_credentials_excluded": true,
+  "packages": [
+    {
+      "file": "Cangku-Xingyu-0.9.6-debug.apk",
+      "size": 758559,
+      "sha256": "815aac0e673cb0ba64bd5827af7ff6f5d8c13e7b88bd0528017cf8f1bed16be4"
+    },
+    {
+      "file": "Xingyu-Windows-0.4.5-x64.zip",
+      "size": 14524123,
+      "sha256": "f5d9d137a38a9844de7819cf0a617c06b29f0470ee58ab8e3a748591f229b8de"
+    }
+  ],
+  "verified_on": "2026-10-22",
+  "android_version": "0.9.6",
+  "android_version_code": 19,
+  "windows_version": "0.4.5",
+  "windows_build": 12,
+  "dlsite_rj_added_locally": true,
+  "original_language_titles_retained": true,
+  "purchase_explicit_opt_in": true,
+  "purchase_proof_required_for_import": true,
+  "purchase_proof_route": "website upload/image, field=image",
+  "purchase_proof_sent_to_ai": false,
+  "proof_before_first_real_download": true,
+  "proof_and_new_introduction_before_existing_download_when_appending": true,
+  "code_comments_and_attributes_ignored_as_downloads": true,
+  "own_old_proof_replaced": true,
+  "dropdown_labels_left_aligned_and_outside_outline": true,
+  "native_rj_and_proof_assertions": 22,
+  "related_flutter_tests_passed": 32,
+  "final_targeted_tests_passed": 7,
+  "flutter_analyze": "no issues",
+  "native_translation_assertions": 33,
+  "native_guidance_assertions": 47,
+  "cross_platform_guidance_cases": 27,
+  "real_ai_calls": 0,
+  "real_website_uploads": 0,
+  "website_writes": 0,
+  "backend_modified_for_this_change": false,
+  "backend_deployed": false,
+  "actual_android_form_device_ui_verified": false,
+  "real_account_proof_upload_verified": false,
+  "release_notes": "优化了一些已知问题",
+  "screenshots": [
+    "desktop-ai-fields-1280.png",
+    "desktop-ai-fields-430.png",
+    "desktop-ai-purchase-1280.png",
+    "desktop-ai-purchase-430.png"
+  ],
+  "native_windows_check": {
+    "windows_native_engine": "pass",
+    "secure_storage": "pass",
+    "encrypted_file_and_tamper_rejection": "pass",
+    "app_data_directory": "pass",
+    "public_health": "pass",
+    "protocol": 3,
+    "website_password_used": false,
+    "messages_sent": 0,
+    "unicode_install_path_tested": true
+  }
+}

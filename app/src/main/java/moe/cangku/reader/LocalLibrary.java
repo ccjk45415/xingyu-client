@@ -26,4 +26,11 @@ final class LocalLibrary {
     void dark(boolean value){prefs.edit().putBoolean("dark",value).apply();}
     int textSize(){return prefs.getInt("readerSize",17);}
     void textSize(int size){prefs.edit().putInt("readerSize",Math.max(14,Math.min(24,size))).apply();}
+    boolean categoryTabs(){return prefs.getBoolean("categoryTabs."+user,false);}
+    void categoryTabs(boolean value){prefs.edit().putBoolean("categoryTabs."+user,value).apply();}
+    java.util.LinkedHashSet<Long> homeCategories(){
+        String raw=prefs.getString("homeCategories."+user,null);if(raw==null)return null;
+        java.util.LinkedHashSet<Long> ids=new java.util.LinkedHashSet<>();try{JSONArray values=new JSONArray(raw);for(int i=0;i<values.length();i++)if(values.optLong(i)>0)ids.add(values.optLong(i));}catch(Exception ignored){}return ids;
+    }
+    void homeCategories(java.util.Set<Long> value){if(value==null)prefs.edit().remove("homeCategories."+user).apply();else prefs.edit().putString("homeCategories."+user,new JSONArray(value).toString()).apply();}
 }

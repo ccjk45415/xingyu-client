@@ -1,0 +1,15 @@
+{
+  "additive_backend_only": true,
+  "overlay": [
+    "dm-core.mjs",
+    "follows.mjs",
+    "worker.js (additive health capability only)"
+  ],
+  "unchanged_existing_translation": true,
+  "public_update_manifests_unchanged": true,
+  "new_client_packages_staged": false,
+  "do_namespace": "existing DM / xingyu-dm-v1",
+  "new_namespaces": 0,
+  "new_schema_migrations": 0,
+  "existing_public_release_assets_preserved": true
+}

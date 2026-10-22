@@ -1,0 +1,25 @@
+PROBE_STARTED
+THREAD_READY
+CONTEXT_READY
+HOST_READY
+BASE_READY
+THEME_READY
+UI_READY
+LAYOUT_READY
+ENTER_NEW_POST
+FORM_READY
+java.lang.NullPointerException: Attempt to invoke virtual method 'android.widget.ScrollBarDrawable android.widget.ScrollBarDrawable.mutate()' on a null object reference
+	at android.view.View.onDrawScrollBars(View.java:20658)
+	at android.view.View.onDrawForeground(View.java:25206)
+	at android.view.View.draw(View.java:23279)
+	at android.view.View.draw(View.java:23139)
+	at android.view.ViewGroup.drawChild(ViewGroup.java:4529)
+	at android.view.ViewGroup.dispatchDraw(ViewGroup.java:4290)
+	at android.view.View.draw(View.java:23269)
+	at moe.cangku.reader.AuthoringEntryShell.run(AuthoringEntryShell.java:57)
+	at moe.cangku.reader.AuthoringEntryShell.main(AuthoringEntryShell.java:36)
+	at com.android.internal.os.RuntimeInit.nativeFinishInit(Native Method)
+	at com.android.internal.os.RuntimeInit.main(RuntimeInit.java:355)
+
+
+Editor entry failed; see result.log

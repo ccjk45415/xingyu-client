@@ -31,6 +31,44 @@ Json translationRequest(
   };
 }
 
+/// Existing production v2 servers may still translate source titles. Keep them
+/// local and restore original headings from this immutable request snapshot.
+Json builtinBodyOnlyRequest(Json original) {
+  final wire = object(jsonDecode(jsonEncode(original)));
+  wire['sources'] = rows(wire['sources'])
+      .map((s) => {...s, 'title': ''})
+      .toList();
+  return wire;
+}
+
+Json restoreOriginalSourceTitles(dynamic raw, Json request) {
+  final result = object(jsonDecode(jsonEncode(raw))),
+      sources = rows(request['sources']);
+  final blocks = rows(result['blocks']);
+  final extra = text(request['material']).trim().isEmpty ? 0 : 1;
+  final expected = sources.fold<int>(
+    extra,
+    (n, s) => n + rows(s['blocks']).length,
+  );
+  if (sources.isEmpty ||
+      result['blocks'] is! List ||
+      blocks.length != expected) {
+    throw ApiFailure(502, '草稿段落对应失败，已保留原素材，请重试或恢复结果');
+  }
+  final restored = <Json>[];
+  var cursor = 0;
+  for (var i = 0; i < sources.length; i++) {
+    final original = text(sources[i]['title']);
+    if (i > 0 && original.isNotEmpty) {
+      restored.add({'kind': 'h2', 'text': original});
+    }
+    final length = rows(sources[i]['blocks']).length + (i == 0 ? extra : 0);
+    restored.addAll(blocks.sublist(cursor, cursor + length));
+    cursor += length;
+  }
+  return {...result, 'title': text(sources.first['title']), 'blocks': restored};
+}
+
 class TranslationPlan {
   final List<List<Json>> chunks = [];
   final Map<String, List<String>> locations = {};
@@ -56,7 +94,6 @@ class TranslationPlan {
 
     for (var i = 0; i < sources.length; i++) {
       final s = sources[i];
-      if (text(s['title']).isNotEmpty) add('$i:title', text(s['title']));
       final blocks = rows(s['blocks']);
       for (var j = 0; j < blocks.length; j++) {
         if (blocks[j]['kind'] != 'image' &&
@@ -87,7 +124,7 @@ class TranslationPlan {
     final blocks = <Json>[];
     var title = '';
     for (var i = 0; i < sources.length; i++) {
-      final s = sources[i], heading = translated('$i:title', text(s['title']));
+      final s = sources[i], heading = text(s['title']);
       if (i == 0) {
         title = heading;
       } else if (heading.isNotEmpty) {
@@ -105,7 +142,7 @@ class TranslationPlan {
     }
     return {
       'type': type == 'auto' ? 'other' : type,
-      'title': title.isEmpty ? '作品介绍' : title,
+      'title': title,
       'summary': '',
       'metadata': <Json>[],
       'sections': <Json>[],

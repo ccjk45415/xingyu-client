@@ -1,5 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Enable bars during View construction so the framework creates their drawables.
+         Enabling the flag later and forcing non-fading bars leaves scrollBar null. -->
+    <style name="ScrollableEditor" parent="android:style/Widget.Material.EditText">
+        <item name="android:scrollbars">vertical</item>
+        <item name="android:fadeScrollbars">false</item>
+        <item name="android:scrollbarStyle">insideInset</item>
+    </style>
     <style name="AppTheme" parent="android:style/Theme.Material.Light.NoActionBar">
         <item name="android:fontFamily">sans</item>
         <item name="android:colorAccent">#7764EA</item>

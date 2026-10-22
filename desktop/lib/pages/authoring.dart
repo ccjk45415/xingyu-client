@@ -12,6 +12,10 @@ import '../core/editor_hints.dart';
 import '../core/editor_tools.dart';
 import '../core/editor_export.dart';
 import '../core/visual_editor.dart';
+import '../core/editor_links.dart';
+import '../core/submission_guidance.dart';
+import '../core/submission_extras.dart';
+import '../ui/editor_ime_anchor.dart';
 import '../ui/editor_templates.dart';
 import '../core/media.dart';
 import '../core/reader.dart';
@@ -307,6 +311,8 @@ class _PostEditorState extends State<PostEditor> {
   double sourceFontSize = 14;
   AppState? app;
   int owner = 0;
+  String guideKind = 'other';
+  bool guideAiImages = false;
   String status = 'draft',
       oldStatus = 'draft',
       version = '',
@@ -383,6 +389,8 @@ class _PostEditorState extends State<PostEditor> {
       }
       categories.addAll((source['category_ids'] as List? ?? []).map(number));
       html = source['editor_mode'] == 'source';
+      guideKind = text(source['guide_kind'], 'other');
+      guideAiImages = source['guide_ai_images'] == true;
       visual.load(content.text);
       visual.onSourceChanged = visualChanged;
       visual.onEditError = (error) {
@@ -427,6 +435,8 @@ class _PostEditorState extends State<PostEditor> {
     'html': html,
     'content_format': 'html',
     'editor_mode': html ? 'source' : 'visual',
+    'guide_kind': guideKind,
+    'guide_ai_images': guideAiImages,
     'editor_font_size': sourceFontSize.toInt(),
     'category_ids': categories.toList(),
     'version': version,
@@ -660,14 +670,30 @@ class _PostEditorState extends State<PostEditor> {
   }
 
   Future<void> insertLinkDialog({bool image = false}) async {
-    final label = TextEditingController(text: '链接文字'),
-        url = TextEditingController();
+    final selection = captureEdit();
+    final existing = image || html
+        ? null
+        : EditorLink.at(selection.text, selection.a, selection.b);
+    final selectedText = !html && visual.selection.isValid
+        ? visual.text.substring(visual.selection.start, visual.selection.end)
+        : '';
+    final label = TextEditingController(
+          text:
+              existing?.label ?? (selectedText.isEmpty ? '链接文字' : selectedText),
+        ),
+        url = TextEditingController(text: existing?.url ?? '');
     String error = '';
-    final result = await showDialog<String>(
+    final route = DialogRoute<String>(
       context: context,
       builder: (c) => StatefulBuilder(
         builder: (c, update) => AlertDialog(
-          title: Text(image ? '插入网络图片' : '插入链接'),
+          title: Text(
+            image
+                ? '插入网络图片'
+                : existing == null
+                ? '插入链接'
+                : '编辑链接',
+          ),
           content: SizedBox(
             width: 480,
             child: Column(
@@ -697,6 +723,19 @@ class _PostEditorState extends State<PostEditor> {
               onPressed: () => Navigator.pop(c),
               child: const Text('取消'),
             ),
+            if (existing != null)
+              TextButton(
+                onPressed: () => Navigator.pop(
+                  c,
+                  existing.update(
+                    selection.text,
+                    existing.label,
+                    existing.url,
+                    remove: true,
+                  ),
+                ),
+                child: const Text('移除链接'),
+              ),
             FilledButton(
               onPressed: () {
                 final value = url.text.trim(),
@@ -706,25 +745,43 @@ class _PostEditorState extends State<PostEditor> {
                   update(() => error = '请输入有效链接');
                   return;
                 }
+                if (!image && label.text.isEmpty) {
+                  update(() => error = '请输入链接文字');
+                  return;
+                }
                 final href = const HtmlEscape().convert(value),
                     name = const HtmlEscape().convert(label.text);
                 Navigator.pop(
                   c,
-                  image
+                  existing != null
+                      ? existing.update(selection.text, label.text, value)
+                      : image
                       ? '<p><img src="$href" alt="$name"></p>'
                       : '<a href="$href">$name</a>',
                 );
               },
-              child: const Text('插入'),
+              child: Text(existing == null ? '插入' : '保存'),
             ),
           ],
         ),
       ),
     );
-    await Future<void>.delayed(const Duration(milliseconds: 250));
+    final result = await Navigator.of(context).push(route);
+    await route.completed;
     label.dispose();
     url.dispose();
-    if (result != null && mounted) insert(result);
+    if (result != null && mounted) {
+      if (content.text != selection.text) {
+        message(context, '正文已变化，请重新选择链接');
+        return;
+      }
+      if (existing != null) {
+        applyEdit(EditorSnapshot(result, existing.start, existing.start));
+      } else {
+        renderEdit(selection);
+        insert(result);
+      }
+    }
   }
 
   Future<void> findReplace() async {
@@ -901,18 +958,31 @@ class _PostEditorState extends State<PostEditor> {
   Future<void> aiAssistant() async {
     if (busy) return;
     final app = stateOf(context), owner = stateOf(context).uid;
-    final result = await showAiAssistant(context);
+    final result = await showAiAssistant(
+      context,
+      proofPicker: widget.imagePicker,
+    );
     if (!mounted || result == null || app.uid != owner) return;
     final nextBody = result.body
-        ? (result.append && content.text.isNotEmpty
-              ? '${content.text}\n${result.draft.body}'
-              : result.draft.body)
+        ? mergeSubmissionBody(
+            content.text,
+            result.draft.body,
+            result.append,
+            result.purchaseProof,
+          )
         : null;
     if (nextBody != null && nextBody.length > 1000000) {
       message(context, '导入后超出编辑器容量，现有内容未修改');
       return;
     }
-    if (result.title) title.text = result.draft.title;
+    if (result.title) title.text = result.suggestedTitle ?? result.draft.title;
+    guideKind = result.kind;
+    guideAiImages = result.aiImages;
+    if (result.categories != null) {
+      categories
+        ..clear()
+        ..addAll(result.categories!);
+    }
     if (result.tags) tags.text = result.draft.tags.join(', ');
     if (result.cover && result.draft.cover.isNotEmpty) {
       thumb.text = result.draft.cover;
@@ -934,6 +1004,7 @@ class _PostEditorState extends State<PostEditor> {
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
           tool('AI 投稿助手', Icons.auto_awesome_outlined, aiAssistant),
+          tool('官网投稿规范检查', Icons.fact_check_outlined, checkSubmissionGuidance),
           tool(
             '撤销',
             Icons.undo_rounded,
@@ -999,7 +1070,7 @@ class _PostEditorState extends State<PostEditor> {
             Icons.format_quote_rounded,
             () => wrap('<blockquote>', '</blockquote>', placeholder: '引用文字'),
           ),
-          tool('插入链接', Icons.link_rounded, insertLinkDialog),
+          tool('编辑/插入链接', Icons.link_rounded, insertLinkDialog),
           tool('上传正文图片', Icons.image_outlined, upload),
           tool(
             '插入网络图片',
@@ -1526,6 +1597,53 @@ class _PostEditorState extends State<PostEditor> {
   }
 
   List<Json> rowsFrom(dynamic value) => rows(value);
+  Future<void> checkSubmissionGuidance() async {
+    try {
+      final guide = await SubmissionGuidance.load();
+      if (app!.categories.isEmpty) {
+        try {
+          await app!.loadCategories();
+        } catch (_) {}
+      }
+      if (!mounted) return;
+      final report = guide.report(
+        guide.check(
+          title: title.text,
+          body: bodyHtml(),
+          selected: categories,
+          tree: app!.categories,
+          kind: guideKind,
+          aiImages: guideAiImages,
+        ),
+      );
+      await showDialog<void>(
+        context: context,
+        builder: (c) => AlertDialog(
+          title: const Text('官网投稿规范检查'),
+          content: SizedBox(
+            width: 680,
+            child: SingleChildScrollView(child: SelectableText(report)),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => launchUrl(
+                Uri.parse(guide.sourceUrl),
+                mode: LaunchMode.externalApplication,
+              ),
+              child: const Text('官网完整规则'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(c),
+              child: const Text('返回编辑'),
+            ),
+          ],
+        ),
+      );
+    } catch (_) {
+      if (mounted) message(context, '规则暂不可用，请对照官网投稿须知核对');
+    }
+  }
+
   Future<void> submit() async {
     if (busy) return;
     if (title.text.trim().isEmpty || content.text.trim().isEmpty) {
@@ -1544,10 +1662,29 @@ class _PostEditorState extends State<PostEditor> {
         return;
       }
     }
+    String guideNote = '';
+    try {
+      final guide = await SubmissionGuidance.load();
+      final issues = guide.check(
+        title: title.text,
+        body: bodyHtml(),
+        selected: categories,
+        tree: app!.categories,
+        kind: guideKind,
+        aiImages: guideAiImages,
+      );
+      if (issues.isNotEmpty) {
+        guideNote =
+            '\n\n规范待核对 ${issues.length} 项：\n${issues.take(4).map((i) => '• ${i.message}').join('\n')}';
+      }
+    } catch (_) {
+      guideNote = '\n规则检查暂不可用，请手动核对官网须知。';
+    }
+    if (!mounted) return;
     if (!await confirm(
           context,
           widget.route.id == 0 ? '提交这篇投稿？' : '保存网站上的投稿？',
-          '${title.text.trim()}\n状态：${postStatuses[status]}${status == 'future' ? '\n上海时间：${schedule.text}' : ''}\n内容将同步到 cangku.moe。',
+          '${title.text.trim()}\n状态：${postStatuses[status]}${status == 'future' ? '\n上海时间：${schedule.text}' : ''}\n内容将同步到 cangku.moe。$guideNote',
           action: '确认提交',
         ) ||
         !mounted) {
@@ -1799,30 +1936,34 @@ class _PostEditorState extends State<PostEditor> {
                                 control: true,
                               ): findReplace,
                             },
-                            child: TextField(
-                              key: const Key('editor.content'),
-                              controller: html ? content : visual,
+                            child: EditorImeAnchor(
                               focusNode: contentFocus,
-                              enabled: !busy,
-                              minLines: 21,
-                              maxLines: 45,
-                              // Default EditableText forces every line to the
-                              // base font height, which overlaps tall widgets.
-                              strutStyle: html
-                                  ? null
-                                  : const StrutStyle(forceStrutHeight: false),
-                              style: TextStyle(
-                                fontSize: sourceFontSize,
-                                height: 1.8,
-                                fontFamily: html ? 'Consolas' : null,
-                                fontFamilyFallback: [
-                                  'Microsoft YaHei UI',
-                                  'Microsoft YaHei',
-                                ],
-                              ),
-                              decoration: const InputDecoration(
-                                hintText: '从这里开始，把灵感变成作品…',
-                                fillColor: Colors.transparent,
+                              controller: html ? content : visual,
+                              child: TextField(
+                                key: const Key('editor.content'),
+                                controller: html ? content : visual,
+                                focusNode: contentFocus,
+                                enabled: !busy,
+                                minLines: 21,
+                                maxLines: 45,
+                                // Default EditableText forces every line to the
+                                // base font height, which overlaps tall widgets.
+                                strutStyle: html
+                                    ? null
+                                    : const StrutStyle(forceStrutHeight: false),
+                                style: TextStyle(
+                                  fontSize: sourceFontSize,
+                                  height: 1.8,
+                                  fontFamily: html ? 'Consolas' : null,
+                                  fontFamilyFallback: [
+                                    'Microsoft YaHei UI',
+                                    'Microsoft YaHei',
+                                  ],
+                                ),
+                                decoration: const InputDecoration(
+                                  hintText: '从这里开始，把灵感变成作品…',
+                                  fillColor: Colors.transparent,
+                                ),
                               ),
                             ),
                           ),

@@ -1,0 +1,31 @@
+package moe.cangku.reader;
+import android.app.*;import android.content.*;import android.net.Uri;import android.view.*;import android.widget.*;import org.json.*;import java.util.*;
+
+/** Native guide form shared by the AI preview and the regular submission check. */
+final class SubmissionGuideUi {
+    final MainActivity host;final Ui ui;final SubmissionGuidance guide;final ArrayList<View> controls=new ArrayList<>();
+    final LinearLayout form;final Spinner kind,path;final EditText author,date,attributes;final TextView tips;final CheckBox aiImages;boolean chosen;int automaticIndex=-1;JSONArray tree;
+    static SubmissionGuidance load(MainActivity host)throws Exception{try(java.io.InputStream in=host.getAssets().open("submission-guidance.json")){return new SubmissionGuidance(ApiClient.read(in,200000));}}
+    SubmissionGuideUi(MainActivity h,LinearLayout parent)throws Exception{
+        host=h;ui=h.design();guide=load(h);tree=h.categoryTree();
+        form=ui.column();form.setVisibility(View.GONE);AiPanelUi panels=new AiPanelUi(h,ui);TextView expand=panels.action("官网规范 · 标题与分类","componentEdit",false,()->form.setVisibility(form.getVisibility()==View.VISIBLE?View.GONE:View.VISIBLE));parent.addView(expand);parent.addView(form);
+        panels.note(form,"按来源填写已知信息，未知可留空。规则核对于 "+guide.rules.optString("verified_on")+"，检查不消耗AI次数。");
+        label(form,"作品类型");kind=spinner(form);ArrayList<String> names=new ArrayList<>();for(int i=0;i<guide.profiles().length();i++)names.add(guide.profiles().optJSONObject(i).optString("label"));kind.setAdapter(new ArrayAdapter<String>(kind.getContext(),android.R.layout.simple_spinner_dropdown_item,names));automaticIndex=names.size()-1;kind.setSelection(automaticIndex);
+        label(form,"投稿分类");path=spinner(form);tips=ui.text("",12,ui.muted,false);form.addView(tips);author=input(form,"作者 / 开发商 / 社团（可选）");date=input(form,"发行日期（未知可留空）");attributes=input(form,"版本、平台与格式（逗号分隔）");aiImages=new CheckBox(h);aiImages.setText("资源为 AI 生成图片（仅限资源本身）");aiImages.setTextSize(13);aiImages.setButtonTintList(android.content.res.ColorStateList.valueOf(ui.accent));aiImages.setTextColor(ui.text);form.addView(aiImages);controls.add(aiImages);aiImages.setOnCheckedChangeListener((v,checked)->{if(checked){chosen=true;for(int i=0;i<guide.profiles().length();i++)if(guide.profiles().optJSONObject(i).optString("id").equals("pictures"))kind.setSelection(i);path.post(()->{ArrayAdapter adapter=(ArrayAdapter)path.getAdapter();for(int i=0;i<adapter.getCount();i++)if("图片 / 图包".equals(String.valueOf(adapter.getItem(i))))path.setSelection(i);});}});
+        kind.setOnTouchListener((v,event)->{if(event.getActionMasked()==android.view.MotionEvent.ACTION_UP)chosen=true;return false;});
+        kind.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener(){public void onItemSelected(AdapterView<?> p,View v,int pos,long id){if(pos!=automaticIndex)chosen=true;automaticIndex=-1;refresh();}public void onNothingSelected(AdapterView<?> p){}});
+        TextView source=panels.action("官网投稿须知","external",false,()->open(h,guide.rules.optString("source_url")));form.addView(source);controls.add(source);refresh();
+        if(tree.length()==0)host.task(()->host.client().get("category/list",ApiClient.params("all","1","type","post")).getJSONArray("data"),value->{tree=value;refresh();},message->tips.setText("分类目录暂不可用；可继续翻译，分类请联网后确认。"));
+    }
+    private Spinner spinner(LinearLayout parent){Spinner s=new Spinner(new android.view.ContextThemeWrapper(host,ui.dark?android.R.style.Theme_Material:android.R.style.Theme_Material_Light));parent.addView(s,new LinearLayout.LayoutParams(-1,ui.dp(52)));controls.add(s);return s;}
+    private void label(LinearLayout parent,String text){parent.addView(ui.text(text,12,ui.muted,false));ui.space(parent,8);}
+    private EditText input(LinearLayout parent,String label){EditText e=new AiPanelUi(host,ui).field(parent,label,1);e.setSingleLine(true);e.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(500)});controls.add(e);return e;}
+    String kind(){int i=Math.max(0,kind.getSelectedItemPosition());return guide.profiles().optJSONObject(i).optString("id");}
+    String path(){Object p=path.getSelectedItem();String value=p==null?"":p.toString();return value.startsWith("请选择")?"":value;}
+    Set<Long> categories(){return guide.resolve(tree,path());}
+    String title(String original){return guide.title(kind(),original,author.getText().toString(),date.getText().toString(),attributes.getText().toString(),aiImages.isChecked());}
+    void suggest(JSONArray sources){if(chosen||aiImages.isChecked())return;String guess=guide.guess(sources);for(int i=0;i<guide.profiles().length();i++)if(guide.profiles().optJSONObject(i).optString("id").equals(guess)){automaticIndex=i;kind.setSelection(i);refresh();break;}}
+    private void refresh(){ArrayList<String> options=new ArrayList<>();options.add("请选择实际子分类（不推断汉化、版本或原创身份）");for(String p:guide.paths(kind()))if(!guide.resolve(tree,p).isEmpty())options.add(p);String old=path();path.setAdapter(new ArrayAdapter<String>(path.getContext(),android.R.layout.simple_spinner_dropdown_item,options));if(options.contains(old))path.setSelection(options.indexOf(old));else if(options.size()==2)path.setSelection(1);StringBuilder note=new StringBuilder();JSONArray list=guide.profile(kind()).optJSONArray("tips");for(int i=0;i<list.length();i++)note.append("• ").append(list.optString(i)).append('\n');if(options.size()==1)note.append("当前目录未匹配到建议分类，导入时保留原分类，请手动选择。\n");tips.setText(note.toString());}
+    static void open(MainActivity host,String url){try{host.startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(url)));}catch(ActivityNotFoundException e){host.toast("没有可打开官网的浏览器");}}
+    static void showReport(MainActivity host,SubmissionGuidance guide,String title,String body,Set<Long> selected,JSONArray tree,String kind,boolean aiImages){Ui ui=host.design();TextView text=ui.text(guide.report(guide.check(title,body,selected,tree,kind,aiImages)),14,ui.text,false);text.setTextIsSelectable(true);ui.pad(text,20,16,20,16);ScrollView scroll=new ScrollView(host);scroll.addView(text);new AlertDialog.Builder(host).setTitle("投稿规范检查 · 不会自动提交").setView(scroll).setNegativeButton("返回编辑",null).setPositiveButton("官网完整规则",(d,w)->open(host,guide.rules.optString("source_url"))).show();}
+}

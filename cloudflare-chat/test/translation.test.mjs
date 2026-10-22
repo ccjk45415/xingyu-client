@@ -2,6 +2,15 @@ import test from 'node:test';import assert from 'node:assert/strict';
 import {translationInput,translationPlan,translatedSegments,translatedDraft} from '../src/translation.mjs';
 import {sourceUrl,draft} from '../src/ai-core.mjs';
 const input=()=>({request_id:crypto.randomUUID(),type:'auto',sources:[{url:'https://example.com/work',title:'原作タイトル',cover:'',blocks:[{kind:'h3',text:'紹介'},{kind:'p',text:'A small island.\nFind all three keys.'},{kind:'image',url:'https://cdn.example.com/panel.jpg',alt:'画像の日本語'},{kind:'p',text:'No time limit.'}]}],material:''});
+
+test('source titles never enter inference and remain original across multiple sources',()=>{
+ const request=input();request.sources.push({url:'https://example.com/second',title:'Другой мир 😀',cover:'',blocks:[{kind:'p',text:'Another introduction.'}]});
+ const b=translationInput(request,sourceUrl),plan=translationPlan(b),values=new Map();
+ for(const chunk of plan.chunks)for(const segment of chunk){assert.notEqual(segment.text,'原作タイトル');assert.notEqual(segment.text,'Другой мир 😀');values.set(segment.id,'正文译文');}
+ const out=translatedDraft(b,plan,values);assert.equal(out.title,'原作タイトル');assert.equal(out.blocks[4].text,'Другой мир 😀');assert.equal(out.blocks[5].text,'正文译文');
+ assert.equal(out.blocks[2].alt,'画像の日本語');
+ const missing=input();missing.sources[0].title='';const m=translationInput(missing,sourceUrl);assert.equal(translatedDraft(m,translationPlan(m),new Map()).title,'');
+});
 test('v2 preserves exact block and image order with only translation fields, no drafting metadata required',()=>{
  const b=translationInput(input(),sourceUrl),p=translationPlan(b),values=new Map();
  for(const chunk of p.chunks)for(const [id,text] of translatedSegments({translations:chunk.map(v=>({id:v.id,text:v.text}))},chunk))values.set(id,text);

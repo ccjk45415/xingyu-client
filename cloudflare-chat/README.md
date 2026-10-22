@@ -82,3 +82,12 @@ APP 每天自动检查一次，也可在“我的 → 设置 → 检查更新”
 ## Windows 客户端
 
 Flutter Windows 0.1.0与安卓共用协议3认证、聊天室、私信和公告。Windows更新清单为Pages静态资源`/updates/windows.json`，使用独立版本号和ZIP；不改变Android versionCode。Windows完整源码及验证说明见`../desktop/README.md`。可通过`CHAT_TEST_FLUTTER=1`及`XINGYU_DESKTOP_TEST_DIR`把真实Dart客户端加入本机运行时测试；该模式需完整源码工程和Flutter SDK。
+
+
+## 独立关注关系
+
+`/dm/v1/follows`（GET 列表、POST 关注/取消）、`/dm/v1/follows/status`、`/dm/v1/follows/ids`复用已验证官网UID的会话。请求不能指定行为主体；关注作者无需其先注册APP。列表只返回当前用户的关注或粉丝，作者资料由客户端向官网读取；不接受客户端提供的身份昵称。
+
+复用DM对象中的`social_follows` SQLite表和索引，关系长期保存直到取消，不随7天消息历史清理。每UID最多500个关注，每天最多500次实际变更，重复变更幂等；全局最多250000条关系。旧对象迁移不变，不增加付费服务或命名空间。动态由客户端读取官网投稿并按关注UID严格过滤，不在服务端抓取或保存官网正文/会话。
+
+新增测试：`node --test test/follows.test.mjs`，`node test/follows-runtime.integration.mjs`（本机隔离workerd/真实DO SQLite，无生产写入）。

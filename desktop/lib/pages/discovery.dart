@@ -6,6 +6,8 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 
 import '../core/api.dart';
+import '../core/category_preferences.dart';
+import '../ui/category_filter.dart';
 import '../core/home_content.dart';
 import '../core/reader.dart';
 import '../core/state.dart';
@@ -14,7 +16,7 @@ import '../ui/shared.dart';
 class PostListPage extends StatelessWidget {
   final DeskRoute route;
   const PostListPage(this.route, {super.key});
-  Future<Json> _load(AppState app) {
+  Future<Json> _load(AppState app) async {
     if (route.kind == 'search' && route.filter == 'authors') {
       return app.get('user/list', {
         'search': route.query,
@@ -54,6 +56,22 @@ class PostListPage extends StatelessWidget {
     }
     if (route.kind == 'posts' && route.id > 0) {
       params['category_in[0]'] = route.id;
+    }
+    if (route.kind == 'home' && app.homeCategories != null) {
+      if (app.categories.isEmpty) await app.loadCategories();
+      final ids = effectiveCategories(app.homeCategories!, app.categories);
+      if (ids.isEmpty) return emptyPostPage(route.page);
+      var i = 0;
+      for (final id in ids) {
+        params['category_in[${i++}]'] = id;
+      }
+      final result = await app.get(endpoint, params);
+      return {
+        ...result,
+        'data': rows(result['data'])
+            .where((p) => matchesCategories(p, ids))
+            .toList(),
+      };
     }
     return app.get(endpoint, params);
   }
@@ -97,6 +115,9 @@ class PostListPage extends StatelessWidget {
     final app = stateOf(context);
     final authors = route.kind == 'search' && route.filter == 'authors';
     return AsyncPane(
+      refreshToken: route.kind == 'home'
+          ? '${app.homeFilterKey}:${app.categories.length}'
+          : null,
       load: () => _load(app),
       builder: (data, reload) {
         final posts = rows(data['data']);
@@ -106,7 +127,8 @@ class PostListPage extends StatelessWidget {
             children: [
               if (route.kind == 'home') ...[
                 const HomeBanner(),
-                const SizedBox(height: 32),
+                const SizedBox(height: 20),
+                const HomeFilterBar(),
               ],
               Heading(
                 route.kind == 'home' ? '发现新的心动' : route.title,
@@ -335,78 +357,83 @@ class _PostCardState extends State<PostCard> {
 class CategoryPage extends StatelessWidget {
   const CategoryPage({super.key});
   @override
-  Widget build(BuildContext context) => AsyncPane(
-    load: () =>
-        stateOf(context).get('category/list', {'all': 1, 'type': 'post'}),
-    builder: (data, reload) => PageBody(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Heading(
-            '按兴趣漫游',
-            '从喜欢的分类出发，寻找下一份心动。',
-            trailing: IconButton(
-              onPressed: reload,
-              icon: const Icon(Icons.refresh),
+  Widget build(BuildContext context) => stateOf(context).categoryTopNavigation
+      ? const CategoryTabsPage()
+      : AsyncPane(
+          load: () =>
+              stateOf(context).get('category/list', {'all': 1, 'type': 'post'}),
+          builder: (data, reload) => PageBody(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Heading(
+                  '按兴趣漫游',
+                  '从喜欢的分类出发，寻找下一份心动。',
+                  trailing: IconButton(
+                    onPressed: reload,
+                    icon: const Icon(Icons.refresh),
+                  ),
+                ),
+                for (final category in rows(data['data']))
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 20),
+                    child: Surface(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.interests_outlined,
+                                color: violet,
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  text(category['name']),
+                                  style: Theme.of(context).textTheme.titleLarge,
+                                ),
+                              ),
+                              TextButton(
+                                onPressed: () => openRoute(
+                                  context,
+                                  DeskRoute(
+                                    'posts',
+                                    text(category['name']),
+                                    id: number(category['id']),
+                                  ),
+                                ),
+                                child: const Text('浏览全部  →'),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 18),
+                          Wrap(
+                            spacing: 10,
+                            runSpacing: 10,
+                            children: [
+                              for (final sub in rows(category['children']))
+                                ActionChip(
+                                  label: Text(text(sub['name'])),
+                                  onPressed: () => openRoute(
+                                    context,
+                                    DeskRoute(
+                                      'posts',
+                                      text(sub['name']),
+                                      id: number(sub['id']),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ),
-          for (final category in rows(data['data']))
-            Padding(
-              padding: const EdgeInsets.only(bottom: 20),
-              child: Surface(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.interests_outlined, color: violet),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            text(category['name']),
-                            style: Theme.of(context).textTheme.titleLarge,
-                          ),
-                        ),
-                        TextButton(
-                          onPressed: () => openRoute(
-                            context,
-                            DeskRoute(
-                              'posts',
-                              text(category['name']),
-                              id: number(category['id']),
-                            ),
-                          ),
-                          child: const Text('浏览全部  →'),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 18),
-                    Wrap(
-                      spacing: 10,
-                      runSpacing: 10,
-                      children: [
-                        for (final sub in rows(category['children']))
-                          ActionChip(
-                            label: Text(text(sub['name'])),
-                            onPressed: () => openRoute(
-                              context,
-                              DeskRoute(
-                                'posts',
-                                text(sub['name']),
-                                id: number(sub['id']),
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-        ],
-      ),
-    ),
-  );
+        );
 }
 
 class HomeBanner extends StatefulWidget {
@@ -796,4 +823,186 @@ class UniversePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant UniversePainter oldDelegate) => false;
+}
+
+class CategoryTabsPage extends StatefulWidget {
+  const CategoryTabsPage({super.key});
+  @override
+  State<CategoryTabsPage> createState() => _CategoryTabsPageState();
+}
+
+class _CategoryTabsPageState extends State<CategoryTabsPage> {
+  int parent = 0, selected = 0, page = 1;
+  bool restored = false;
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!restored) {
+      restored = true;
+      final saved = object(
+        object(
+          stateOf(context).local['categoryCursor'],
+        )['${stateOf(context).uid}'],
+      );
+      parent = number(saved['parent']);
+      selected = number(saved['selected']);
+      page = number(saved['page']);
+      if (page < 1) page = 1;
+    }
+  }
+
+  void remember() {
+    final app = stateOf(context),
+        all = object(stateOf(context).local['categoryCursor']);
+    all['${app.uid}'] = {'parent': parent, 'selected': selected, 'page': page};
+    app.local['categoryCursor'] = all;
+    unawaited(app.persist());
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final app = stateOf(context);
+    return AsyncPane(
+      load: () async {
+        if (app.categories.isEmpty) await app.loadCategories();
+        return {'data': app.categories};
+      },
+      builder: (r, reload) {
+        final roots = rows(r['data']);
+        if (roots.isEmpty) return const Blank('分类暂不可用', '请联网后重新打开分类');
+        final root = roots.firstWhere(
+              (c) => number(c['id']) == parent,
+              orElse: () => roots.first,
+            ),
+            rootId = number(root['id']);
+        final subs = rows(root['children']),
+            active =
+                selected == rootId ||
+                    rows(root['children'])
+                        .any((n) => number(n['id']) == selected)
+                ? selected
+                : rootId;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 18, 24, 10),
+              child: Row(
+                children: [
+                  const Icon(Icons.interests_rounded, color: violet),
+                  const SizedBox(width: 10),
+                  const Expanded(
+                    child: Text(
+                      '兴趣频道',
+                      style: TextStyle(
+                        fontSize: 21,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: '排版设置',
+                    onPressed: () => openRoute(
+                      context,
+                      const DeskRoute('appearance', '阅读与外观'),
+                    ),
+                    icon: const Icon(Icons.dashboard_customize_outlined),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surface,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Row(
+                      children: [
+                        for (final node in roots)
+                          Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: ChoiceChip(
+                              label: Text(text(node['name'])),
+                              selected: number(node['id']) == rootId,
+                              onSelected: (_) => setState(() {
+                                parent = number(node['id']);
+                                selected = 0;
+                                page = 1;
+                                remember();
+                              }),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  if (subs.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      child: Row(
+                        children: [
+                          for (final node in [
+                            {'id': rootId, 'name': '全部'},
+                            ...subs,
+                          ])
+                            Padding(
+                              padding: const EdgeInsets.only(right: 6),
+                              child: ChoiceChip(
+                                label: Text(text(node['name'])),
+                                selected: number(node['id']) == active,
+                                onSelected: (_) => setState(() {
+                                  selected = number(node['id']);
+                                  page = 1;
+                                  remember();
+                                }),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            Expanded(
+              child: DeskScope(
+                app: app,
+                open: (next) {
+                  if (next.kind == 'posts' && next.id == active) {
+                    setState(() {
+                      page = next.page;
+                      remember();
+                    });
+                  } else {
+                    openRoute(context, next);
+                  }
+                },
+                child: PostListPage(
+                  DeskRoute(
+                    'posts',
+                    text(
+                      (subs.firstWhere(
+                        (n) => number(n['id']) == active,
+                        orElse: () => root,
+                      ))['name'],
+                    ),
+                    id: active,
+                    page: page,
+                  ),
+                  key: ValueKey('category:$active:$page'),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
 }

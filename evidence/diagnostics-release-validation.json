@@ -1,0 +1,21 @@
+{
+  "date": "2026-10-22",
+  "android": "0.9.10",
+  "versionCode": 23,
+  "windows": "0.4.7",
+  "windowsBuild": 14,
+  "user_authorized_publication": true,
+  "status": "validated_preparing_publication",
+  "diagnostics": "settings and login entries; last 10; copy/clear; local-only; no exception messages; Windows DPAPI",
+  "flutter_tests": {
+    "passed": 96,
+    "skipped_live_contracts": 3,
+    "final_diagnostics_font_and_layout_tests": 7
+  },
+  "flutter_analyze": "no issues",
+  "android_runtime_probe": "PROBE_STARTED\nTHREAD_READY\nCONTEXT_READY\nHOST_READY\nBASE_READY\nTHEME_READY\nUI_READY\nLAYOUT_READY\nENTER_NEW_POST\nFORM_READY\nFORM_DRAW_PASS\nEMPTY_LONG_SOURCE_AI_DRAW_PASS\nDIAGNOSTICS_HISTORY_PASS\nAUTHORING_ENTRY_PASS: create, layout, injected failure recovery, private report, retry\n",
+  "windows_native": "pass",
+  "backend_tests": 41,
+  "android16_real_device_retested": false,
+  "notes": "优化了一些细节，新增首页分类，新增排版布局分类设置（我的-设置-阅读与外观）。新增关注和粉丝和动态功能。"
+}

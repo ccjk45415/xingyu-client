@@ -1,3 +1,5 @@
+import 'following.dart';
+
 import 'package:flutter/material.dart';
 
 import '../core/api.dart';
@@ -621,9 +623,10 @@ class AuthorPage extends StatelessWidget {
               children: [
                 Chip(label: Text('Lv.${number(user['level'])}')),
                 Chip(label: Text('${number(user['post_count'])} 篇投稿')),
-                Chip(label: Text('${number(user['follower_count'])} 位关注者')),
+                Chip(label: Text('${number(user['follower_count'])} 位官网关注者')),
               ],
             ),
+            AuthorFollowInfo(id),
             const SizedBox(height: 30),
             Wrap(
               spacing: 16,
@@ -642,6 +645,7 @@ class AuthorPage extends StatelessWidget {
                   icon: const Icon(Icons.grid_view),
                   label: const Text('浏览作者作品'),
                 ),
+                if (id != stateOf(context).uid) FollowButton(id, author: user),
                 if (id != stateOf(context).uid)
                   FilledButton.tonalIcon(
                     onPressed: () =>

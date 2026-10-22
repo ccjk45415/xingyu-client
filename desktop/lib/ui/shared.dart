@@ -9,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../core/api.dart';
 import '../core/state.dart';
 import '../core/qr.dart';
+import '../core/error_diagnostics.dart';
 
 const violet = Color(0xff8a6adb),
     pink = Color(0xffe797b7),
@@ -93,7 +94,8 @@ Future<void> action(
   try {
     await work();
     if (success != null && c.mounted) message(c, success);
-  } catch (e) {
+  } catch (e, stack) {
+    unawaited(appDiagnostics.record(e, stack, 'action'));
     if (c.mounted) message(c, '$e');
   }
 }

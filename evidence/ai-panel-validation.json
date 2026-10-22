@@ -1,0 +1,63 @@
+{
+  "status": "awaiting_user_test",
+  "uploaded": false,
+  "public_update_metadata_unchanged": true,
+  "complete_native_runtime": true,
+  "live_credentials_excluded": true,
+  "packages": [
+    {
+      "file": "Cangku-Xingyu-0.9.5-debug.apk",
+      "size": 754463,
+      "sha256": "0fb53845b2f9e6c036e9cd7c5d965fad7168585d4bb8fdff23801a5d4307ba57"
+    },
+    {
+      "file": "Xingyu-Windows-0.4.4-x64.zip",
+      "size": 14518920,
+      "sha256": "e43e7a0c56250e2e587b1da23636bcc55439a491e6b49e9471ce7097e606b7f0"
+    }
+  ],
+  "android_version": "0.9.5",
+  "android_version_code": 18,
+  "windows_version": "0.4.4",
+  "windows_build": 11,
+  "verified_on": "2026-10-22",
+  "source_titles_never_enter_inference": true,
+  "original_title_preserved_builtin_custom_recovery": true,
+  "builtin_compatible_with_existing_service": true,
+  "automatic_title_formatting": false,
+  "title_formatting_is_explicit_manual_action": true,
+  "source_title_snapshot_immutable": true,
+  "related_flutter_regressions_passed": 40,
+  "final_input_refresh_and_flow_tests_passed": 5,
+  "flutter_analyze": "no issues",
+  "native_translation_assertions": 33,
+  "native_guidance_assertions": 47,
+  "cross_platform_guidance_cases": 27,
+  "backend_related_tests_passed": 15,
+  "local_backend_source_modified": true,
+  "backend_deployed": false,
+  "actual_android_form_device_ui_verified": false,
+  "real_ai_calls": 0,
+  "website_writes": 0,
+  "messages_sent": 0,
+  "release_notes": "优化了一些已知问题",
+  "visual_evidence": [
+    "desktop-ai-form-1280.png",
+    "desktop-ai-form-430.png",
+    "desktop-ai-polished-1280.png",
+    "desktop-ai-polished-430.png",
+    "desktop-ai-custom.png",
+    "desktop-ai-built-in.png"
+  ],
+  "native_windows_selfcheck": {
+    "windows_native_engine": "pass",
+    "secure_storage": "pass",
+    "encrypted_file_and_tamper_rejection": "pass",
+    "app_data_directory": "pass",
+    "public_health": "pass",
+    "protocol": 3,
+    "website_password_used": false,
+    "messages_sent": 0,
+    "unicode_install_path_tested": true
+  }
+}

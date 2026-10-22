@@ -1,0 +1,502 @@
+{
+  "tree": [
+    {
+      "id": 100,
+      "name": "游戏",
+      "children": [
+        {
+          "id": 110,
+          "name": "汉化",
+          "children": []
+        },
+        {
+          "id": 111,
+          "name": "生肉",
+          "children": []
+        }
+      ]
+    },
+    {
+      "id": 200,
+      "name": "音乐",
+      "children": [
+        {
+          "id": 210,
+          "name": "侍寝声音",
+          "children": []
+        }
+      ]
+    },
+    {
+      "id": 300,
+      "name": "其他",
+      "children": [
+        {
+          "id": 310,
+          "name": "工具",
+          "children": []
+        },
+        {
+          "id": 311,
+          "name": "杂谈",
+          "children": []
+        }
+      ]
+    },
+    {
+      "id": 400,
+      "name": "图片",
+      "children": [
+        {
+          "id": 410,
+          "name": "图包",
+          "children": []
+        }
+      ]
+    },
+    {
+      "id": 500,
+      "name": "隐藏分类",
+      "children": []
+    },
+    {
+      "id": 600,
+      "name": "漫画",
+      "children": [
+        {
+          "id": 610,
+          "name": "本子",
+          "children": []
+        }
+      ]
+    },
+    {
+      "id": 700,
+      "name": "书籍",
+      "children": [
+        {
+          "id": 710,
+          "name": "其他书籍",
+          "children": []
+        }
+      ]
+    }
+  ],
+  "cases": [
+    {
+      "title": "[游戏分享] 示例",
+      "body": "<p>一句原文介绍。</p><p><img src=\"https://example.com/preview.png\" alt=\"作品介绍\"></p>[dlbox title=\"下载\" link1=\"百度|https://pan.baidu.com/s/example\"][/dlbox]",
+      "selected": [
+        100,
+        110
+      ],
+      "kind": "game",
+      "ai_images": false,
+      "name": "one_sentence_no_minimum",
+      "expected": [],
+      "absent": [
+        "title.structure",
+        "body.image",
+        "download.missing",
+        "category.parent",
+        "category.child"
+      ]
+    },
+    {
+      "title": "示例",
+      "body": "<p>一句原文介绍。</p><p><img src=\"https://example.com/preview.png\" alt=\"作品介绍\"></p>[dlbox title=\"下载\" link1=\"百度|https://pan.baidu.com/s/example\"][/dlbox]",
+      "selected": [
+        100,
+        110
+      ],
+      "kind": "game",
+      "ai_images": false,
+      "name": "plain_title",
+      "expected": [
+        "title.structure"
+      ],
+      "absent": []
+    },
+    {
+      "title": "[游戏分享] 示例",
+      "body": "<p>一句原文介绍。</p><p><img src=\"https://example.com/preview.png\" alt=\"作品介绍\"></p>[dlbox title=\"下载\" link1=\"百度|https://pan.baidu.com/s/example\"][/dlbox]",
+      "selected": [
+        500
+      ],
+      "kind": "game",
+      "ai_images": false,
+      "name": "hidden_only",
+      "expected": [
+        "category.hidden"
+      ],
+      "absent": []
+    },
+    {
+      "title": "[游戏分享] 示例",
+      "body": "<p>一句原文介绍。</p><p><img src=\"https://example.com/preview.png\" alt=\"作品介绍\"></p>[dlbox title=\"下载\" link1=\"百度|https://pan.baidu.com/s/example\"][/dlbox]",
+      "selected": [
+        110
+      ],
+      "kind": "game",
+      "ai_images": false,
+      "name": "child_without_parent",
+      "expected": [
+        "category.parent"
+      ],
+      "absent": []
+    },
+    {
+      "title": "[游戏分享] 示例",
+      "body": "<p>一句原文介绍。</p><p><img src=\"https://example.com/preview.png\" alt=\"作品介绍\"></p>[dlbox title=\"下载\" link1=\"百度|https://pan.baidu.com/s/example\"][/dlbox]",
+      "selected": [
+        100
+      ],
+      "kind": "game",
+      "ai_images": false,
+      "name": "parent_without_child",
+      "expected": [
+        "category.child"
+      ],
+      "absent": []
+    },
+    {
+      "title": "[游戏分享] 示例",
+      "body": "<p>一句原文介绍。</p><p><img src=\"https://example.com/preview.png\" alt=\"作品介绍\"></p>[dlbox title=\"下载\" link1=\"百度|https://pan.baidu.com/s/example\"][/dlbox]",
+      "selected": [
+        100,
+        110,
+        200,
+        210
+      ],
+      "kind": "game",
+      "ai_images": false,
+      "name": "cross_major",
+      "expected": [
+        "category.cross"
+      ],
+      "absent": []
+    },
+    {
+      "title": "[游戏分享] 示例",
+      "body": "<p>一句原文介绍。</p><p><img src=\"https://example.com/preview.png\" alt=\"作品介绍\"></p>[dlbox title=\"下载\" link1=\"百度|https://pan.baidu.com/s/example\"][/dlbox]",
+      "selected": [
+        100,
+        999
+      ],
+      "kind": "game",
+      "ai_images": false,
+      "name": "unknown_id",
+      "expected": [
+        "category.unknown"
+      ],
+      "absent": []
+    },
+    {
+      "title": "[游戏分享] 示例",
+      "body": "<p>文字介绍。</p>[dlbox title=\"下载\" link1=\"百度|https://pan.baidu.com/s/example\"][/dlbox]",
+      "selected": [
+        100,
+        110
+      ],
+      "kind": "game",
+      "ai_images": false,
+      "name": "missing_photo",
+      "expected": [
+        "body.image"
+      ],
+      "absent": []
+    },
+    {
+      "title": "[游戏分享] 示例",
+      "body": "<pre><code><p><img src=\"https://example.com/preview.png\" alt=\"作品介绍\"></p></code></pre>[dlbox title=\"下载\" link1=\"百度|https://pan.baidu.com/s/example\"][/dlbox]",
+      "selected": [
+        100,
+        110
+      ],
+      "kind": "game",
+      "ai_images": false,
+      "name": "photo_code_example_not_real",
+      "expected": [
+        "body.image"
+      ],
+      "absent": []
+    },
+    {
+      "title": "[游戏分享] 示例",
+      "body": "<p><img src=\"https://example.com/preview.png\" alt=\"作品介绍\"></p><h3>资料来源</h3><a href=\"https://store.steampowered.com/app/123\">商店介绍</a>",
+      "selected": [
+        100,
+        110
+      ],
+      "kind": "game",
+      "ai_images": false,
+      "name": "source_is_not_download",
+      "expected": [
+        "download.missing"
+      ],
+      "absent": []
+    },
+    {
+      "title": "[游戏分享] 示例",
+      "body": "<p>一句原文介绍。</p><p><img src=\"https://example.com/preview.png\" alt=\"作品介绍\"></p>[dlbox title=\"下载\" link1=\"百度|https://pan.baidu.com/s/example\"][/dlbox]",
+      "selected": [
+        300,
+        310
+      ],
+      "kind": "software",
+      "ai_images": false,
+      "name": "software_missing_vt",
+      "expected": [
+        "software.scan",
+        "software.screenshot"
+      ],
+      "absent": []
+    },
+    {
+      "title": "[游戏分享] 示例",
+      "body": "<p><img src=\"https://example.com/preview.png\" alt=\"作品介绍\"></p>[dlbox title=\"下载\" link1=\"百度|https://pan.baidu.com/s/example\"][/dlbox]<a href=\"https://www.virustotal.com/gui/file/0123456789/detection\">检测结果</a>",
+      "selected": [
+        300,
+        310
+      ],
+      "kind": "software",
+      "ai_images": false,
+      "name": "software_real_vt_link",
+      "expected": [
+        "software.screenshot"
+      ],
+      "absent": [
+        "software.scan"
+      ]
+    },
+    {
+      "title": "[游戏分享] 示例",
+      "body": "<p><img src=\"https://example.com/preview.png\" alt=\"作品介绍\"></p>[dlbox title=\"下载\" link1=\"百度|https://pan.baidu.com/s/example\"][/dlbox]<a href=\"https://www.virustotal.com.evil.example/gui/file/test\">检测结果</a>",
+      "selected": [
+        100,
+        110
+      ],
+      "kind": "software",
+      "ai_images": false,
+      "name": "software_fake_vt_host",
+      "expected": [
+        "software.scan"
+      ],
+      "absent": []
+    },
+    {
+      "title": "[游戏分享] 示例",
+      "body": "<p><img src=\"https://example.com/preview.png\" alt=\"作品介绍\"></p>[dlbox title=\"下载\" link1=\"伪装|https://pan.baidu.com.evil.example/s/test\"][/dlbox]",
+      "selected": [
+        100,
+        110
+      ],
+      "kind": "game",
+      "ai_images": false,
+      "name": "bad_white_host",
+      "expected": [
+        "download.whitelist"
+      ],
+      "absent": []
+    },
+    {
+      "title": "[游戏分享] 示例",
+      "body": "<p><img src=\"https://example.com/preview.png\" alt=\"作品介绍\"></p>[dlbox title=\"下载\" link1=\"伪装|https://example.com/?host=pan.baidu.com\"][/dlbox]",
+      "selected": [
+        100,
+        110
+      ],
+      "kind": "game",
+      "ai_images": false,
+      "name": "white_host_in_query_not_counted",
+      "expected": [
+        "download.whitelist"
+      ],
+      "absent": []
+    },
+    {
+      "title": "[游戏分享] 示例",
+      "body": "<p><img src=\"https://example.com/preview.png\" alt=\"作品介绍\"></p>[dlbox title=\"下载\" link1=\"网盘|https://www.mediafire.com/file/example\"][/dlbox]",
+      "selected": [
+        100,
+        110
+      ],
+      "kind": "game",
+      "ai_images": false,
+      "name": "valid_white_subdomain",
+      "expected": [],
+      "absent": [
+        "download.whitelist"
+      ]
+    },
+    {
+      "title": "[游戏分享] 示例",
+      "body": "<p>一句原文介绍。</p><p><img src=\"https://example.com/preview.png\" alt=\"作品介绍\"></p>[dlbox title=\"下载\" link1=\"百度|https://pan.baidu.com/s/example\"][/dlbox]",
+      "selected": [
+        300,
+        311
+      ],
+      "kind": "article",
+      "ai_images": false,
+      "name": "article_translation_not_original",
+      "expected": [
+        "body.original",
+        "body.article_download"
+      ],
+      "absent": []
+    },
+    {
+      "title": "[漫画分享] 示例合集",
+      "body": "<p>一句原文介绍。</p><p><img src=\"https://example.com/preview.png\" alt=\"作品介绍\"></p>[dlbox title=\"下载\" link1=\"百度|https://pan.baidu.com/s/example\"][/dlbox]",
+      "selected": [
+        100,
+        110
+      ],
+      "kind": "game",
+      "ai_images": false,
+      "name": "collection_missing_count_and_index",
+      "expected": [
+        "collection.count",
+        "collection.index"
+      ],
+      "absent": []
+    },
+    {
+      "title": "[漫画分享] 示例合集 [3部]",
+      "body": "<p><img src=\"https://example.com/preview.png\" alt=\"作品介绍\"></p>[dlbox title=\"下载\" link1=\"百度|https://pan.baidu.com/s/example\"][/dlbox]<h3>目录</h3><ul><li>第一部</li><li>第二部</li><li>第三部</li></ul>",
+      "selected": [
+        100,
+        110
+      ],
+      "kind": "game",
+      "ai_images": false,
+      "name": "collection_with_count_index",
+      "expected": [],
+      "absent": [
+        "collection.count",
+        "collection.index"
+      ]
+    },
+    {
+      "title": "[游戏分享] 示例",
+      "body": "<p>一句原文介绍。</p><p><img src=\"https://example.com/preview.png\" alt=\"作品介绍\"></p>[dlbox title=\"下载\" link1=\"百度|https://pan.baidu.com/s/example\"][/dlbox]",
+      "selected": [
+        100,
+        110
+      ],
+      "kind": "game",
+      "ai_images": true,
+      "name": "ai_images_missing_tag_and_category",
+      "expected": [
+        "title.ai",
+        "category.ai"
+      ],
+      "absent": []
+    },
+    {
+      "title": "[图集分享] 示例 [AI 生成]",
+      "body": "<p>一句原文介绍。</p><p><img src=\"https://example.com/preview.png\" alt=\"作品介绍\"></p>[dlbox title=\"下载\" link1=\"百度|https://pan.baidu.com/s/example\"][/dlbox]",
+      "selected": [
+        400,
+        410
+      ],
+      "kind": "pictures",
+      "ai_images": true,
+      "name": "ai_images_correct",
+      "expected": [],
+      "absent": [
+        "title.ai",
+        "category.ai"
+      ]
+    },
+    {
+      "title": "[游戏分享] 示例",
+      "body": "<p>一句原文介绍。</p><p><img src=\"https://example.com/preview.png\" alt=\"作品介绍\"></p>[dlbox title=\"下载\" link1=\"百度|https://pan.baidu.com/s/example\"][/dlbox]",
+      "selected": [
+        300,
+        310
+      ],
+      "kind": "software",
+      "ai_images": false,
+      "name": "ai_tool_does_not_imply_ai_images",
+      "expected": [],
+      "absent": [
+        "title.ai",
+        "category.ai"
+      ]
+    },
+    {
+      "title": "[音声分享] 【原名】雨声",
+      "body": "<p>一句原文介绍。</p><p><img src=\"https://example.com/preview.png\" alt=\"作品介绍\"></p>[dlbox title=\"下载\" link1=\"百度|https://pan.baidu.com/s/example\"][/dlbox]",
+      "selected": [
+        200,
+        210
+      ],
+      "kind": "asmr",
+      "ai_images": false,
+      "name": "asmr_original_brackets",
+      "expected": [],
+      "absent": [
+        "title.brackets",
+        "title.structure"
+      ]
+    },
+    {
+      "title": "[游戏分享] 示例",
+      "body": "<p>一句原文介绍。</p><p><img src=\"https://example.com/preview.png\" alt=\"作品介绍\"></p>[dlbox title=\"下载\" link1=\"百度|https://pan.baidu.com/s/example\"][/dlbox]",
+      "selected": [],
+      "kind": "game",
+      "ai_images": false,
+      "name": "no_categories",
+      "expected": [
+        "category.missing"
+      ],
+      "absent": []
+    },
+    {
+      "title": "[资源分享] 作品介绍",
+      "body": "<p>一句原文介绍。</p><p><img src=\"https://example.com/preview.png\" alt=\"作品介绍\"></p>[dlbox title=\"下载\" link1=\"百度|https://pan.baidu.com/s/example\"][/dlbox]",
+      "selected": [
+        100,
+        110
+      ],
+      "kind": "game",
+      "ai_images": false,
+      "name": "placeholder_with_prefix",
+      "expected": [
+        "title.missing"
+      ],
+      "absent": []
+    },
+    {
+      "title": "[游戏分享] 示例",
+      "body": "<p><img src=\"https://example.com/a.png\"></p><a href=\"https://user@virustotal.com/gui/file/test\">检测结果</a>",
+      "selected": [
+        100,
+        110
+      ],
+      "kind": "software",
+      "ai_images": false,
+      "name": "vt_userinfo_is_not_validated",
+      "expected": [
+        "software.scan"
+      ],
+      "absent": []
+    },
+    {
+      "title": "[游戏分享] 示例",
+      "body": "<p><img src=\"https://user@example.com/a.png\"></p>",
+      "selected": [
+        100,
+        110
+      ],
+      "kind": "game",
+      "ai_images": false,
+      "name": "img_userinfo_is_not_valid_photo",
+      "expected": [
+        "body.image"
+      ],
+      "absent": []
+    }
+  ]
+}

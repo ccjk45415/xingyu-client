@@ -1,0 +1,48 @@
+{
+  "read_only": true,
+  "content_saved": false,
+  "cases": {
+    "user_in[0]": {
+      "code": 0,
+      "matches_target": false,
+      "target_nonempty": true,
+      "unknown_empty": false,
+      "pagination_keys": [
+        "total",
+        "count",
+        "per_page",
+        "current_page",
+        "total_pages",
+        "links"
+      ]
+    },
+    "user_id": {
+      "code": 0,
+      "matches_target": true,
+      "target_nonempty": true,
+      "unknown_empty": true,
+      "pagination_keys": [
+        "total",
+        "count",
+        "per_page",
+        "current_page",
+        "total_pages",
+        "links"
+      ]
+    },
+    "author_id": {
+      "code": 0,
+      "matches_target": false,
+      "target_nonempty": true,
+      "unknown_empty": false,
+      "pagination_keys": [
+        "total",
+        "count",
+        "per_page",
+        "current_page",
+        "total_pages",
+        "links"
+      ]
+    }
+  }
+}

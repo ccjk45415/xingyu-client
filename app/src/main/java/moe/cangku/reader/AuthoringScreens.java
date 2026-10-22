@@ -26,7 +26,7 @@ final class AuthoringScreens {
     private java.util.function.Consumer<String> uploaded;
     private String uploadType;
     private EditText contentInput,titleInput,tagsInput,thumbInput;
-    private NativeRichEditor richInput;
+    private NativeRichEditor richInput;private TextView categoryButton;
     private final LinkedHashMap<String,GridLayout> toolbarGroups=new LinkedHashMap<>();
     private final LinkedHashMap<String,TextView> toolbarTabs=new LinkedHashMap<>();
     private CheckBox htmlToggle;
@@ -37,6 +37,7 @@ final class AuthoringScreens {
     private TextView sourceStats;
     private View undoTool,redoTool,editorToolbarPanel;
     private boolean focusEditing;
+    private String editorStage="entry";
     private final IdentityHashMap<View,Integer> focusVisibility=new IdentityHashMap<>();
 
     private final Runnable autosave=()->persist();
@@ -44,9 +45,10 @@ final class AuthoringScreens {
     static final String[] STATUS_LABELS={"已发布","定时发布","草稿","待审核","已退回","回收站"};
     private static final class Editor {
         long id,user;boolean html=true,sourceMode=false;String title="",source="",thumb="",tags="",status="pending",oldStatus="",created="",version="",baseline="";
+        String guideKind="other";boolean guideAiImages;
         LinkedHashSet<Long> categories=new LinkedHashSet<>();
-        JSONObject json()throws JSONException{return new JSONObject().put("id",id).put("user",user).put("html",html).put("sourceMode",sourceMode).put("title",title).put("source",source).put("thumb",thumb).put("tags",tags).put("status",status).put("oldStatus",oldStatus).put("created",created).put("version",version).put("baseline",baseline).put("categories",new JSONArray(categories));}
-        static Editor fromLocal(JSONObject x)throws JSONException{Editor e=new Editor();e.id=x.optLong("id");e.user=x.optLong("user");e.html=x.optBoolean("html",true);e.sourceMode=x.optBoolean("sourceMode",false);e.title=x.optString("title");e.source=x.optString("source");e.thumb=x.optString("thumb");e.tags=x.optString("tags");e.status=x.optString("status","pending");e.oldStatus=x.optString("oldStatus");e.created=x.optString("created");e.version=x.optString("version");e.baseline=x.optString("baseline");JSONArray cats=x.optJSONArray("categories");if(cats!=null)for(int i=0;i<cats.length();i++)e.categories.add(cats.optLong(i));return e;}
+        JSONObject json()throws JSONException{return new JSONObject().put("guideKind",guideKind).put("guideAiImages",guideAiImages).put("id",id).put("user",user).put("html",html).put("sourceMode",sourceMode).put("title",title).put("source",source).put("thumb",thumb).put("tags",tags).put("status",status).put("oldStatus",oldStatus).put("created",created).put("version",version).put("baseline",baseline).put("categories",new JSONArray(categories));}
+        static Editor fromLocal(JSONObject x)throws JSONException{Editor e=new Editor();e.guideKind=x.optString("guideKind","other");e.guideAiImages=x.optBoolean("guideAiImages");e.id=x.optLong("id");e.user=x.optLong("user");e.html=x.optBoolean("html",true);e.sourceMode=x.optBoolean("sourceMode",false);e.title=x.optString("title");e.source=x.optString("source");e.thumb=x.optString("thumb");e.tags=x.optString("tags");e.status=x.optString("status","pending");e.oldStatus=x.optString("oldStatus");e.created=x.optString("created");e.version=x.optString("version");e.baseline=x.optString("baseline");JSONArray cats=x.optJSONArray("categories");if(cats!=null)for(int i=0;i<cats.length();i++)e.categories.add(cats.optLong(i));return e;}
     }
     AuthoringScreens(MainActivity h){host=h;drafts=h.getSharedPreferences("authoringDrafts",Context.MODE_PRIVATE);}
     private Ui ui(){return host.design();}
@@ -110,6 +112,10 @@ final class AuthoringScreens {
     private String date(String s){return s.length()>10?s.substring(0,10):s;}
 
     void editor(long id){
+        editorStage="entry";
+        try{openEditor(id);}catch(RuntimeException|LinkageError failure){editorFailed(failure);}
+    }
+    private void openEditor(long id){
         boolean same=edit!=null&&edit.id==id&&edit.user==uid()&&formKind.equals("editor");start("editor");
         host.authorToolbar(id==0?"新建投稿":"编辑投稿",this::previewEditor);
         if(same){editorForm();return;}
@@ -132,23 +138,35 @@ final class AuthoringScreens {
         }catch(Exception ignored){}
     }
     private void editorForm(){
+        try{createEditorForm();}catch(RuntimeException|LinkageError failure){editorFailed(failure);}
+    }
+    private void editorFailed(Throwable failure){
+        handler.removeCallbacks(autosave);String report=CrashDiagnostics.record(host,failure,"editor/"+editorStage);
+        richInput=null;contentInput=null;sourceStats=null;body().removeAllViews();
+        title("投稿编辑器未能打开");note("已保留本机草稿。请复制诊断发给开发者，以便定位 Android 16 的兼容问题。");
+        button("复制诊断信息",()->{host.copyText(report);CrashDiagnostics.clear(host);});
+        button("重新打开编辑器",()->{body().removeAllViews();editorForm();});
+    }
+    private void createEditorForm(){
         if(edit==null)return;focusEditing=false;focusVisibility.clear();
+        editorStage="title";
         note(edit.id==0?"在这里创作新投稿。内容会自动保存在本机，点击提交后才会同步至网站。":"编辑保留原始 HTML 与下载短代码。点击预览可查看正文效果。");
         titleInput=field("标题（最多500字）",edit.title,2,500,s->edit.title=s);
         if(!edit.html){edit.source=AuthoringRules.editablePlainHtml(edit.source);edit.html=true;}
         CheckBox html=new CheckBox(host);htmlToggle=html;html.setText("HTML 源码（关闭后为可视化编辑）");html.setTextColor(ui().muted);html.setChecked(edit.sourceMode);body().addView(html);
         html.setOnCheckedChangeListener((view,checked)->{if(applyingEdit||edit==null)return;EditorBuffer.State state=captureEdit();edit.sourceMode=checked;richInput.document(state.text,state.a,state.b,checked);changed();refreshEditorTools();});
-        buildToolbar();
+        editorStage="toolbar";buildToolbar();
         sourceStats=ui().text("",11,ui().muted,false);body().addView(sourceStats);ui().space(body(),8);
         body().addView(ui().text("正文 · 可直接打字、排版及上传图片",13,ui().muted,true));ui().space(body(),8);
+        editorStage="native-editor";
         richInput=new NativeRichEditor(host,host.pictures(),source->{if(edit==null)return;edit.source=source;edit.html=true;if(!applyingEdit&&editHistory!=null)editHistory.record(captureEdit(),true,android.os.SystemClock.uptimeMillis());changed();refreshEditorTools();});
         contentInput=richInput;contentInput.setTextColor(ui().text);contentInput.setHintTextColor(ui().muted);contentInput.setHint("在这里写正文，使用工具栏插入图片或排版");contentInput.setGravity(Gravity.TOP|Gravity.LEFT);contentInput.setMinLines(12);contentInput.setMaxLines(18);ui().pad(contentInput,16,14,16,14);contentInput.setBackground(ui().round(ui().surface,16));body().addView(contentInput,new LinearLayout.LayoutParams(-1,-2));ui().space(body(),16);
         sourceFontSize=drafts.getInt("editor.font."+uid(),14);contentInput.setTextSize(sourceFontSize);richInput.document(edit.source,0,0,edit.sourceMode);
         if(historyOwner!=edit||editHistory==null||!editHistory.current.text.equals(edit.source)){editHistory=new EditorBuffer.History(captureEdit());historyOwner=edit;}
         contentInput.setOnTouchListener((v,event)->{handler.post(this::refreshEditorTools);return false;});refreshEditorTools();
-        EditText thumb=field("封面图片 URL",edit.thumb,1,3000,s->edit.thumb=s);thumbInput=thumb;
+        editorStage="post-fields";EditText thumb=field("封面图片 URL",edit.thumb,1,3000,s->edit.thumb=s);thumbInput=thumb;
         button("上传封面图片",()->chooseImage("post",url->{edit.thumb=url;thumb.setText(url);changed();}));
-        TextView categories=ui().button(categorySummary(),false,()->selectCategories());body().addView(categories,new LinearLayout.LayoutParams(-1,-2));ui().space(body(),16);
+        TextView categories=ui().button(categorySummary(),false,()->selectCategories());categoryButton=categories;body().addView(categories,new LinearLayout.LayoutParams(-1,-2));ui().space(body(),16);
         tagsInput=field("标签（用逗号分隔）",edit.tags,2,2000,s->edit.tags=s);
         ArrayList<String> values=new ArrayList<>(),labels=new ArrayList<>();values.add("draft");labels.add("草稿");values.add("pending");labels.add("提交审核");if(permission("publish_posts")){values.add("publish");labels.add("发布 / 更新");values.add("future");labels.add("定时发布");}if(edit.oldStatus.equals("rejected")){values.clear();labels.clear();values.add("pending");labels.add("修改并重新提交审核");}
         if(!values.contains(edit.status)){edit.status=edit.oldStatus.equals("rejected")?"pending":"draft";}
@@ -156,6 +174,7 @@ final class AuthoringScreens {
         status.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener(){public void onItemSelected(android.widget.AdapterView<?> p,View view,int position,long id){String value=values.get(position);if(!value.equals(edit.status)){edit.status=value;changed();}}public void onNothingSelected(android.widget.AdapterView<?> p){}});
         EditText date=field("定时发布时间（上海时间，可选）",edit.status.equals("future")?edit.created:"",1,19,s->{edit.created=s;});date.setHint("yyyy-MM-dd HH:mm:ss");button("选择定时发布时间",()->pickDate(date));
         note("定时投稿请选择未来时间；普通发布不填写时保留原发布时间。回收站中的内容需先恢复。");
+        button("官网投稿规范检查",()->{try{SubmissionGuidance guide=SubmissionGuideUi.load(host);SubmissionGuideUi.showReport(host,guide,edit.title,edit.source,edit.categories,host.categoryTree(),edit.guideKind,edit.guideAiImages);}catch(Exception e){host.toast("无法读取本机规则，请查看官网投稿须知");}});
         TextView local=ui().button("保存到本机",false,()->{dirty=true;persist();host.toast("已保存到本机，尚未提交网站");});body().addView(local,new LinearLayout.LayoutParams(-1,-2));ui().space(body(),10);
         TextView submit=ui().button(edit.id==0?"提交投稿":"保存修改",true,this::submitEditor);body().addView(submit,new LinearLayout.LayoutParams(-1,ui().dp(54)));ui().space(body(),18);
     }
@@ -191,8 +210,8 @@ final class AuthoringScreens {
         TextView caption=ui().text(label,11,ui().text,false);caption.setGravity(Gravity.CENTER);caption.setMaxLines(2);caption.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);FrameLayout.LayoutParams cp=new FrameLayout.LayoutParams(-1,ui().dp((int)(34*Math.max(1,host.getResources().getConfiguration().fontScale))),Gravity.BOTTOM);cp.bottomMargin=ui().dp(3);button.addView(caption,cp);ui().click(button,()->{if(!busy)action.run();});button.setOnLongClickListener(v->{host.toast(label+"："+toolDescription(glyph));return true;});
         int index=grid.getChildCount(),columns=grid.getColumnCount();GridLayout.LayoutParams params=new GridLayout.LayoutParams(GridLayout.spec(index/columns),GridLayout.spec(index%columns,1f));params.width=0;params.height=ui().dp((int)(78*Math.max(1,host.getResources().getConfiguration().fontScale)));params.setMargins(ui().dp(2),ui().dp(2),ui().dp(2),ui().dp(2));grid.addView(button,params);return button;
     }
-    private String toolDescription(String glyph){switch(glyph){case "ai":return "从作品链接整理草稿，预览后自行导入";case "undo":return "恢复上一步正文修改";case "redo":return "重新应用已撤销的正文修改";case "size":return "调整选中文字在文章中的字号";case "zoomIn":case "zoomOut":return "仅改变本机编辑框显示字号";case "image":return "选择本机图片上传并插入正文";case "imageUrl":return "通过HTTPS图片链接插入图片";case "codeBlock":return "选择编程语言，插入多行代码";case "code":return "将选中文字标记为行内代码";case "clear":return "移除选中内容的排版格式";case "find":return "在正文查找文字，或替换当前/全部匹配";case "date":return "插入上海时区的今天日期";case "entity":return "插入HTML特殊字符示例，避免尖括号被当成标签";case "return":return "在光标处插入换行";case "rule":return "在段落间插入水平分隔线";case "table":return "插入可编辑的表格模板";case "textColor":return "选择选中文字的颜色";case "fillColor":return "为选中文字添加背景色";case "download":return "填写下载地址及提取信息生成下载卡片";default:return "应用到选中文字；未选中时插入对应格式";}}
-    private void aiAssistant(){final Editor target=edit;if(busy||target==null)return;aiScreen=new AiScreens(host,value->{if(edit!=target||uid()!=target.user||contentInput==null)return;try{JSONObject d=value.draft;String incoming=value.body?AiClient.body(d):null;if(incoming!=null&&value.append&&!edit.source.isEmpty())incoming=edit.source+"\n"+incoming;if(incoming!=null&&incoming.length()>1000000)throw new java.io.IOException("导入后超出编辑器容量，现有内容未修改");if(value.title)titleInput.setText(d.getString("title"));if(value.tags){JSONArray t=d.getJSONArray("tags");ArrayList<String> tags=new ArrayList<>();for(int i=0;i<t.length();i++)tags.add(t.getString(i));tagsInput.setText(String.join(", ",tags));}if(value.cover){JSONArray list=d.getJSONArray("sources");for(int i=0;i<list.length();i++){String cover=list.getJSONObject(i).optString("cover");if(!cover.isEmpty()){thumbInput.setText(cover);break;}}}if(incoming!=null){applyEdit(new EditorBuffer.State(incoming,incoming.length(),incoming.length(),true));}changed();persist();host.toast("已导入本机草稿，尚未提交网站");}catch(Exception e){host.toast(e instanceof java.io.IOException?e.getMessage():"导入失败，请检查草稿");}});aiScreen.show();}
+    private String toolDescription(String glyph){switch(glyph){case "link":return "光标放到已有链接文字中可修改文字和地址，也可移除链接";case "ai":return "从作品链接整理草稿，预览后自行导入";case "undo":return "恢复上一步正文修改";case "redo":return "重新应用已撤销的正文修改";case "size":return "调整选中文字在文章中的字号";case "zoomIn":case "zoomOut":return "仅改变本机编辑框显示字号";case "image":return "选择本机图片上传并插入正文";case "imageUrl":return "通过HTTPS图片链接插入图片";case "codeBlock":return "选择编程语言，插入多行代码";case "code":return "将选中文字标记为行内代码";case "clear":return "移除选中内容的排版格式";case "find":return "在正文查找文字，或替换当前/全部匹配";case "date":return "插入上海时区的今天日期";case "entity":return "插入HTML特殊字符示例，避免尖括号被当成标签";case "return":return "在光标处插入换行";case "rule":return "在段落间插入水平分隔线";case "table":return "插入可编辑的表格模板";case "textColor":return "选择选中文字的颜色";case "fillColor":return "为选中文字添加背景色";case "download":return "填写下载地址及提取信息生成下载卡片";default:return "应用到选中文字；未选中时插入对应格式";}}
+    private void aiAssistant(){final Editor target=edit;if(busy||target==null)return;aiScreen=new AiScreens(host,value->{if(edit!=target||uid()!=target.user||contentInput==null)return;try{JSONObject d=value.draft;String incoming=value.body?AiClient.body(d):null;if(incoming!=null)incoming=SubmissionExtras.mergeBody(edit.source,incoming,value.append,value.purchaseProof);if(incoming!=null&&incoming.length()>1000000)throw new java.io.IOException("导入后超出编辑器容量，现有内容未修改");edit.guideKind=value.kind;edit.guideAiImages=value.aiImages;if(value.categories!=null){edit.categories.clear();edit.categories.addAll(value.categories);if(categoryButton!=null)categoryButton.setText(categorySummary());}if(value.title)titleInput.setText(d.getString("title"));if(value.tags){JSONArray t=d.getJSONArray("tags");ArrayList<String> tags=new ArrayList<>();for(int i=0;i<t.length();i++)tags.add(t.getString(i));tagsInput.setText(String.join(", ",tags));}if(value.cover){JSONArray list=d.getJSONArray("sources");for(int i=0;i<list.length();i++){String cover=list.getJSONObject(i).optString("cover");if(!cover.isEmpty()){thumbInput.setText(cover);break;}}}if(incoming!=null){applyEdit(new EditorBuffer.State(incoming,incoming.length(),incoming.length(),true));}changed();persist();host.toast("已导入本机草稿，尚未提交网站");}catch(Exception e){host.toast(e instanceof java.io.IOException?e.getMessage():"导入失败，请检查草稿");}},uri->prepareImage(uri,"post"));aiScreen.show();}
     private void buildToolbar(){
         toolbarGroups.clear();toolbarTabs.clear();LinearLayout panel=ui().column();panel.setBackground(ui().round(ui().surface,16));ui().pad(panel,8,10,8,8);LinearLayout tabs=ui().row();panel.addView(tabs,new LinearLayout.LayoutParams(-1,-2));
         int columns=Math.max(3,Math.min(6,(host.getResources().getConfiguration().screenWidthDp-48)/(int)(78*Math.max(1,host.getResources().getConfiguration().fontScale))));
@@ -204,7 +223,7 @@ final class AuthoringScreens {
         for(int n=1;n<=3;n++){final int level=n;editorTool(grid,n+"级标题","h"+n,()->format("<h"+level+">","</h"+level+">","标题"));}
         editorTool(grid,"段落","paragraph",()->format("<p>","</p>","段落文字"));editorTool(grid,"插入换行","return",()->insert("<br>"));
         editorTool(grid,"无序列表","list",()->insertList(false));editorTool(grid,"有序列表","ordered",()->insertList(true));editorTool(grid,"引用","quote",()->format("<blockquote>","</blockquote>","引用文字"));
-        editorTool(grid,"插入链接","link",this::insertLink);editorTool(grid,"上传正文图片","image",this::uploadBodyImage);editorTool(grid,"插入网络图片","imageUrl",this::insertNetworkImage);editorTool(grid,"下载卡片","download",this::insertDownload);
+        editorTool(grid,"编辑/插入链接","link",this::insertLink);editorTool(grid,"上传正文图片","image",this::uploadBodyImage);editorTool(grid,"插入网络图片","imageUrl",this::insertNetworkImage);editorTool(grid,"下载卡片","download",this::insertDownload);
         editorTool(grid,"外部链接","external",this::insertExternal);
         editorTool(grid,"插入表格","table",()->extraTool("table"));editorTool(grid,"行内代码","code",()->format("<code>","</code>","code"));editorTool(grid,"插入代码块","codeBlock",this::insertCode);editorTool(grid,"水平分隔线","rule",()->insert("\n<hr>\n"));
         editorTool(grid,"正文字号","size",this::chooseFontSize);editorTool(grid,"文字颜色","textColor",()->chooseColor(false));editorTool(grid,"文字背景色","fillColor",()->chooseColor(true));
@@ -238,8 +257,14 @@ final class AuthoringScreens {
         ui().click(all,()->run.accept("all"));AlertDialog d=dialog().setTitle("查找与替换").setView(box).setNegativeButton("关闭",null).setNeutralButton("替换当前",null).setPositiveButton("查找下一个",null).create();d.setOnShowListener(x->{d.getButton(-1).setOnClickListener(v->run.accept("find"));d.getButton(-3).setOnClickListener(v->run.accept("one"));});d.show();
     }
     private void insertLink(){
-        LinearLayout box=ui().column();ui().pad(box,20,8,20,8);EditText name=dialogInput(box,"链接文字"),url=dialogInput(box,"https://...");
-        AlertDialog d=dialog().setTitle("插入链接").setView(box).setNegativeButton("取消",null).setPositiveButton("插入",null).create();d.setOnShowListener(x->d.getButton(-1).setOnClickListener(v->{String link=url.getText().toString().trim();if(!UrlPolicy.canOpen(link)){url.setError("请输入有效链接");return;}insert("<a href=\""+ReaderContent.escape(link)+"\">"+ReaderContent.escape(name.getText().toString())+"</a>");d.dismiss();}));d.show();
+        final Editor owner=edit;final EditorBuffer.State state=captureEdit();final RichEditorDocument document=new RichEditorDocument(state.text);
+        final RichEditorDocument.Link current=edit.sourceMode?null:document.linkAt(contentInput.getSelectionStart(),contentInput.getSelectionEnd());
+        LinearLayout box=ui().column();ui().pad(box,20,8,20,8);EditText name=dialogInput(box,"链接文字"),url=dialogInput(box,"链接地址 https://...");
+        if(current!=null){name.setText(current.label);url.setText(current.url);}else if(!edit.sourceMode)name.setText(document.text.substring(Math.min(contentInput.getSelectionStart(),contentInput.getSelectionEnd()),Math.max(contentInput.getSelectionStart(),contentInput.getSelectionEnd())));
+        java.util.function.Consumer<Boolean> save=remove->{if(edit!=owner||!captureEdit().text.equals(state.text)){host.toast("正文已变化，请重新选择链接");return;}if(current==null){insertAt(state,"<a href=\""+ReaderContent.escape(url.getText().toString().trim())+"\">"+ReaderContent.escape(name.getText().toString())+"</a>");return;}String next=document.updateLink(current,name.getText().toString(),url.getText().toString().trim(),remove);applyEdit(new EditorBuffer.State(next,current.start,current.start,true));};
+        AlertDialog.Builder builder=dialog().setTitle(current==null?"插入链接":"编辑链接").setView(box).setNegativeButton("取消",null).setPositiveButton(current==null?"插入":"保存",null);
+        if(current!=null)builder.setNeutralButton("移除链接",(d,w)->save.accept(true));
+        AlertDialog d=builder.create();d.setOnShowListener(x->d.getButton(-1).setOnClickListener(v->{String link=url.getText().toString().trim();if(!UrlPolicy.canOpen(link)){url.setError("请输入有效链接");return;}if(name.getText().toString().isEmpty()){name.setError("请输入链接文字");return;}save.accept(false);d.dismiss();}));d.show();
     }
     private void insertCode(){
         LinearLayout box=ui().column();ui().pad(box,20,12,20,12);Spinner language=new Spinner(host);language.setAdapter(new ArrayAdapter<String>(host,android.R.layout.simple_spinner_dropdown_item,EditorHints.LANGUAGE_NAMES));box.addView(language);
@@ -283,7 +308,8 @@ final class AuthoringScreens {
         if(!edit.thumb.isEmpty()&&!UrlPolicy.isImage(edit.thumb)){host.toast("封面请填写有效的 HTTPS 图片地址");return;}
         if(edit.status.equals("future")){try{if(AuthoringRules.scheduleMillis(edit.created)<=System.currentTimeMillis())throw new IllegalArgumentException("定时发布时间必须晚于现在");}catch(IllegalArgumentException e){host.toast(e.getMessage());return;}}
         final Editor snapshot;try{snapshot=Editor.fromLocal(edit.json());}catch(Exception e){host.toast("无法读取编辑内容");return;}
-        dialog().setTitle(snapshot.id==0?"确认提交投稿？":"确认保存修改？").setMessage(snapshot.title+"\n状态："+label(snapshot.status)+(snapshot.categories.isEmpty()?"\n尚未选择分类":"")+(snapshot.status.equals("future")?"\n上海时间："+snapshot.created:"")).setNegativeButton("继续编辑",null).setPositiveButton("确认提交",(d,w)->{
+        String guideNote="";try{SubmissionGuidance guide=SubmissionGuideUi.load(host);ArrayList<SubmissionGuidance.Issue> issues=guide.check(snapshot.title,snapshot.source,snapshot.categories,host.categoryTree(),snapshot.guideKind,snapshot.guideAiImages);if(!issues.isEmpty()){StringBuilder note=new StringBuilder("\n\n规范待核对 "+issues.size()+" 项：");for(int i=0;i<Math.min(4,issues.size());i++)note.append("\n• ").append(issues.get(i).message);guideNote=note.toString();}}catch(Exception ignored){}final String pendingGuide=guideNote;
+        dialog().setTitle(snapshot.id==0?"确认提交投稿？":"确认保存修改？").setMessage(snapshot.title+"\n状态："+label(snapshot.status)+(snapshot.categories.isEmpty()?"\n尚未选择分类":"")+(snapshot.status.equals("future")?"\n上海时间："+snapshot.created:"")+pendingGuide).setNegativeButton("继续编辑",null).setPositiveButton("确认提交",(d,w)->{
             setBusy(true);persist();host.task(()->{
                 if(snapshot.user!=uid())throw new IOException("账号已变化，请重新打开编辑器");
                 if(snapshot.id>0){
@@ -352,6 +378,7 @@ final class AuthoringScreens {
         if(busy)return;final long account=uid();final String form=formKind;final Editor owner=edit;uploadType=type;uploaded=url->{if(uid()!=account||!formKind.equals(form)||(form.equals("editor")&&edit!=owner)){host.toast("页面或账号已变化，图片未写入其他草稿");return;}done.accept(url);};Intent pick=new Intent(Intent.ACTION_OPEN_DOCUMENT);pick.setType("image/*");pick.addCategory(Intent.CATEGORY_OPENABLE);try{host.startActivityForResult(pick,6201);}catch(ActivityNotFoundException e){host.toast("设备没有可用的图片选择器");uploaded=null;}
     }
     void onFileResult(int request,int result,Intent data){
+        if(request==6202){if(aiScreen!=null)aiScreen.onProofResult(result,data);return;}
         if(request!=6201)return;if(result!=Activity.RESULT_OK||data==null||data.getData()==null){uploaded=null;return;}if(uploaded==null)return;
         final Uri uri=data.getData();final String type=uploadType;final java.util.function.Consumer<String> done=uploaded;uploaded=null;setBusy(true);
         host.task(()->{try{return prepareImage(uri,type);}catch(OutOfMemoryError e){throw new IOException("图片尺寸过大，请选择较小的图片");}},bytes->{setBusy(false);ImageView preview=new ImageView(host);preview.setAdjustViewBounds(true);preview.setScaleType(ImageView.ScaleType.FIT_CENTER);preview.setImageBitmap(BitmapFactory.decodeByteArray(bytes,0,bytes.length));LinearLayout box=ui().column();ui().pad(box,20,12,20,12);box.addView(preview,new LinearLayout.LayoutParams(-1,ui().dp(240)));TextView text=ui().text("图片将上传至 cangku.moe（"+(bytes.length/1024)+"KB）"+(type.equals("avatar")?"，头像已居中裁成正方形":""),12,ui().muted,false);box.addView(text);

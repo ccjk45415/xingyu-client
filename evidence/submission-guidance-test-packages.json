@@ -1,0 +1,19 @@
+{
+  "status": "awaiting_user_test",
+  "uploaded": false,
+  "public_update_metadata_unchanged": true,
+  "complete_native_runtime": true,
+  "live_credentials_excluded": true,
+  "packages": [
+    {
+      "file": "Cangku-Xingyu-0.9.4-debug.apk",
+      "size": 750367,
+      "sha256": "8609c768e98d6e4a8f7d30e3f72a64dd5c5e11e99cad6c45440a98ac588b1988"
+    },
+    {
+      "file": "Xingyu-Windows-0.4.3-x64.zip",
+      "size": 14500957,
+      "sha256": "e24b63af86271c49abb39896bf01c66479520364ed725a79ce707fcfd6a2fc82"
+    }
+  ]
+}

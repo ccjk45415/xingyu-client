@@ -7,6 +7,84 @@ import 'package:xingyu_desktop/core/source_document.dart';
 import 'package:xingyu_desktop/core/translation.dart';
 
 void main() {
+  test('titles stay original in local plans and legacy built-in recovery', () {
+    final sources = <Json>[
+      {
+        'url': 'https://example.com/a',
+        'title': '原作タイトル 😀',
+        'cover': '',
+        'blocks': [
+          {'kind': 'p', 'text': 'First description.'},
+          {'kind': 'image', 'url': 'https://example.com/a.png', 'alt': '原图'},
+        ],
+      },
+      {
+        'url': 'https://example.com/b',
+        'title': 'Другой мир',
+        'cover': '',
+        'blocks': [
+          {'kind': 'p', 'text': 'Second description.'},
+        ],
+      },
+    ];
+    final request = translationRequest(sources, '补充', 'other', 'test-request');
+    final plan = TranslationPlan(sources), values = <String, String>{};
+    for (final chunk in plan.chunks) {
+      for (final segment in chunk) {
+        expect(segment['text'], isNot(anyOf('原作タイトル 😀', 'Другой мир')));
+        values[text(segment['id'])] = '译文';
+      }
+    }
+    final local = plan.assemble(sources, 'other', values);
+    expect(local['title'], '原作タイトル 😀');
+    expect(rows(local['blocks'])[2]['text'], 'Другой мир');
+    final wire = builtinBodyOnlyRequest(request);
+    expect(rows(wire['sources']).map((s) => s['title']), ['', '']);
+    expect(rows(request['sources']).first['title'], '原作タイトル 😀');
+    final raw = <String, dynamic>{
+      'title': '作品介绍',
+      'blocks': [
+        {'kind': 'p', 'text': '第一段译文'},
+        {'kind': 'image', 'url': 'https://example.com/a.png', 'alt': '原图'},
+        {'kind': 'p', 'text': '补充译文'},
+        {'kind': 'p', 'text': '第二段译文'},
+      ],
+    };
+    final recovered = restoreOriginalSourceTitles(raw, request);
+    expect(recovered['title'], '原作タイトル 😀');
+    expect(rows(recovered['blocks']).map((b) => b['kind']), [
+      'p',
+      'image',
+      'p',
+      'h2',
+      'p',
+    ]);
+    expect(rows(recovered['blocks'])[3]['text'], 'Другой мир');
+    expect(raw['blocks'], hasLength(4));
+    expect(
+      () => restoreOriginalSourceTitles({'blocks': []}, request),
+      throwsA(isA<ApiFailure>()),
+    );
+    final noTitle = TranslationPlan([
+      {...sources.first, 'title': ''},
+    ]);
+    final same = <String, String>{};
+    for (final chunk in noTitle.chunks) {
+      for (final s in chunk) {
+        same[text(s['id'])] = text(s['text']);
+      }
+    }
+    expect(
+      noTitle.assemble(
+        [
+          {...sources.first, 'title': ''},
+        ],
+        'other',
+        same,
+      )['title'],
+      '',
+    );
+  });
   test('region-limited page is never mistaken for a complete introduction', () {
     expect(
       () => parseSourceDocument(

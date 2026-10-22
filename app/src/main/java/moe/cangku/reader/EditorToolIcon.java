@@ -11,6 +11,10 @@ final class EditorToolIcon extends View {
     private void label(Canvas c,String s,int style){p.setStyle(Paint.Style.FILL);p.setTypeface(Typeface.create("sans-serif",style));p.setTextAlign(Paint.Align.CENTER);p.setTextSize(s.length()>2?10:17);c.drawText(s,12,18,p);p.setStyle(Paint.Style.STROKE);}
     @Override protected void onDraw(Canvas c){super.onDraw(c);c.save();c.scale(getWidth()/24f,getHeight()/24f);p.setColor(color);p.setStrokeWidth(1.8f);p.setStyle(Paint.Style.STROKE);p.setStrokeCap(Paint.Cap.ROUND);p.setStrokeJoin(Paint.Join.ROUND);Path path=new Path();
         switch(kind){
+            case "close":c.drawLine(5,5,19,19,p);c.drawLine(19,5,5,19,p);break;
+            case "stop":c.drawCircle(12,12,10,p);c.drawRoundRect(8,8,16,16,1,1,p);break;
+            case "save":path.moveTo(3,3);path.lineTo(17,3);path.lineTo(21,7);path.lineTo(21,21);path.lineTo(3,21);path.close();c.drawPath(path,p);c.drawRect(7,3,15,9,p);c.drawRect(7,14,17,21,p);break;
+            case "key":c.drawCircle(8,8,5,p);path.moveTo(12,12);path.lineTo(21,21);path.lineTo(21,16);path.moveTo(17,17);path.lineTo(20,14);c.drawPath(path,p);break;
             case "ai":path.moveTo(12,2);path.lineTo(15,9);path.lineTo(22,12);path.lineTo(15,15);path.lineTo(12,22);path.lineTo(9,15);path.lineTo(2,12);path.lineTo(9,9);path.close();c.drawPath(path,p);break;
             case "bold":label(c,"B",Typeface.BOLD);break;case "italic":label(c,"I",Typeface.BOLD_ITALIC);break;
             case "underline":label(c,"U",Typeface.NORMAL);c.drawLine(5,21,19,21,p);break;

@@ -2,10 +2,10 @@
   "available": true,
   "product": "moe.cangku.xingyu.desktop",
   "platform": "windows-x64",
-  "versionCode": 8,
-  "versionName": "0.4.1",
-  "notes": "优化了一些已知问题",
-  "url": "https://xingyu-chat-ccjk45415.pages.dev/releases/Xingyu-Windows-0.4.1-x64.zip",
-  "size": 14476990,
-  "sha256": "54fca5d22d2b3935c178200eb7a74650033eb5488077ad60be295ca72f684b4e"
+  "versionCode": 14,
+  "versionName": "0.4.7",
+  "notes": "优化了一些细节，新增首页分类，新增排版布局分类设置（我的-设置-阅读与外观）。新增关注和粉丝和动态功能。",
+  "url": "https://xingyu-chat-ccjk45415.pages.dev/releases/Xingyu-Windows-0.4.7-x64.zip",
+  "size": 14561218,
+  "sha256": "e7807edb0d550c3840eadd6df466dd3b0c33fd7a4792ecc16a2cc857837aaca9"
 }

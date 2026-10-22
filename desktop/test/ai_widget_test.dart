@@ -10,10 +10,12 @@ import 'package:html/parser.dart' as html;
 import 'package:xingyu_desktop/core/state.dart';
 import 'package:xingyu_desktop/pages/ai_assistant.dart';
 
-import 'widget_test.dart' show FakeSite, FakeService, frames, capture;
+import 'widget_test.dart'
+    show FakeSite, FakeService, OfflineSocket, frames, capture;
 
 void main() {
   setUpAll(() async {
+    await rootBundle.loadString('assets/submission-guidance.json');
     for (final font in [
       (
         'MaterialIcons',
@@ -40,9 +42,14 @@ void main() {
           'model': 'test-model',
         }),
       });
-      final app = AppState(siteApi: FakeSite(), serviceApi: FakeService())
-        ..user = FakeSite.user
-        ..starting = false;
+      final app =
+          AppState(
+              siteApi: FakeSite(),
+              serviceApi: FakeService(),
+              socketFactory: OfflineSocket.new,
+            )
+            ..user = FakeSite.user
+            ..starting = false;
       tester.view.physicalSize = const Size(960, 640);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.resetPhysicalSize);
@@ -58,10 +65,13 @@ void main() {
           ),
         ),
       );
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 150)),
+      );
       await frames(tester);
       await tester.pumpAndSettle();
       expect(find.text('自定义 AI'), findsOneWidget);
-      expect(find.text('API Key（可留空，按服务要求）'), findsOneWidget);
+      expect(find.text('API Key'), findsOneWidget);
       final password = tester
           .widgetList<TextField>(find.byType(TextField))
           .firstWhere((e) => e.obscureText);
@@ -79,7 +89,10 @@ void main() {
       await tester.ensureVisible(find.text('内置 AI'));
       await tester.tap(find.text('内置 AI'));
       await tester.pumpAndSettle();
-      expect(find.textContaining('全体共享16段'), findsOneWidget);
+      await tester.ensureVisible(find.text('额度与隐私说明'));
+      await tester.tap(find.text('额度与隐私说明'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('全体共享 16 段'), findsOneWidget);
       expect(find.text('模型名称'), findsNothing);
       expect(tester.takeException(), isNull);
       await capture(tester, shot, 'desktop-ai-built-in');
@@ -90,9 +103,14 @@ void main() {
     'Chinese original bypasses AI and preserves the full text without authentication or quota',
     (tester) async {
       SecureVault.setMockInitialValues({});
-      final app = AppState(siteApi: FakeSite(), serviceApi: FakeService())
-        ..user = FakeSite.user
-        ..starting = false;
+      final app =
+          AppState(
+              siteApi: FakeSite(),
+              serviceApi: FakeService(),
+              socketFactory: OfflineSocket.new,
+            )
+            ..user = FakeSite.user
+            ..starting = false;
       addTearDown(app.dispose);
       tester.view.physicalSize = const Size(1200, 900);
       tester.view.devicePixelRatio = 1;
@@ -108,25 +126,56 @@ void main() {
           ),
         ),
       );
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 150)),
+      );
       await frames(tester);
       await tester.pumpAndSettle();
       final links = find.byWidgetPredicate(
-        (w) => w is TextField && w.decoration?.labelText == '作品链接（每行一个，最多3个）',
+        (w) => w is TextField && w.decoration?.labelText == '作品链接',
       );
-      await tester.enterText(links, 'https://example.com/work');
-      await tester.ensureVisible(find.text('使用粘贴素材'));
-      await tester.tap(find.text('使用粘贴素材'));
+      await tester.ensureVisible(links);
       await tester.pumpAndSettle();
-      await tester.ensureVisible(find.text('原文已是中文：跳过AI，原样带入'));
-      await tester.tap(find.text('原文已是中文：跳过AI，原样带入'));
+      await tester.enterText(links, 'https://example.com/work');
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('手动粘贴'));
+      await tester.tap(find.text('手动粘贴'));
+      await tester.pumpAndSettle();
+      final sourceTitle = find.byWidgetPredicate(
+        (w) =>
+            w is TextFormField &&
+            w.key.toString().contains('ai.source.0.title.'),
+      );
+      await tester.ensureVisible(sourceTitle);
+      await tester.pumpAndSettle();
+      await tester.enterText(sourceTitle, '旧的手动标题');
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('手动粘贴'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('手动粘贴'));
+      await tester.pumpAndSettle();
+      expect(tester.widget<TextFormField>(sourceTitle).initialValue, '');
+      final editableTitle = find.descendant(
+        of: sourceTitle,
+        matching: find.byType(EditableText),
+      );
+      expect(tester.widget<EditableText>(editableTitle).controller.text, '');
+      await tester.ensureVisible(sourceTitle);
+      await tester.pumpAndSettle();
+      await tester.enterText(sourceTitle, '原作タイトル Original');
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('正文无需翻译'));
+      await tester.tap(find.text('正文无需翻译'));
       await tester.pumpAndSettle();
       final material = find.byWidgetPredicate(
-        (w) => w is TextField && w.decoration?.labelText == '补充作品素材（可选）',
+        (w) => w is TextField && w.decoration?.labelText == '补充素材（可选）',
       );
       const original = '中文原文。数字123与符号<&>保持原样。';
       await tester.ensureVisible(material);
+      await tester.pumpAndSettle();
       await tester.enterText(material, original);
-      await tester.tap(find.text('翻译并生成草稿'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('生成草稿'));
       await tester.pumpAndSettle();
       expect(find.textContaining('没有消耗内置次数'), findsOneWidget);
       expect(find.text('认证仓库账号'), findsNothing);

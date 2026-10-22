@@ -4,26 +4,30 @@ cangku.moe 的非官方 Android 与 Flutter Windows 客户端。界面以淡紫�
 
 Android 0.6.1修复改名后聊天室资料不同步，并为作品详情页增加右侧滚动条。0.6.0加入统一设置、作者UID复制、首页实时公告轮播，以及仓库认证聊天室、聊天室/私信图片、@和引用回复；详细说明见[0.6.0修改说明](docs/PENDING_CHANGES.md)。
 
-当前版本：**Android 0.9.2 / Windows 0.4.1**。优化了一些已知问题。见[更新记录](CHANGELOG.md)。
+当前版本：**Android 0.9.10 / Windows 0.4.7**。优化了一些细节，新增首页分类，新增排版布局分类设置（我的-设置-阅读与外观）。新增关注和粉丝和动态功能。见[更新记录](CHANGELOG.md)。
 
 ## 下载
 
 | 平台 | 版本 | GitHub下载 |
 | --- | --- | --- |
-| Android 8.0及以上 | 0.9.2 | [APK安装包](https://github.com/ccjk45415/xingyu-client/releases/download/v0.9.2/Cangku-Xingyu-0.9.2-debug.apk) |
-| Windows x64 | 0.4.1 | [完整免安装ZIP](https://github.com/ccjk45415/xingyu-client/releases/download/v0.9.1/Xingyu-Windows-0.4.1-x64.zip) |
+| Android 8.0及以上 | 0.9.10 | [APK安装包](https://github.com/ccjk45415/xingyu-client/releases/download/v0.9.10/Cangku-Xingyu-0.9.10-debug.apk) |
+| Windows x64 | 0.4.7 | [完整免安装ZIP](https://github.com/ccjk45415/xingyu-client/releases/download/v0.9.10/Xingyu-Windows-0.4.7-x64.zip) |
 
 [全部发布记录与校验文件](https://github.com/ccjk45415/xingyu-client/releases)。Android可覆盖前一版本；Windows完整解压后运行 `Xingyu.exe`，保留全部DLL和data文件夹。当前为自用测试发布，Android使用原测试签名，Windows尚未进行代码签名。
 
+## 诊断信息
+
+两端均可在「我的 → 设置 → 诊断信息」查看、复制和清空本机异常记录；登录页也提供入口。最多保留10条异常，不自动上传，不记录密码、会话、API Key、请求正文或异常消息。Windows 记录通过当前用户的 DPAPI 加密保存。诊断不能保证捕获系统强制结束、断电或所有原生引擎崩溃。
+
 ## Windows 桌面版
 
-Flutter Desktop **0.4.1 / Windows x64** 已制作，采用原生 Windows 引擎与重新设计的侧栏、封面网格和宽屏阅读/聊天布局。完整解压 `output/Xingyu-Windows-0.4.1-x64.zip` 后运行 `Xingyu.exe`。复用现有网站账号和认证聊天服务，支持评论通知、投稿管理、图片、艾特和引用回复。详见 [Windows 使用与构建说明](desktop/README.md)。Windows 版本及更新清单与安卓独立。
+Flutter Desktop **0.4.7 / Windows x64** 已制作，采用原生 Windows 引擎与重新设计的侧栏、封面网格和宽屏阅读/聊天布局。完整解压 `output/Xingyu-Windows-0.4.7-x64.zip` 后运行 `Xingyu.exe`。复用现有网站账号和认证聊天服务，支持评论通知、投稿管理、图片、艾特和引用回复。详见 [Windows 使用与构建说明](desktop/README.md)。Windows 版本及更新清单与安卓独立。
 
-[下载 Windows 0.4.1 x64 免安装包](https://xingyu-chat-ccjk45415.pages.dev/releases/Xingyu-Windows-0.4.1-x64.zip)（约13.8 MiB）。
+[下载 Windows 0.4.7 x64 免安装包](https://xingyu-chat-ccjk45415.pages.dev/releases/Xingyu-Windows-0.4.7-x64.zip)（约13.9 MiB）。
 
 ## Android 安装
 
-安装包：`output/Cangku-Xingyu-0.9.2-debug.apk`。使用与上一版相同的测试签名，可覆盖升级。
+安装包：`output/Cangku-Xingyu-0.9.10-debug.apk`。使用与上一版相同的测试签名，可覆盖升级。
 
 安装后输入自己的仓库账号密码。项目、安装包与交付压缩包不包含预置账号、密码或登录 Cookie。默认仅在本次进程内保持会话；勾选“保持登录”后，会话通过 Android Keystore 的 AES-GCM 密钥加密保存。密码始终不写入磁盘。
 

@@ -25,7 +25,7 @@ export function translationInput(v,url){
 export function translationPlan(b){
   const segments=[],locations=[];
   const add=(key,text)=>{const parts=[];for(let p=0;p<text.length;){let end=Math.min(text.length,p+800);if(end<text.length&&/[\uD800-\uDBFF]/.test(text[end-1]))end--;const id=String(segments.length);segments.push({id,text:text.slice(p,end)});parts.push(id);p=end;}locations.push({key,parts});};
-  b.sources.forEach((s,i)=>{if(s.title)add(i+':title',s.title);s.blocks.forEach((v,j)=>{if(v.kind!=='image'&&v.text)add(i+':'+j,v.text);});});
+  b.sources.forEach((s,i)=>{s.blocks.forEach((v,j)=>{if(v.kind!=='image'&&v.text)add(i+':'+j,v.text);});});
   const chunks=[];let current=[],chars=0;
   for(const s of segments){if(current.length&&(chars+s.text.length>800||current.length>=40)){chunks.push(current);current=[];chars=0;}current.push(s);chars+=s.text.length;}if(current.length)chunks.push(current);
   if(chunks.length>8)fail('介绍较长，内置免费预算无法完整翻译。请选择自定义AI；原文和图片不会被截断',413);
@@ -43,6 +43,6 @@ export function translatedSegments(raw,expected){
 }
 export function translatedDraft(b,plan,values){
   const joined=new Map(plan.locations.map(v=>[v.key,v.parts.map(id=>values.get(id)).join('')]));
-  const sources=b.sources.map((s,i)=>({...s,title:joined.get(i+':title')??s.title,blocks:s.blocks.map((v,j)=>v.kind==='image'?{...v}:{...v,text:joined.get(i+':'+j)??v.text})}));
-  return {type:b.type==='auto'?'other':b.type,title:sources[0].title||'作品介绍',summary:'',metadata:[],sections:[],tags:[],sources:sources.map(s=>({url:s.url,cover:s.cover})),blocks:sources.flatMap((s,i)=>[...(i&&s.title?[{kind:'h2',text:s.title}]:[]),...s.blocks]),translated:true};
+  const sources=b.sources.map((s,i)=>({...s,title:s.title,blocks:s.blocks.map((v,j)=>v.kind==='image'?{...v}:{...v,text:joined.get(i+':'+j)??v.text})}));
+  return {type:b.type==='auto'?'other':b.type,title:sources[0].title,summary:'',metadata:[],sections:[],tags:[],sources:sources.map(s=>({url:s.url,cover:s.cover})),blocks:sources.flatMap((s,i)=>[...(i&&s.title?[{kind:'h2',text:s.title}]:[]),...s.blocks]),translated:true};
 }

@@ -7,19 +7,29 @@ final class SourceTranslation {
         JSONArray sources=new JSONArray();for(int i=0;i<input.length();i++){JSONObject s=input.getJSONObject(i);JSONArray blocks=s.optJSONArray("blocks");if(blocks==null||blocks.length()==0)blocks=SourceDocument.fromText(s.optString("text"));sources.put(new JSONObject().put("url",s.getString("url")).put("title",s.optString("title")).put("cover",s.optString("cover")).put("blocks",new JSONArray(blocks.toString())));}
         return new JSONObject().put("request_id",id).put("type",type).put("sources",sources).put("material",material);
     }
+    static JSONObject builtinBodyOnlyRequest(JSONObject original)throws Exception{
+        JSONObject wire=new JSONObject(original.toString());JSONArray sources=wire.getJSONArray("sources");for(int i=0;i<sources.length();i++)sources.getJSONObject(i).put("title","");return wire;
+    }
+    static JSONObject restoreOriginalSourceTitles(JSONObject raw,JSONObject request)throws Exception{
+        JSONObject result=new JSONObject(raw.toString());JSONArray sources=request.getJSONArray("sources"),blocks=result.optJSONArray("blocks");int extra=request.optString("material").trim().isEmpty()?0:1,expected=extra;
+        for(int i=0;i<sources.length();i++)expected+=sources.getJSONObject(i).getJSONArray("blocks").length();
+        if(sources.length()==0||blocks==null||blocks.length()!=expected)throw new java.io.IOException("草稿段落对应失败，已保留原素材，请重试或恢复结果");
+        JSONArray restored=new JSONArray();int cursor=0;for(int i=0;i<sources.length();i++){JSONObject source=sources.getJSONObject(i);String title=source.optString("title");if(i>0&&!title.isEmpty())restored.put(new JSONObject().put("kind","h2").put("text",title));int count=source.getJSONArray("blocks").length()+(i==0?extra:0);for(int j=0;j<count;j++)restored.put(blocks.getJSONObject(cursor++));}
+        return result.put("title",sources.getJSONObject(0).optString("title")).put("blocks",restored);
+    }
     static final class Plan {
         final ArrayList<JSONArray> chunks=new ArrayList<>();final LinkedHashMap<String,ArrayList<String>> locations=new LinkedHashMap<>();final ArrayList<JSONObject> segments=new ArrayList<>();
         Plan(JSONArray sources)throws Exception{
-            for(int i=0;i<sources.length();i++){JSONObject s=sources.getJSONObject(i);if(!s.optString("title").isEmpty())add(i+":title",s.getString("title"));JSONArray b=s.getJSONArray("blocks");for(int j=0;j<b.length();j++){JSONObject v=b.getJSONObject(j);if(!v.optString("kind").equals("image")&&!v.optString("text").isEmpty())add(i+":"+j,v.getString("text"));}}
+            for(int i=0;i<sources.length();i++){JSONObject s=sources.getJSONObject(i);JSONArray b=s.getJSONArray("blocks");for(int j=0;j<b.length();j++){JSONObject v=b.getJSONObject(j);if(!v.optString("kind").equals("image")&&!v.optString("text").isEmpty())add(i+":"+j,v.getString("text"));}}
             JSONArray chunk=new JSONArray();int chars=0;for(JSONObject segment:segments){if(chunk.length()>0&&(chars+segment.getString("text").length()>800||chunk.length()>=40)){chunks.add(chunk);chunk=new JSONArray();chars=0;}chunk.put(segment);chars+=segment.getString("text").length();}if(chunk.length()>0)chunks.add(chunk);
         }
         void add(String key,String text)throws Exception{ArrayList<String> ids=new ArrayList<>();for(int at=0;at<text.length();){int end=Math.min(text.length(),at+800);if(end<text.length()&&Character.isHighSurrogate(text.charAt(end-1)))end--;String id=String.valueOf(segments.size());segments.add(new JSONObject().put("id",id).put("text",text.substring(at,end)));ids.add(id);at=end;}locations.put(key,ids);}
         String joined(String key,String fallback,Map<String,String> values)throws Exception{if(!locations.containsKey(key))return fallback;StringBuilder out=new StringBuilder();for(String id:locations.get(key)){String v=values.get(id);if(v==null)throw new java.io.IOException("翻译未完成，原文已保留");out.append(v);}return out.toString();}
         JSONObject assemble(JSONArray sources,String type,Map<String,String> values)throws Exception{
             JSONArray blocks=new JSONArray(),refs=new JSONArray();String title="";
-            for(int i=0;i<sources.length();i++){JSONObject s=sources.getJSONObject(i);String h=joined(i+":title",s.optString("title"),values);if(i==0)title=h;else if(!h.isEmpty())blocks.put(new JSONObject().put("kind","h2").put("text",h));JSONArray list=s.getJSONArray("blocks");for(int j=0;j<list.length();j++){JSONObject b=new JSONObject(list.getJSONObject(j).toString());if(!b.getString("kind").equals("image"))b.put("text",joined(i+":"+j,b.optString("text"),values));blocks.put(b);}refs.put(new JSONObject().put("url",s.getString("url")).put("cover",s.optString("cover")));}
+            for(int i=0;i<sources.length();i++){JSONObject s=sources.getJSONObject(i);String h=s.optString("title");if(i==0)title=h;else if(!h.isEmpty())blocks.put(new JSONObject().put("kind","h2").put("text",h));JSONArray list=s.getJSONArray("blocks");for(int j=0;j<list.length();j++){JSONObject b=new JSONObject(list.getJSONObject(j).toString());if(!b.getString("kind").equals("image"))b.put("text",joined(i+":"+j,b.optString("text"),values));blocks.put(b);}refs.put(new JSONObject().put("url",s.getString("url")).put("cover",s.optString("cover")));}
             if(body(blocks).length()>1000000)throw new java.io.IOException("译文超出编辑器容量，原文已保留，不会截断");
-            return new JSONObject().put("type",type.equals("auto")?"other":type).put("title",title.isEmpty()?"作品介绍":title).put("summary","").put("metadata",new JSONArray()).put("sections",new JSONArray()).put("tags",new JSONArray()).put("sources",refs).put("blocks",blocks).put("translated",true);
+            return new JSONObject().put("type",type.equals("auto")?"other":type).put("title",title).put("summary","").put("metadata",new JSONArray()).put("sections",new JSONArray()).put("tags",new JSONArray()).put("sources",refs).put("blocks",blocks).put("translated",true);
         }
     }
     static Map<String,String> translations(String raw,JSONArray expected)throws Exception{

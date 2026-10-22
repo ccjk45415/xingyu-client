@@ -1,0 +1,39 @@
+{
+  "status": "awaiting_user_test",
+  "uploaded": false,
+  "public_update_metadata_unchanged": true,
+  "complete_native_runtime": true,
+  "live_credentials_excluded": true,
+  "packages": [
+    {
+      "file": "Cangku-Xingyu-0.9.4-debug.apk",
+      "size": 750367,
+      "sha256": "8609c768e98d6e4a8f7d30e3f72a64dd5c5e11e99cad6c45440a98ac588b1988"
+    },
+    {
+      "file": "Xingyu-Windows-0.4.3-x64.zip",
+      "size": 14500957,
+      "sha256": "e24b63af86271c49abb39896bf01c66479520364ed725a79ce707fcfd6a2fc82"
+    }
+  ],
+  "android_version": "0.9.4",
+  "android_version_code": 17,
+  "windows_version": "0.4.3",
+  "windows_build": 10,
+  "rules_source": "https://cangku.moe/guidance?type=0",
+  "verified_on": "2026-10-22",
+  "cross_platform_cases": 27,
+  "native_guidance_assertions": 47,
+  "identical_cross_platform_issue_codes": true,
+  "identical_packaged_rule_assets": true,
+  "related_flutter_regressions_passed": 36,
+  "final_targeted_flutter_tests_passed": 3,
+  "flutter_analyze": "no issues",
+  "actual_android_form_device_ui_verified": false,
+  "real_ai_calls": 0,
+  "extra_ai_calls_for_guidance": 0,
+  "backend_modified": false,
+  "website_writes": 0,
+  "rule_snapshot_automatically_updated": false,
+  "release_notes": "优化了一些已知问题"
+}

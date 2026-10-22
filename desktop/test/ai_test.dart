@@ -114,6 +114,57 @@ class ProxyCheck extends AiTransport {
 }
 
 void main() {
+  test(
+    'custom AI translates only body and never rewrites the original title',
+    () async {
+      final req = Request(
+        Reply(
+          jsonEncode({
+            'choices': [
+              {
+                'message': {
+                  'content': jsonEncode({
+                    'translations': [
+                      {'id': '0', 'text': '这是一段正文译文。'},
+                    ],
+                  }),
+                },
+              },
+            ],
+          }),
+        ),
+      );
+      final client = Client(req), transport = AiTransport(http: client);
+      final result = await transport.custom(
+        'https://api.example.com/v1',
+        'synthetic-key',
+        'test-model',
+        translationRequest(
+          [
+            {
+              'url': 'https://example.com/work',
+              'title': '原作タイトル 😀',
+              'cover': '',
+              'blocks': [
+                {'kind': 'p', 'text': 'Original introduction.'},
+              ],
+            },
+          ],
+          '',
+          'other',
+          'test-request',
+        ),
+      );
+      expect(result.title, '原作タイトル 😀');
+      expect(result.body, contains('这是一段正文译文。'));
+      final submitted = object(jsonDecode(req.payload));
+      final content = text(rows(submitted['messages']).last['content']);
+      expect(content, isNot(contains('原作タイトル')));
+      expect(content, contains('Original introduction.'));
+      transport.close();
+    },
+  );
+
   test('proxy fake IP needs independent public DNS proof; private and mixed answers stay blocked', () async {
     final good = ProxyCheck(['198.18.5.104', '104.18.2.173']);
     await good.checkSourceHost('www.dlsite.com');
@@ -292,8 +343,7 @@ void main() {
                   'message': {
                     'content': jsonEncode({
                       'translations': [
-                        {'id': '0', 'text': '测试作品'},
-                        {'id': '1', 'text': '游戏介绍'},
+                        {'id': '0', 'text': '游戏介绍'},
                       ],
                     }),
                   },
@@ -322,7 +372,8 @@ void main() {
         'f' * 48,
       ),
     );
-    expect(draft.title, '测试作品');
+    expect(draft.title, 'Test');
+    expect(draft.body, contains('游戏介绍'));
     expect(client.target!.host, 'provider.example');
     expect(request.followRedirects, false);
     expect(

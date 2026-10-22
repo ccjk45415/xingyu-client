@@ -36,6 +36,7 @@ public class MainActivity extends Activity {
     private ChatScreens chat;
     private AppUpdates updates;
     private SocialScreens social;
+    private SocialFollowScreens following;
     private PrivateScreens direct;
     private HomeCarousel carousel;
     private MessageImages messageImages;
@@ -51,13 +52,14 @@ public class MainActivity extends Activity {
     interface Work<T>{T run()throws Exception;}
     interface Done<T>{void accept(T result)throws Exception;}
     @Override public void onCreate(Bundle state){
-        super.onCreate(state);api=new ApiClient(this);images=new ImageLoader();library=new LocalLibrary(this);authoring=new AuthoringScreens(this);chat=new ChatScreens(this);updates=new AppUpdates(this);social=new SocialScreens(this);direct=new PrivateScreens(this);messageImages=new MessageImages(this);profileSync=new VerifiedProfileSync(this);
+        super.onCreate(state);CrashDiagnostics.install(this);api=new ApiClient(this);images=new ImageLoader();library=new LocalLibrary(this);authoring=new AuthoringScreens(this);chat=new ChatScreens(this);updates=new AppUpdates(this);social=new SocialScreens(this);following=new SocialFollowScreens(this);direct=new PrivateScreens(this);messageImages=new MessageImages(this);profileSync=new VerifiedProfileSync(this);
         if(state!=null){route.kind=state.getString("kind","home");route.title=state.getString("title","发现");route.id=state.getLong("id");route.query=state.getString("query","");route.period=state.getString("period","daily");route.page=state.getInt("page",1);}
         readIntent(getIntent());
         if(api.sessions.hasSession()){
             shell(false);loading("正在连接你的仓库…");
             task(()->api.get("auth/me",ApiClient.params("include","roles,permissions,meta")).getJSONObject("data"),u->{user=u;library.setUser(u.optLong("id"));enter();},e->{api.clear();login(e);});
         }else login("");
+        main.post(()->{if(!isFinishing()&&!isDestroyed())CrashDiagnostics.offer(this);});
     }
     @Override protected void onSaveInstanceState(Bundle s){super.onSaveInstanceState(s);s.putString("kind",route.kind);s.putString("title",route.title);s.putLong("id",route.id);s.putString("query",route.query);s.putString("period",route.period);s.putInt("page",route.page);}
     @Override public void onConfigurationChanged(android.content.res.Configuration config){super.onConfigurationChanged(config);if(authoring!=null&&authoring.keepDuringConfig())return;if(user!=null){route.scrollY=scroll==null?0:scroll.getScrollY();render();}else login("");}
@@ -68,7 +70,8 @@ public class MainActivity extends Activity {
         render();loadCategories();
     }
     private void loadCategories(){
-        network.execute(()->{try{JSONArray result=api.get("category/list",ApiClient.params("all","1","type","post")).getJSONArray("data");main.post(()->{categories=result;if(!closed&&route.kind.equals("categories"))render();});}catch(Exception ignored){}});
+        final long owner=user==null?0:user.optLong("id"),session=api.sessionVersion();
+        network.execute(()->{try{JSONArray result=api.get("category/list",ApiClient.params("all","1","type","post")).getJSONArray("data");main.post(()->{if(closed||user==null||user.optLong("id")!=owner||api.sessionVersion()!=session)return;categories=result;if(route.kind.equals("categories")||route.kind.equals("home")&&library.homeCategories()!=null)render();});}catch(Exception ignored){}});
     }
     <T> void task(Work<T> work,Done<T> done,java.util.function.Consumer<String> error){
         int token=epoch;
@@ -103,8 +106,8 @@ public class MainActivity extends Activity {
         String icon=refresh==null?"搜索":"刷新";top.addView(ui.iconButton(icon,refresh==null?()->go(new Route("search","搜索")):refresh),new LinearLayout.LayoutParams(ui.dp(44),ui.dp(44)));
     }
     private void navbar(){
-        String selected=route.kind.equals("home")?"home":route.kind.equals("categories")||route.kind.equals("category")?"categories":route.kind.equals("rank")?"rank":route.kind.equals("chat")?"chat":"mine";
-        String[] names={"首页","分类","排行","聊天室","我的"},kinds={"home","categories","rank","chat","mine"};
+        String selected=route.kind.equals("home")?"home":route.kind.equals("categories")||route.kind.equals("category")?"categories":route.kind.equals("rank")?"rank":route.kind.equals("chat")?"chat":route.kind.equals("followingFeed")?"followingFeed":"mine";
+        String[] names={"首页","分类","排行","聊天室","动态","我的"},kinds={"home","categories","rank","chat","followingFeed","mine"};
         for(int i=0;i<names.length;i++){
             String name=names[i],kind=kinds[i];boolean active=selected.equals(kind);
             LinearLayout item=ui.column();item.setGravity(Gravity.CENTER);item.setContentDescription(name);
@@ -129,6 +132,8 @@ public class MainActivity extends Activity {
             case "dmConversation":direct.conversation(route.id);break;
             case "dmBlocks":direct.blocks();break;
             case "mine":mine();break;
+            case "followingFeed":following.feed(route.id,route.page);break;
+            case "followPeople":following.people(route.period.equals("followers"),route.page);break;
             case "categories":categoryPage();break;
             case "search":search();break;
             case "history":toolbar("阅读足迹",true,()->render());showCards(library.history(),null);break;
@@ -162,6 +167,7 @@ public class MainActivity extends Activity {
         ui.click(submit,action);body.addView(submit,new LinearLayout.LayoutParams(-1,ui.dp(54)));ui.space(body,12);body.addView(status);password.setImeOptions(EditorInfo.IME_ACTION_DONE);password.setOnEditorActionListener((v,a,event)->{if(a==EditorInfo.IME_ACTION_DONE){action.run();return true;}return false;});
         ui.space(body,24);TextView footer=ui.text("账号信息仅发送至 cangku.moe\n非官方客户端 · 仓库 / 星屿",12,ui.muted,false);footer.setGravity(Gravity.CENTER);footer.setLineSpacing(ui.dp(6),1);body.addView(footer,new LinearLayout.LayoutParams(-1,-2));
         ui.space(body,8);TextView official=ui.button("注册 / 忘记密码 · 前往官网",false,()->external(UrlPolicy.ORIGIN+"/login"));body.addView(official);
+        ui.space(body,10);body.addView(ui.button("诊断信息",false,()->CrashDiagnostics.show(this)));
     }
     private EditText input(String hint,boolean password){
         EditText e=new EditText(this);e.setSingleLine(true);e.setTextSize(15);e.setTextColor(ui.text);e.setHintTextColor(ui.muted);e.setHint(hint);ui.pad(e,18,8,18,8);e.setBackground(ui.round(ui.surface,17));
@@ -181,12 +187,13 @@ public class MainActivity extends Activity {
         chips(labels.toArray(new String[0]),ids.toArray(new String[0]),String.valueOf(route.id),value->{route.id=Long.parseLong(value);route.page=1;route.scrollY=0;render();});
     }
     private void feed(){
+        if(route.kind.equals("category")&&library.categoryTabs()){categoryTabs();return;}
         boolean home=route.kind.equals("home"),rank=route.kind.equals("rank"),favorite=route.kind.equals("favorites");
         toolbar(route.title,!home&&!rank,()->{route.scrollY=0;render();});
         if(home){
             carousel=new HomeCarousel(this);body.addView(carousel.view(),new LinearLayout.LayoutParams(-1,-2));carousel.start();ui.space(body,18);
             TextView search=ui.button("⌕   搜索作品、作者与关键词",false,()->go(new Route("search","搜索")));search.setGravity(Gravity.LEFT|Gravity.CENTER_VERTICAL);body.addView(search,new LinearLayout.LayoutParams(-1,ui.dp(50)));
-            section("新鲜发现","来自仓库的最新投稿");
+            ui.space(body,12);Set<Long> chosen=library.homeCategories();LinearLayout filter=ui.row();ui.pad(filter,12,10,8,10);filter.setBackground(ui.round(ui.surface,18));LinearLayout label=ui.column();label.addView(ui.text("你的兴趣，由你决定",14,ui.text,true));label.addView(ui.text(chosen==null?"正在浏览全部分类":chosen.isEmpty()?"未勾选分类":"仅显示已选 "+chosen.size()+" 个分类",11,ui.muted,false));filter.addView(label,new LinearLayout.LayoutParams(0,-2,1));filter.addView(ui.button("筛选",false,()->new BrowseControls(this,library).filter()));body.addView(filter);section("新鲜发现","来自仓库的最新投稿");
         }
         if(rank){section("热爱，正在发生","按网站热度排行 · 每次打开同步更新");chips(new String[]{"日榜","周榜","月榜"},new String[]{"daily","weekly","monthly"},route.period,value->{route.period=value;route.page=1;route.scrollY=0;render();});categoryChips();}
         if(route.kind.equals("category")){showChildCategories(route.id);section(route.title,"这里是属于你的兴趣频道");}
@@ -197,8 +204,10 @@ public class MainActivity extends Activity {
         if(route.kind.equals("category")||rank)if(route.id>0)p.put("category_in[0]",String.valueOf(route.id));
         if(favorite){path="user/favoritePost";p.put("id",String.valueOf(user.optLong("id")));}
         if(route.kind.equals("authorPosts")){path="user/post";p.put("id",String.valueOf(route.id));}
+        Set<Long> selection=home?library.homeCategories():null;final Set<Long> active=selection==null?null:CategoryRules.effective(selection,categories);
+        if(active!=null){if(active.isEmpty()){content.removeAllViews();content.addView(ui.text("尚未勾选可用分类，点击筛选选择你喜欢的内容。",14,ui.muted,false));return;}int n=0;for(long id:active)p.put("category_in["+(n++)+"]",String.valueOf(id));}
         String endpoint=path;
-        task(()->api.get(endpoint,p),result->{content.removeAllViews();LinearLayout old=body;body=content;showCards(result.optJSONArray("data"),result.optJSONObject("meta"));body=old;restoreScroll();},message->{LinearLayout old=body;body=content;error(message,()->render());body=old;});
+        task(()->api.get(endpoint,p),result->{if(active!=null)result.put("data",CategoryRules.filter(result.optJSONArray("data"),active));content.removeAllViews();LinearLayout old=body;body=content;showCards(result.optJSONArray("data"),result.optJSONObject("meta"));body=old;restoreScroll();},message->{LinearLayout old=body;body=content;error(message,()->render());body=old;});
     }
     private void search(){
         toolbar("寻找你的心动",true,()->render());
@@ -218,7 +227,17 @@ public class MainActivity extends Activity {
         Map<String,String> p=ApiClient.params("search",route.query,"page",String.valueOf(route.page),"per_page","20","include","user,categories:simple","simple","1","with[0]","user","with[1]","categories");if(route.id>0)p.put("category_in[0]",String.valueOf(route.id));
         task(()->api.get("post/search",p),result->{results.removeAllViews();LinearLayout old=body;body=results;section("搜索结果","关键词 · "+route.query);showCards(result.optJSONArray("data"),result.optJSONObject("meta"));body=old;restoreScroll();},message->{results.removeAllViews();results.addView(ui.text(message,14,ui.muted,false));results.addView(ui.button("重试",false,()->render()));});
     }
-    private void categoryPage(){toolbar("兴趣宇宙",false,()->{loadCategories();render();});section("总有一个世界属于你","按主题发现更多喜欢的作品");if(categories.length()==0){loading("正在载入频道…");return;}categoryTiles();}
+    private void categoryPage(){if(library.categoryTabs()){categoryTabs();return;}toolbar("兴趣宇宙",false,()->{loadCategories();render();});section("总有一个世界属于你","按主题发现更多喜欢的作品");if(categories.length()==0){loading("正在载入频道…");return;}categoryTiles();}
+    private void categoryTabs(){
+        toolbar("兴趣频道",false,()->{loadCategories();render();});if(categories.length()==0){loading("正在载入分类…");return;}
+        JSONObject parent=categories.optJSONObject(0);for(int i=0;i<categories.length();i++){JSONObject n=categories.optJSONObject(i);if(CategoryRules.branch(n).contains(route.id)){parent=n;break;}}
+        long active=route.id>0?route.id:parent.optLong("id");LinearLayout navigation=ui.column();ui.pad(navigation,20,8,20,2);navigation.setBackgroundColor(ui.surface);
+        LinearLayout old=body;body=navigation;ArrayList<String> names=new ArrayList<>(),ids=new ArrayList<>();for(int i=0;i<categories.length();i++){JSONObject n=categories.optJSONObject(i);names.add(n.optString("name"));ids.add(n.optString("id"));}
+        java.util.function.Consumer<String> pick=id->{route.kind="categories";route.id=Long.parseLong(id);route.page=1;route.scrollY=0;render();};
+        chips(names.toArray(new String[0]),ids.toArray(new String[0]),parent.optString("id"),pick);names.clear();ids.clear();names.add("全部");ids.add(parent.optString("id"));JSONArray children=parent.optJSONArray("children");if(children!=null)for(int i=0;i<children.length();i++){JSONObject n=children.optJSONObject(i);names.add(n.optString("name"));ids.add(n.optString("id"));}if(names.size()>1)chips(names.toArray(new String[0]),ids.toArray(new String[0]),String.valueOf(active),pick);body=old;root.addView(navigation,root.indexOfChild(scroll),new LinearLayout.LayoutParams(-1,-2));
+        JSONObject selected=findCategory(categories,active);section(selected==null?"分类作品":selected.optString("name"),"顶部切换一级与二级分类");LinearLayout results=ui.column();body.addView(results);results.addView(ui.text("正在载入作品…",14,ui.muted,false));
+        task(()->api.get("post/list",ApiClient.params("category_in[0]",String.valueOf(active),"page",String.valueOf(route.page),"per_page","20","simple","1","include","user,categories:simple","with[0]","user","with[1]","categories")),r->{results.removeAllViews();LinearLayout previous=body;body=results;showCards(r.optJSONArray("data"),r.optJSONObject("meta"));body=previous;restoreScroll();},e->{results.removeAllViews();results.addView(ui.text(e,14,ui.muted,false));results.addView(ui.button("重试",false,()->render()));});
+    }
     private void categoryTiles(){
         String[] symbols={"映画","文库","日常","秘境","GAME","漫画","画集","旋律","灵感","ANIME"};int[] colors={0xFFE7ABCE,0xFFA69CE9,0xFF8CC7BF,0xFFAB96CE,0xFF8BA5E5,0xFFE6A3AF,0xFF8DBAD4,0xFFC8A8DA,0xFFD9B68C,0xFF9DA6E5};
         for(int i=0;i<categories.length();i+=2){LinearLayout row=ui.row();for(int j=i;j<Math.min(i+2,categories.length());j++){
@@ -373,6 +392,7 @@ public class MainActivity extends Activity {
         toolbar("我的星屿",false,()->refreshUser());
         if(user==null){login("");return;}LinearLayout card=ui.column();ui.pad(card,22,24,22,24);card.setBackground(ui.gradient(ui.soft,ui.surface,24));LinearLayout row=ui.row();ImageView avatar=new ImageView(this);avatar.setScaleType(ImageView.ScaleType.CENTER_CROP);avatar.setBackground(ui.round(ui.surface,32));avatar.setClipToOutline(true);row.addView(avatar,new LinearLayout.LayoutParams(ui.dp(64),ui.dp(64)));images.into(user.optString("avatar"),avatar);LinearLayout names=ui.column();ui.pad(names,16,0,0,0);names.addView(ui.text(user.optString("nickname"),24,ui.text,true));ui.space(names,5);names.addView(ui.text("Lv."+user.optInt("level")+"    ✦  "+user.optLong("point")+" 积分",12,ui.accent,true));row.addView(names,new LinearLayout.LayoutParams(0,-2,1));card.addView(row);ui.space(card,18);String description=user.optString("description");card.addView(ui.text(description.isEmpty()?"把喜欢的世界，好好收藏。":description,13,ui.muted,false));ui.space(card,22);
         LinearLayout stats=ui.row();String[] labels={"投稿","吐槽","收藏"};String[] values={user.optString("post_count","0"),user.optString("comment_count","0"),user.optString("favorite_post_count","0")};for(int i=0;i<labels.length;i++){LinearLayout stat=ui.column();stat.setGravity(Gravity.CENTER);stat.addView(ui.text(values[i],23,ui.text,true));ui.space(stat,4);stat.addView(ui.text(labels[i],12,ui.muted,false));stats.addView(stat,new LinearLayout.LayoutParams(0,-2,1));}card.addView(stats);body.addView(card);ui.space(body,22);
+        following.counts(body);
         menu("收藏","我的收藏","与官网的收藏同步",()->go(new Route("favorites","我的收藏")));
         menu("历史","阅读足迹","在这台设备上，遇见过的故事",()->go(new Route("history","阅读足迹")));
         menu("作者","我的投稿","查看已发布的作品",()->go(new Route("authorPosts","我的投稿").id(user.optLong("id"))));
@@ -389,27 +409,29 @@ public class MainActivity extends Activity {
     private void refreshUser(){task(()->api.get("auth/me",ApiClient.params("include","roles,permissions,meta")).getJSONObject("data"),u->{updateAccount(u);render();},this::toast);}
     private void profile(){
         toolbar("作者主页",true,()->render());loading("正在载入作者…");long id=route.id;
-        task(()->api.get("user/info",ApiClient.params("id",String.valueOf(id))).getJSONObject("data"),author->{body.removeAllViews();ImageView avatar=new ImageView(this);avatar.setScaleType(ImageView.ScaleType.CENTER_CROP);avatar.setBackground(ui.round(ui.soft,40));avatar.setClipToOutline(true);LinearLayout.LayoutParams av=new LinearLayout.LayoutParams(ui.dp(80),ui.dp(80));av.gravity=Gravity.CENTER;body.addView(avatar,av);images.into(author.optString("avatar"),avatar);ui.space(body,16);TextView name=ui.text(author.optString("nickname"),27,ui.text,true);name.setGravity(Gravity.CENTER);body.addView(name);ui.space(body,6);LinearLayout uidRow=ui.row();uidRow.setGravity(Gravity.CENTER);uidRow.addView(ui.text("UID  ",12,ui.muted,false));long authorUid=author.optLong("id",id);TextView uid=ui.text(String.valueOf(authorUid),14,ui.accent,true);uid.setGravity(Gravity.CENTER);uid.setMinHeight(ui.dp(44));ui.pad(uid,8,0,8,0);uid.setContentDescription("作者UID "+authorUid+"，点击复制");ui.click(uid,()->{((android.content.ClipboardManager)getSystemService(CLIPBOARD_SERVICE)).setPrimaryClip(ClipData.newPlainText("作者UID",String.valueOf(authorUid)));toast("已复制UID");});uidRow.addView(uid);uidRow.addView(ui.text("点击复制",10,ui.muted,false));body.addView(uidRow);ui.space(body,8);TextView description=ui.text(author.optString("description"),14,ui.muted,false);description.setGravity(Gravity.CENTER);body.addView(description);section("创作档案","Lv."+author.optInt("level")+" · "+author.optInt("post_count")+" 篇投稿");body.addView(ui.button("浏览作者的投稿  →",true,()->go(new Route("authorPosts",author.optString("nickname")+"的投稿").id(id))));ui.space(body,14);if(user!=null&&id!=user.optLong("id")){body.addView(ui.button("给作者发私信  ✉",true,()->go(new Route("dmConversation","私信").id(id))));ui.space(body,14);}body.addView(ui.button("在官网查看作者主页",false,()->external(UrlPolicy.ORIGIN+"/user/"+id)));},message->error(message,()->render()));
+        task(()->api.get("user/info",ApiClient.params("id",String.valueOf(id))).getJSONObject("data"),author->{body.removeAllViews();ImageView avatar=new ImageView(this);avatar.setScaleType(ImageView.ScaleType.CENTER_CROP);avatar.setBackground(ui.round(ui.soft,40));avatar.setClipToOutline(true);LinearLayout.LayoutParams av=new LinearLayout.LayoutParams(ui.dp(80),ui.dp(80));av.gravity=Gravity.CENTER;body.addView(avatar,av);images.into(author.optString("avatar"),avatar);ui.space(body,16);TextView name=ui.text(author.optString("nickname"),27,ui.text,true);name.setGravity(Gravity.CENTER);body.addView(name);ui.space(body,6);LinearLayout uidRow=ui.row();uidRow.setGravity(Gravity.CENTER);uidRow.addView(ui.text("UID  ",12,ui.muted,false));long authorUid=author.optLong("id",id);TextView uid=ui.text(String.valueOf(authorUid),14,ui.accent,true);uid.setGravity(Gravity.CENTER);uid.setMinHeight(ui.dp(44));ui.pad(uid,8,0,8,0);uid.setContentDescription("作者UID "+authorUid+"，点击复制");ui.click(uid,()->{((android.content.ClipboardManager)getSystemService(CLIPBOARD_SERVICE)).setPrimaryClip(ClipData.newPlainText("作者UID",String.valueOf(authorUid)));toast("已复制UID");});uidRow.addView(uid);uidRow.addView(ui.text("点击复制",10,ui.muted,false));body.addView(uidRow);ui.space(body,8);TextView description=ui.text(author.optString("description"),14,ui.muted,false);description.setGravity(Gravity.CENTER);body.addView(description);following.authorControls(body,author);section("创作档案","Lv."+author.optInt("level")+" · "+author.optInt("post_count")+" 篇投稿");body.addView(ui.button("浏览作者的投稿  →",true,()->go(new Route("authorPosts",author.optString("nickname")+"的投稿").id(id))));ui.space(body,14);if(user!=null&&id!=user.optLong("id")){body.addView(ui.button("给作者发私信  ✉",true,()->go(new Route("dmConversation","私信").id(id))));ui.space(body,14);}body.addView(ui.button("在官网查看作者主页",false,()->external(UrlPolicy.ORIGIN+"/user/"+id)));},message->error(message,()->render()));
     }
     private void settingsHub(){
         toolbar("设置",true,()->render());section("账号与偏好","");
         menu("我的","编辑个人资料","昵称 / 简介 / 头像 / 空间背景",()->go(new Route("editProfile","编辑个人资料")));
         menu("设置","账号安全","更改邮箱与密码",()->go(new Route("security","账号安全")));
         menu("设置","阅读与外观","夜间主题 / 正文字号",()->go(new Route("appearance","阅读与外观")));
-        menu("设置","检查更新","当前版本 0.9.2",()->updates.check(true));
+        menu("设置","检查更新","当前版本 0.9.10",()->updates.check(true));
+        menu("设置","诊断信息","查看 / 复制 / 清空本机异常记录",()->CrashDiagnostics.show(this));
     }
     private void settings(){
         toolbar("阅读与外观",true,()->render());section("让阅读更合心意","设置保存在这台设备上");
         menu("设置",library.dark()?"夜间星空 · 已开启":"日间晴空 · 已开启","点击切换明暗主题",()->{library.dark(!library.dark());render();});
+        menu("分类",library.categoryTabs()?"分类排版 · 顶部双层导航":"分类排版 · 卡片漫游","点击切换一级 / 二级导航与卡片排版",()->{library.categoryTabs(!library.categoryTabs());render();});
         ui.space(body,16);TextView size=ui.text("正文字号  "+library.textSize()+" sp",16,ui.text,true);body.addView(size);SeekBar slider=new SeekBar(this);slider.setMax(10);slider.setProgress(library.textSize()-14);body.addView(slider,new LinearLayout.LayoutParams(-1,ui.dp(56)));TextView preview=ui.text("把喜欢的世界，装进口袋。\n每一次翻页，都是新的相遇。",library.textSize(),ui.text,false);preview.setLineSpacing(ui.dp(8),1.2f);ui.pad(preview,20,22,20,22);preview.setBackground(ui.round(ui.surface,20));body.addView(preview);slider.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){public void onProgressChanged(SeekBar s,int p,boolean from){library.textSize(p+14);size.setText("正文字号  "+(p+14)+" sp");preview.setTextSize(p+14);}public void onStartTrackingTouch(SeekBar s){}public void onStopTrackingTouch(SeekBar s){}});
         section("本地数据","");body.addView(ui.button("清空阅读足迹",false,()->new AlertDialog.Builder(this).setTitle("清空阅读足迹？").setMessage("将删除这个账号在当前设备上的阅读记录。").setNegativeButton("取消",null).setPositiveButton("清空",(d,w)->{library.clearHistory();toast("阅读足迹已清空");}).show()));
-        section("关于星屿","仓库 · 星屿  0.9.2");TextView about=ui.text("非官方安卓客户端。网站内容与账号服务由 cangku.moe 提供。\n\n聊天室与私信共用仓库认证，显示官网昵称、UID和头像；认证时临时使用官网会话核验，不保存该会话或密码。\n\n开通独立私信时，经你同意会把官网会话临时发送至 Cloudflare 服务验证身份，不保存该会话；官网密码不会发送。私信双方需安装并开通，消息保留7天。\n\n密码不落盘，本机会话与私信令牌由 Android Keystore 加密。\n\n网站可能调整接口。遇到特殊内容，可以通过文章底部的原文入口查看。",13,ui.muted,false);about.setLineSpacing(ui.dp(5),1.1f);body.addView(about);
+        section("关于星屿","仓库 · 星屿  0.9.10");TextView about=ui.text("非官方安卓客户端。网站内容与账号服务由 cangku.moe 提供。\n\n聊天室与私信共用仓库认证，显示官网昵称、UID和头像；认证时临时使用官网会话核验，不保存该会话或密码。\n\n开通独立私信时，经你同意会把官网会话临时发送至 Cloudflare 服务验证身份，不保存该会话；官网密码不会发送。私信双方需安装并开通，消息保留7天。\n\n密码不落盘，本机会话与私信令牌由 Android Keystore 加密。\n\n网站可能调整接口。遇到特殊内容，可以通过文章底部的原文入口查看。",13,ui.muted,false);about.setLineSpacing(ui.dp(5),1.1f);body.addView(about);
     }
     private void menu(String icon,String title,String subtitle,Runnable action){
         LinearLayout item=ui.row();ui.pad(item,16,16,16,16);item.setBackground(ui.round(ui.surface,20));FrameLayout mark=new FrameLayout(this);mark.setBackground(ui.round(ui.soft,14));FrameLayout.LayoutParams ip=new FrameLayout.LayoutParams(ui.dp(23),ui.dp(23),Gravity.CENTER);mark.addView(ui.icon(icon,ui.accent),ip);item.addView(mark,new LinearLayout.LayoutParams(ui.dp(44),ui.dp(44)));LinearLayout words=ui.column();ui.pad(words,14,0,0,0);words.addView(ui.text(title,16,ui.text,true));ui.space(words,5);words.addView(ui.text(subtitle,11,ui.muted,false));item.addView(words,new LinearLayout.LayoutParams(0,-2,1));item.addView(ui.text("›",25,ui.muted,false));ui.click(item,action);body.addView(item,new LinearLayout.LayoutParams(-1,-2));ui.space(body,10);
     }
     private void logout(){
-        epoch++;authoring.suspend();chat.resetAccount();direct.resetAccount();if(messageImages!=null)messageImages.clear();api.clear();user=null;library.setUser(0);history.clear();route=new Route("home","发现");login("");
+        epoch++;authoring.suspend();chat.resetAccount();direct.resetAccount();if(messageImages!=null)messageImages.clear();api.clear();user=null;if(following!=null)following.clear();library.setUser(0);history.clear();route=new Route("home","发现");login("");
     }
     private void copy(String text){((android.content.ClipboardManager)getSystemService(CLIPBOARD_SERVICE)).setPrimaryClip(ClipData.newPlainText("仓库链接",text));toast("已复制链接");}
     private void share(long id){Intent i=new Intent(Intent.ACTION_SEND);i.setType("text/plain");i.putExtra(Intent.EXTRA_TEXT,UrlPolicy.ORIGIN+"/archives/"+id);startActivity(Intent.createChooser(i,"分享作品"));}
@@ -423,6 +445,10 @@ public class MainActivity extends Activity {
     ApiClient client(){return api;}
     ImageLoader pictures(){return images;}
     String currentKind(){return route.kind;}
+    void socialFeed(long id,int page){route=new Route("followingFeed","动态").id(id);route.page=page;render();}
+    void socialPeople(boolean fans,int page){Route next=new Route("followPeople",fans?"我的粉丝":"我的关注");next.period=fans?"followers":"following";next.page=page;go(next);}
+    void discoverAuthors(){Route next=new Route("search","搜索作者");next.period="authors";go(next);}
+    void applyHomeFilter(Set<Long> value){library.homeCategories(value);route=new Route("home","发现");render();}
     void reloadNative(){render();}
     void navigateNative(String kind,String title,long id){go(new Route(kind,title).id(id));}
     void manageFilter(String status,String query){route.period=status;route.query=query;route.page=1;route.scrollY=0;render();}

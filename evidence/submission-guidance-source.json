@@ -1,0 +1,15 @@
+{
+  "source_url": "https://cangku.moe/guidance?type=0",
+  "read_at": "2026-10-22",
+  "visible_latest_change": "2025-03-29",
+  "access": "actual rendered official page, read only",
+  "notes": [
+    "title punctuation and spacing",
+    "parent/child categories and hidden-category restriction",
+    "images, download metadata, collections and software scan evidence",
+    "type-specific formats include reference templates, not all hard requirements"
+  ],
+  "rules_snapshot": true,
+  "automatic_future_sync": false,
+  "website_writes": 0
+}

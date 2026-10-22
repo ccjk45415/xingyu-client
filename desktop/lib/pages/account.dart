@@ -8,6 +8,8 @@ import '../core/media.dart';
 import '../core/updates.dart';
 import '../ui/shared.dart';
 import 'discovery.dart';
+import 'following.dart';
+import 'diagnostics.dart';
 
 class AccountPage extends StatelessWidget {
   final DeskRoute route;
@@ -117,7 +119,9 @@ class AccountPage extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 26),
+          const SizedBox(height: 18),
+          const FollowStats(),
+          const SizedBox(height: 20),
           Wrap(
             spacing: 20,
             runSpacing: 20,
@@ -544,6 +548,32 @@ class SettingsPage extends StatelessWidget {
                     value: app.dark,
                     onChanged: app.setDark,
                   ),
+                  const Divider(height: 24),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(
+                      Icons.dashboard_customize_outlined,
+                      color: violet,
+                    ),
+                    title: const Text('分类页排版'),
+                    subtitle: const Text('卡片漫游，或顶部一级 / 二级导航'),
+                  ),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 8,
+                    children: [
+                      ChoiceChip(
+                        label: const Text('卡片排版'),
+                        selected: !app.categoryTopNavigation,
+                        onSelected: (_) => app.setCategoryLayout(false),
+                      ),
+                      ChoiceChip(
+                        label: const Text('顶部双层导航'),
+                        selected: app.categoryTopNavigation,
+                        onSelected: (_) => app.setCategoryLayout(true),
+                      ),
+                    ],
+                  ),
                   const Divider(height: 32),
                   Text(
                     '正文字号  ${app.fontSize.round()} px',
@@ -636,6 +666,20 @@ class SettingsPage extends StatelessWidget {
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => openRoute(context, DeskRoute(e.$4, e.$1)),
                   ),
+                ListTile(
+                  contentPadding: const EdgeInsets.symmetric(
+                    vertical: 10,
+                    horizontal: 12,
+                  ),
+                  leading: const Icon(Icons.bug_report_outlined, color: violet),
+                  title: const Text('诊断信息'),
+                  subtitle: const Text(
+                    '查看、复制和清空本机异常记录',
+                    style: TextStyle(fontSize: 12),
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => showDiagnostics(context),
+                ),
               ],
             ),
           ),

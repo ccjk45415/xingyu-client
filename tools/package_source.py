@@ -1,5 +1,5 @@
 """Create a clean source delivery without SDKs, keys, build caches or credentials."""
-import hashlib, json, zipfile, os
+import hashlib, json, zipfile, os, sys
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 OUT=ROOT/'output';OUT.mkdir(exist_ok=True)
@@ -25,9 +25,16 @@ files += [ROOT/'evidence'/x for x in ['api-contract.json','toolchain-sources.jso
 files += [p for p in (ROOT/'evidence').glob('desktop-*') if p.suffix in ['.json','.png']]
 files += [p for p in (ROOT/'evidence').glob('qr-*') if p.suffix=='.json']
 files += [p for p in (ROOT/'evidence').glob('ai-*') if p.suffix=='.json']
+files += [p for p in (ROOT/'evidence').glob('follow-*') if p.suffix=='.json']
+files += [p for p in (ROOT/'evidence').glob('browse-social-*') if p.suffix=='.json']
 files += [p for p in (ROOT/'evidence').glob('editor-*') if p.suffix=='.json']
+files += [p for p in (ROOT/'evidence').glob('submission-guidance-*') if p.suffix=='.json']
+files += [p for p in (ROOT/'evidence').glob('diagnostics-*') if p.suffix=='.json' and p.name!='diagnostics-release-assets.json']
+files += [p for p in (ROOT/'evidence').glob('scrollbar-*') if p.suffix in ['.json','.txt']]
 with zipfile.ZipFile(archive,'w',zipfile.ZIP_DEFLATED) as z:
     for p in sorted(set(files)):z.write(p,Path('Cangku-Xingyu')/p.relative_to(ROOT))
+if '--source-only' in sys.argv:
+    print(archive.name,archive.stat().st_size,hashlib.sha256(archive.read_bytes()).hexdigest());raise SystemExit(0)
 sums=[]
 server_archive=OUT/'Xingyu-Chat-Server.zip'
 with zipfile.ZipFile(server_archive,'w',zipfile.ZIP_DEFLATED) as z:
@@ -45,8 +52,8 @@ with zipfile.ZipFile(cloud_archive,'w',zipfile.ZIP_DEFLATED) as z:
         if p.suffix not in ['.apk','.zip']:continue
         z.write(p,Path('Xingyu-Cloudflare-Server/cloudflare-chat/public/releases')/p.name)
     z.writestr('Xingyu-Cloudflare-Server/README.md', '''# 星屿 Cloudflare 服务端交付包\n\n包含已经验收的后台、Pages入口和Android/Windows静态资源，不含授权令牌、签名私钥或聊天数据库。需要自行安装Node.js 22+和Python3。\n\n在本目录执行：\n\n```powershell\npython tools/prepare_cloudflare.py\npython tools/cloudflare.py install\npython tools/cloudflare.py login --device --browser=false --scopes account:read user:read workers_scripts:write pages:write\npython tools/cloudflare.py deploy --keep-vars\npython tools/publish_announcement.py configure\npython tools/prepare_pages.py\npython tools/cloudflare.py --cwd ../cloudflare-entry pages deploy --branch main\n```\n\n当前账号的项目已经创建，更新时无需重复创建。若用于其他账号，需要修改项目名、入口域名和版本元数据；APK内置地址也必须在完整源码工程中重新构建。\n\n完整源码工程还提供本机300连接测试、APK构建及后续版本发布脚本。详细限制见cloudflare-chat/README.md。\n''')
-deliveries=[OUT/'Cangku-Xingyu-0.9.2-debug.apk',archive,server_archive,cloud_archive]
-if (OUT/'Xingyu-Windows-0.4.1-x64.zip').is_file():deliveries.append(OUT/'Xingyu-Windows-0.4.1-x64.zip')
+deliveries=[OUT/'Cangku-Xingyu-0.9.10-debug.apk',archive,server_archive,cloud_archive]
+if (OUT/'Xingyu-Windows-0.4.7-x64.zip').is_file():deliveries.append(OUT/'Xingyu-Windows-0.4.7-x64.zip')
 for p in deliveries:
     digest=hashlib.sha256(p.read_bytes()).hexdigest();sums.append(digest+'  '+p.name)
     print(p.name,p.stat().st_size,digest)

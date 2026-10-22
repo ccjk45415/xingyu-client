@@ -1,0 +1,90 @@
+{
+  "status": "awaiting_user_test",
+  "client_packages_uploaded": false,
+  "github_release_published": false,
+  "android_version": "0.9.7",
+  "android_version_code": 20,
+  "windows_version": "0.4.6",
+  "windows_build": 13,
+  "feature_scope": [
+    "home category filter",
+    "optional two-tier category navigation",
+    "independent follows/fans",
+    "followed author post feed"
+  ],
+  "home_filter_scope": "account/device only; server-paginated category_in + strict local membership; reset page 1; empty means no posts",
+  "category_layout_scope": "account/device preference; fixed parent/child selectors; independent post scrolling; retains pagination",
+  "follows_scope": "independent app UID relations, verified shared service, never website follow state",
+  "feed_source": "website post/list; user_id single author confirmed by read-only positive/negative probes; all authors scan at most 3 pages per action, strict UID filter/dedup/date sorting",
+  "new_feature_tests_passed": 11,
+  "prior_related_flutter_regressions_passed": 33,
+  "native_rule_assertions": 18,
+  "backend_source_unit_tests_passed": 41,
+  "local_workerd_follow_checks": 32,
+  "local_workerd_existing_dm_checks": 28,
+  "real_follow_mutations": 0,
+  "real_messages_sent": 0,
+  "real_website_content_writes": 0,
+  "real_ai_calls": 0,
+  "extra_production_identity_sessions_created": 0,
+  "real_phone_ui_verified": false,
+  "actual_cross_device_follow_flow_tested": false,
+  "backend_deployed": true,
+  "backend_version": "c5f21ec4-3080-4388-b933-9cad79375de8",
+  "backend_existing_translation_preserved": true,
+  "backend_new_namespaces": 0,
+  "backend_migrations_changed": false,
+  "public_release_versions_unchanged": true,
+  "public_download_hashes_verified": true,
+  "flutter_analyze": "no issues",
+  "native_windows_selfcheck": "desktop/build/social-browse-native-check.log",
+  "release_notes": "优化了一些已知问题",
+  "testing_guide": "docs/TESTING-0.9.7.md",
+  "backend_verification": "evidence/follow-backend-deployment.json",
+  "public_api_probe": "evidence/follow-site-contract.json",
+  "rea_investigation": "evidence/follow-api-investigation.json",
+  "visual_evidence": [
+    "desktop-home-filter-1280.png",
+    "desktop-home-filter-430.png",
+    "desktop-category-tabs-1280.png",
+    "desktop-category-tabs-430.png",
+    "desktop-following-feed-1280.png",
+    "desktop-following-feed-430.png",
+    "desktop-follow-people.png",
+    "desktop-category-layout-settings.png",
+    "desktop-social-navigation-1280.png",
+    "desktop-social-navigation-960.png"
+  ],
+  "packages": [
+    {
+      "file": "Cangku-Xingyu-0.9.7-debug.apk",
+      "size": 774943,
+      "sha256": "28901735ef0fa7860dccc62739180ff75da9b5c29e65cf6031061c61ab92ceee"
+    },
+    {
+      "file": "Xingyu-Windows-0.4.6-x64.zip",
+      "size": 14551321,
+      "sha256": "eeb9903faf35c4e2201c22db1ae2b4b20a20858ac5950a6a2329995ba2b85a3c"
+    }
+  ],
+  "live_credentials_excluded": true,
+  "complete_native_runtime": true,
+  "public_update_metadata_unchanged": true,
+  "final_follow_controls_test_passed": true,
+  "native_windows_selfcheck_result": {
+    "windows_native_engine": "pass",
+    "secure_storage": "pass",
+    "encrypted_file_and_tamper_rejection": "pass",
+    "app_data_directory": "pass",
+    "public_health": "pass",
+    "protocol": 3,
+    "website_password_used": false,
+    "messages_sent": 0,
+    "unicode_install_path_tested": true
+  },
+  "short_window_navigation_checked": [
+    "1280x640",
+    "960x640"
+  ],
+  "follow_list_reuses_verified_relation_status": true
+}
