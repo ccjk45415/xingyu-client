@@ -1,23 +1,20 @@
-## macOS Apple Silicon 测试构建
-
-此分支仅准备 Mac 测试安装包，不发布正式客户端更新。详情见 [Mac 构建说明](docs/MACOS-BUILD.md)。
-
 # 仓库 · 星屿
 
-cangku.moe 的非官方 Android 与 Flutter Windows 客户端。界面以淡紫色、星光元素、大封面和双列卡片重新设计，支持夜间主题。最低 Android 8.0（API 26），目标 Android 15（API 35）。
+cangku.moe 的非官方 Flutter Android、Windows 与 macOS 客户端，三个平台共享 Dart 业务代码。支持浅色/深色主题、手机布局与桌面侧栏。Android 8+ ARM64（目标 API 36）、Windows x64、macOS 12+ Apple Silicon。
 
 Android 0.6.1修复改名后聊天室资料不同步，并为作品详情页增加右侧滚动条。0.6.0加入统一设置、作者UID复制、首页实时公告轮播，以及仓库认证聊天室、聊天室/私信图片、@和引用回复；详细说明见[0.6.0修改说明](docs/PENDING_CHANGES.md)。
 
-当前版本：**Android 0.9.10 / Windows 0.4.7**。优化了一些细节，新增首页分类，新增排版布局分类设置（我的-设置-阅读与外观）。新增关注和粉丝和动态功能。见[更新记录](CHANGELOG.md)。
+当前版本：**Android 0.11.0 / Windows 0.5.0 / macOS 0.1.1**。安卓切换为 Flutter 并支持覆盖原版；Windows 新增下载、校验、自动替换与重启，macOS 接入独立更新。完善 AI 投稿与媒体显示，优化加载、布局和滚动体验。见[更新记录](CHANGELOG.md)与[安装说明](docs/RELEASE-INSTALLATION.md)。
 
 ## 下载
 
 | 平台 | 版本 | GitHub下载 |
 | --- | --- | --- |
-| Android 8.0及以上 | 0.9.10 | [APK安装包](https://github.com/ccjk45415/xingyu-client/releases/download/v0.9.10/Cangku-Xingyu-0.9.10-debug.apk) |
-| Windows x64 | 0.4.7 | [完整免安装ZIP](https://github.com/ccjk45415/xingyu-client/releases/download/v0.9.10/Xingyu-Windows-0.4.7-x64.zip) |
+| Android 8.0及以上 | 0.11.0 | [APK安装包](https://github.com/ccjk45415/xingyu-client/releases/download/v0.11.0/Cangku-Xingyu-0.11.0-arm64.apk) |
+| Windows x64 | 0.5.0 | [完整免安装ZIP](https://github.com/ccjk45415/xingyu-client/releases/download/v0.11.0/Xingyu-Windows-0.5.0-x64.zip) |
+| macOS 12+ M 系列 | 0.1.1 | [PKG 安装包](https://github.com/ccjk45415/xingyu-client/releases/download/v0.11.0/Xingyu-macOS-0.1.1-arm64.pkg) / [DMG](https://github.com/ccjk45415/xingyu-client/releases/download/v0.11.0/Xingyu-macOS-0.1.1-arm64.dmg) |
 
-[全部发布记录与校验文件](https://github.com/ccjk45415/xingyu-client/releases)。Android可覆盖前一版本；Windows完整解压后运行 `Xingyu.exe`，保留全部DLL和data文件夹。当前为自用测试发布，Android使用原测试签名，Windows尚未进行代码签名。
+[全部发布记录与校验文件](https://github.com/ccjk45415/xingyu-client/releases)。Android可覆盖前一版本；Windows完整解压后运行 `Xingyu.exe`，保留全部DLL和data文件夹。Android 沿用原签名；Windows 尚未进行代码签名，macOS 使用 ad-hoc 签名且尚未公证，首次安装可能需要系统安全确认。
 
 ## 诊断信息
 
@@ -25,13 +22,13 @@ Android 0.6.1修复改名后聊天室资料不同步，并为作品详情页增�
 
 ## Windows 桌面版
 
-Flutter Desktop **0.4.7 / Windows x64** 已制作，采用原生 Windows 引擎与重新设计的侧栏、封面网格和宽屏阅读/聊天布局。完整解压 `output/Xingyu-Windows-0.4.7-x64.zip` 后运行 `Xingyu.exe`。复用现有网站账号和认证聊天服务，支持评论通知、投稿管理、图片、艾特和引用回复。详见 [Windows 使用与构建说明](desktop/README.md)。Windows 版本及更新清单与安卓独立。
+Flutter Desktop **0.5.0 / Windows x64** 已制作，采用原生 Windows 引擎与重新设计的侧栏、封面网格和宽屏阅读/聊天布局。完整解压 `output/Xingyu-Windows-0.5.0-x64.zip` 后运行 `Xingyu.exe`。复用现有网站账号和认证聊天服务，支持评论通知、投稿管理、图片、艾特和引用回复。详见 [Windows 使用与构建说明](desktop/README.md)。Windows 版本及更新清单与安卓独立。
 
-[下载 Windows 0.4.7 x64 免安装包](https://xingyu-chat-ccjk45415.pages.dev/releases/Xingyu-Windows-0.4.7-x64.zip)（约13.9 MiB）。
+[下载 Windows 0.5.0 x64 免安装包](https://xingyu-chat-ccjk45415.pages.dev/releases/Xingyu-Windows-0.5.0-x64.zip)（约36.3 MiB）。
 
 ## Android 安装
 
-安装包：`output/Cangku-Xingyu-0.9.10-debug.apk`。使用与上一版相同的测试签名，可覆盖升级。
+安装包：`output/Cangku-Xingyu-0.11.0-arm64.apk`。使用与上一版相同的测试签名，可覆盖升级。
 
 安装后输入自己的仓库账号密码。项目、安装包与交付压缩包不包含预置账号、密码或登录 Cookie。默认仅在本次进程内保持会话；勾选“保持登录”后，会话通过 Android Keystore 的 AES-GCM 密钥加密保存。密码始终不写入磁盘。
 
@@ -72,7 +69,7 @@ Flutter Desktop **0.4.7 / Windows x64** 已制作，采用原生 Windows 引擎�
 - 系统图片选择器、上传前预览、头像居中裁剪、EXIF 方向修正、压缩上传。
 - 更改绑定邮箱、修改密码；保存成功后清除本机会话并重新登录。
 - 账号积分与经验记录。
-- 底部导航：**首页 / 分类 / 排行 / 聊天室 / 我的**，五个图标使用相同占位尺寸，文字使用相同字号、固定高度和基线。
+- 底部导航：**首页 / 分类 / 排行 / 聊天室 / 动态 / 我的**，六个图标使用相同占位尺寸，文字使用相同字号、固定高度和基线。
 - 原生聊天室：频道一、频道二，两者消息、历史游标、当前输入和失败重试分别维护，可随时切换。
 - 聊天室绑定仓库账号后进入，显示官网昵称、UID与头像；点击名字或头像艾特，支持引用回复；聊天室与私信支持图片。
 - 作者UID点击复制；统一设置入口；首页发现/公告左右轮播，在线公告独立更新，无需再升级APP。
@@ -94,7 +91,7 @@ Cloudflare 版本使用 Workers Free、SQLite Durable Objects、Pages 免费入�
 - 免费平台额度仍可能耗尽；本机300连接测试通过不等于公网300人稳定性或永久免费保证。未开通付费套餐。
 - 0.3版没有检查更新功能，需先手动安装0.4版；此后新版可以通过APP检查和下载安装。APK使用静态下载地址，校验SHA-256以及现有安装签名。
 
-正文由 Android `TextView` 的 HTML 功能渲染，应用没有嵌入网页，也没有 JavaScript 执行环境。复杂表格、互动组件、部分特殊短代码的显示能力有限，可使用文章末尾的原文入口。图片二维码可长按在本机识别，识别结果支持复制或确认打开。
+当前正文由 Flutter HTML 组件和原生媒体引擎渲染，支持正文图片、AVIF 与默认静音的视频；不使用网页容器渲染整个站点。复杂互动组件仍可使用文章末尾的原文入口。图片二维码可长按在本机识别，识别结果支持复制或确认打开。
 
 上述新增功能在“我的”页面进入。编辑已有投稿保留原始 HTML 和短代码；提交前检查文章版本与内容指纹，发现网站内容已变化时要求重新载入。本机草稿仅保存在当前设备的应用私有目录，不会自动提交网站。选择图片并确认上传后，图片会发送至网站；个人资料表单仍需点击保存。
 
@@ -112,7 +109,11 @@ Cloudflare 版本使用 Workers Free、SQLite Durable Objects、Pages 免费入�
 
 官网评论、回复、点赞及标记通知已读的写接口依照发布脚本实现，没有替真实账号执行这些写入。公网已验证私信身份开通及令牌撤销，未发送生产私信。
 
-## 构建
+## 当前 Flutter 构建
+
+Flutter 3.47.7 / Dart 3.13.5，客户端业务代码位于 `desktop/lib/`。执行 `python tools/build_flutter_android.py` 构建同包名安卓客户端，`python tools/build_desktop.py` 构建 Windows，再执行 `python tools/prepare_desktop_release.py --test-only` 打包完整 ZIP。Mac 需在 Apple Silicon Mac/Xcode 上执行 `python3 tools/build_macos.py --native-check`，详见 [Mac 构建说明](docs/MACOS-BUILD.md)。构建脚本不自动部署，正式发布资源由 `tools/stage_release.py` 准备。
+
+## 旧 Java 引擎构建（保留历史源码）
 
 Android UI、网络、图片解码使用系统平台 API；二维码本机识别使用ZXing core 3.5.4，不内置浏览器或WebView。提供标准 Android Gradle 工程，可直接在 Android Studio 中打开；插件版本 8.9.1、JDK 17、compileSdk 35。
 

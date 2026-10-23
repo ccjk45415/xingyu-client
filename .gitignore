@@ -1,4 +1,9 @@
 .toolchain/
+cloudflare-chat/public/release-chunks/
+cloudflare-chat/public/releases/*.pkg
+cloudflare-chat/public/releases/*.dmg
+desktop/macos/Pods/
+desktop/macos/Flutter/ephemeral/
 .gradle/
 **/build/
 local.properties

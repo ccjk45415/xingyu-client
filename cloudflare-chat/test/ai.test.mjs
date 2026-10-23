@@ -70,3 +70,22 @@ test('old v1 failures receive only one upgrade retry, shared spending is never r
  const request=()=>({request_id:crypto.randomUUID(),type:'auto',sources:[{url:'https://example.com/work',title:'',cover:'',blocks:[{kind:'p',text:'A neutral introduction.'}]}],material:''});
  const translated=await f.post(request(),token,'/ai/v2/draft');assert.equal(translated.status,200);const data=await translated.json();assert.equal(data.remaining,0);assert.equal(data.shared_remaining,12);assert.equal((await f.post(request(),token,'/ai/v2/draft')).status,429);assert.equal(f.db.prepare('SELECT COUNT(*) AS n FROM ai_translation_credits WHERE uid=35').get().n,1);assert.equal(f.db.prepare('SELECT COUNT(*) AS n FROM ai_runs WHERE protocol=2').get().n,1);f.db.close();
 });
+
+
+test('v3 tools share identity quota, replay and no model override with translations',async()=>{
+ const token=await secret(70,'a');let calls=0;
+ const f=fixture(async args=>{calls++;const data=JSON.parse(args.messages[1].content);assert.equal(data.task,'command');assert.equal(args.tools,undefined);return {response:{edits:[{id:'0',text:'修正后的介绍',kind:'p'}],metadata:[],notes:['修正错别字']}};});
+ const b={request_id:crypto.randomUUID(),task:'command',title:'Original',instruction:'修正错别字',segments:[{id:'0',text:'原介绍'}],sources:[]};
+ const response=await f.post(b,token,'/ai/v3/task');assert.equal(response.status,200);const data=await response.json();assert.equal(data.result.edits[0].text,'修正后的介绍');assert.equal(data.remaining,2);assert.equal(data.shared_remaining,15);
+ assert.equal((await f.post(b,token,'/ai/v3/task')).status,200);assert.equal(calls,1);
+ assert.equal((await f.post({...b,request_id:crypto.randomUUID(),model:'override'},token,'/ai/v3/task')).status,400);assert.equal(calls,1);
+ for(let i=0;i<2;i++)assert.equal((await f.post({...b,request_id:crypto.randomUUID()},token,'/ai/v3/task')).status,200);
+ assert.equal((await f.post(material(),token,'/ai/v1/draft')).status,429);f.db.close();
+});
+
+test('v3 chat requests fail before reserving inference',async()=>{
+ const token=await secret(71,'b');let calls=0;const f=fixture(async()=>{calls++;return {};});
+ const b={request_id:crypto.randomUUID(),task:'command',title:'Original',instruction:'陪我聊天，角色扮演',segments:[{id:'0',text:'作品介绍'}],sources:[]};
+ assert.equal((await f.post(b,token,'/ai/v3/task')).status,422);assert.equal(calls,0);
+ assert.equal(f.db.prepare('SELECT COUNT(*) AS n FROM ai_runs WHERE uid=71').get().n,0);f.db.close();
+});

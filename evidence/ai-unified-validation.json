@@ -1,0 +1,45 @@
+{
+  "status": "awaiting_user_test",
+  "date": "2026-10-23",
+  "versions": {
+    "android": "0.10.3-flutter-test (28)",
+    "windows": "0.4.12 (19)"
+  },
+  "flutter_tests_passed": 140,
+  "flutter_tests_skipped": 3,
+  "new_ui_and_download_tests": 7,
+  "targeted_tests_passed": 25,
+  "static_analysis": "pass",
+  "windows_native_self_check": "pass",
+  "android_signature_identity_arm64_16kb": "pass",
+  "android_16_real_device": "pending_user",
+  "one_assistant_dialog": true,
+  "sections": [
+    "资料与翻译",
+    "编辑与检查"
+  ],
+  "duplicate_query_input": true,
+  "duplicate_query_does_not_change_title": true,
+  "preserve_section_inputs_and_selection": true,
+  "existing_body_edits_undoable_without_reapplying_habits": true,
+  "generated_edits_return_to_draft_preview": true,
+  "candidate_navigation_scope_verified": true,
+  "download_empty_list_cleanup": [
+    "generate",
+    "preview",
+    "submit_and_export"
+  ],
+  "real_list_text_images_visible_links_and_code_preserved": true,
+  "client_packages_uploaded": false,
+  "backend_deployed_this_turn": false,
+  "github_source_pushed": false,
+  "public_manifests_unchanged": true,
+  "android_source_stage_matches_workspace": true,
+  "production_posts_comments_messages_sent": 0,
+  "package_report": "evidence/ai-unified-test-packages.json",
+  "screenshots": [
+    "evidence/ai-unified-duplicate-390.png",
+    "evidence/ai-unified-duplicate-1280.png"
+  ],
+  "test_guide": "docs/TESTING-0.10.3.md"
+}

@@ -1,0 +1,19 @@
+{
+  "status": "awaiting_user_test",
+  "uploaded": false,
+  "public_update_metadata_unchanged": true,
+  "complete_native_runtime": true,
+  "live_credentials_excluded": true,
+  "packages": [
+    {
+      "file": "Xingyu-Android-Flutter-0.10.3-test-arm64.apk",
+      "size": 22568754,
+      "sha256": "700d4d4d2ddffa0745be423171ad400d3e3a101d2359b362d9c83472f5620ab9"
+    },
+    {
+      "file": "Xingyu-Windows-0.4.12-x64.zip",
+      "size": 14718540,
+      "sha256": "1b6023d5ea95764e1ccd725f4c9a82444e26142602edf44480d4f363a4c04a45"
+    }
+  ]
+}

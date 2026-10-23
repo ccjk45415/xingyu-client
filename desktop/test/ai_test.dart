@@ -82,6 +82,10 @@ class Request implements HttpClientRequest {
 class Client implements HttpClient {
   @override
   Duration? connectionTimeout;
+  @override
+  Duration idleTimeout = const Duration(seconds: 15);
+  @override
+  int? maxConnectionsPerHost;
   final Request request;
   Uri? target;
   bool closed = false;

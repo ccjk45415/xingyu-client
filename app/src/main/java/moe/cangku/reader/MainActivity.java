@@ -101,7 +101,7 @@ public class MainActivity extends Activity {
         setContentView(root);root.requestApplyInsets();
     }
     void toolbar(String title,boolean back,Runnable refresh){
-        if(back){top.addView(ui.iconButton("返回",this::back),new LinearLayout.LayoutParams(ui.dp(44),ui.dp(44)));}
+        if(back){top.addView(ui.iconButton("返回",this::back),new LinearLayout.LayoutParams(ui.dp(44),ui.dp(44)));}else{FrameLayout badge=new FrameLayout(this);badge.setBackground(ui.gradient(ui.soft,ui.surface,14));badge.addView(ui.icon(Ui.semantic(title,"首页"),ui.accent),new FrameLayout.LayoutParams(ui.dp(24),ui.dp(24),Gravity.CENTER));LinearLayout.LayoutParams badgeSize=new LinearLayout.LayoutParams(ui.dp(42),ui.dp(42));badgeSize.rightMargin=ui.dp(12);top.addView(badge,badgeSize);}
         TextView heading=ui.text(title,23,ui.text,true);ui.pad(heading,back?12:0,0,0,0);heading.setMaxLines(1);heading.setEllipsize(TextUtils.TruncateAt.END);top.addView(heading,new LinearLayout.LayoutParams(0,-2,1));
         String icon=refresh==null?"搜索":"刷新";top.addView(ui.iconButton(icon,refresh==null?()->go(new Route("search","搜索")):refresh),new LinearLayout.LayoutParams(ui.dp(44),ui.dp(44)));
     }
@@ -175,9 +175,9 @@ public class MainActivity extends Activity {
     }
     private void hideKeyboard(){((InputMethodManager)getSystemService(INPUT_METHOD_SERVICE)).hideSoftInputFromWindow(root.getWindowToken(),0);root.clearFocus();}
     private void loading(String label){LinearLayout box=ui.column();box.setGravity(Gravity.CENTER);ui.pad(box,0,64,0,50);ProgressBar p=new ProgressBar(this);p.setIndeterminateTintList(android.content.res.ColorStateList.valueOf(ui.accent));box.addView(p,new LinearLayout.LayoutParams(ui.dp(30),ui.dp(30)));ui.space(box,18);box.addView(ui.text(label,14,ui.muted,false));body.addView(box,new LinearLayout.LayoutParams(-1,-2));}
-    private void error(String message,Runnable retry){body.removeAllViews();ui.space(body,60);TextView icon=ui.text("✧",52,ui.pink,false);icon.setGravity(Gravity.CENTER);body.addView(icon,new LinearLayout.LayoutParams(-1,-2));TextView text=ui.text(message,15,ui.muted,false);text.setGravity(Gravity.CENTER);ui.pad(text,15,20,15,24);body.addView(text);body.addView(ui.button("重新连接",true,retry));}
+    private void error(String message,Runnable retry){body.removeAllViews();ui.space(body,60);FrameLayout mark=new FrameLayout(this);mark.setBackground(ui.round(ui.soft,20));mark.addView(ui.icon("刷新",ui.accent),new FrameLayout.LayoutParams(ui.dp(30),ui.dp(30),Gravity.CENTER));LinearLayout.LayoutParams markSize=new LinearLayout.LayoutParams(ui.dp(64),ui.dp(64));markSize.gravity=Gravity.CENTER;body.addView(mark,markSize);TextView text=ui.text(message,15,ui.muted,false);text.setGravity(Gravity.CENTER);ui.pad(text,15,20,15,24);body.addView(text);body.addView(ui.button("重新连接",true,retry));}
     private void empty(String text){ui.space(body,30);TextView t=ui.text("✦\n\n"+text,16,ui.muted,false);t.setGravity(Gravity.CENTER);t.setLineSpacing(ui.dp(5),1);body.addView(t,new LinearLayout.LayoutParams(-1,ui.dp(180)));}
-    private void section(String title,String subtitle){ui.space(body,18);body.addView(ui.text(title,21,ui.text,true));if(!subtitle.isEmpty()){ui.space(body,6);body.addView(ui.text(subtitle,12,ui.muted,false));}ui.space(body,16);}
+    private void section(String title,String subtitle){ui.space(body,18);LinearLayout heading=ui.row();FrameLayout badge=new FrameLayout(this);badge.setBackground(ui.round(ui.soft,12));badge.addView(ui.icon(Ui.semantic(title,"预览"),ui.accent),new FrameLayout.LayoutParams(ui.dp(21),ui.dp(21),Gravity.CENTER));heading.addView(badge,new LinearLayout.LayoutParams(ui.dp(38),ui.dp(38)));LinearLayout words=ui.column();ui.pad(words,12,0,0,0);words.addView(ui.text(title,20,ui.text,true));if(!subtitle.isEmpty()){ui.space(words,5);words.addView(ui.text(subtitle,12,ui.muted,false));}heading.addView(words,new LinearLayout.LayoutParams(0,-2,1));body.addView(heading);ui.space(body,16);}
     private void chips(String[] labels,String[] values,String selected,java.util.function.Consumer<String> onClick){
         HorizontalScrollView s=new HorizontalScrollView(this);s.setHorizontalScrollBarEnabled(false);LinearLayout row=ui.row();
         for(int i=0;i<labels.length;i++){String value=values[i];TextView chip=ui.chip(labels[i],selected.equals(value),()->onClick.accept(value));LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-2,-2);p.setMargins(0,0,ui.dp(8),0);row.addView(chip,p);}s.addView(row);body.addView(s,new LinearLayout.LayoutParams(-1,-2));ui.space(body,14);
@@ -395,14 +395,14 @@ public class MainActivity extends Activity {
         following.counts(body);
         menu("收藏","我的收藏","与官网的收藏同步",()->go(new Route("favorites","我的收藏")));
         menu("历史","阅读足迹","在这台设备上，遇见过的故事",()->go(new Route("history","阅读足迹")));
-        menu("作者","我的投稿","查看已发布的作品",()->go(new Route("authorPosts","我的投稿").id(user.optLong("id"))));
-        menu("作者","我的评论","查看已发评论、回复与删除管理",()->go(new Route("myComments","我的评论")));
-        menu("历史","通知","回复我的 / 收到的赞 / 系统通知",()->{Route next=new Route("notifications","通知");next.period="reply";go(next);});
+        menu("投稿","我的投稿","查看已发布的作品",()->go(new Route("authorPosts","我的投稿").id(user.optLong("id"))));
+        menu("评论","我的评论","查看已发评论、回复与删除管理",()->go(new Route("myComments","我的评论")));
+        menu("通知","通知","回复我的 / 收到的赞 / 系统通知",()->{Route next=new Route("notifications","通知");next.period="reply";go(next);});
         TextView badge=ui.text("正在同步通知数量…",11,ui.muted,false);body.addView(badge);ui.space(body,10);social.loadMineBadge(badge);
-        menu("聊天室","我的私信","选择收信人、未读会话与拒收名单",()->go(new Route("privateMessages","我的私信")));
-        menu("作者","投稿与管理","新建投稿 / 草稿 / 审核 / 回收站",()->go(new Route("manage","投稿与管理")));
-        menu("历史","积分与经验记录","查看账号的积分与经验变动",()->go(new Route("accountLogs","积分与经验")));
-        menu("设置","设置","个人资料 / 账号安全 / 阅读与外观 / 更新",()->go(new Route("settings","设置")));
+        menu("私信","我的私信","选择收信人、未读会话与拒收名单",()->go(new Route("privateMessages","我的私信")));
+        menu("投稿","投稿与管理","新建投稿 / 草稿 / 审核 / 回收站",()->go(new Route("manage","投稿与管理")));
+        menu("积分","积分与经验记录","查看账号的积分与经验变动",()->go(new Route("accountLogs","积分与经验")));
+        menu("设置","设置","资料与安全 · 阅读外观 · 更新与诊断",()->go(new Route("settings","设置")));
         menu("首页","官网入口","站外社区与更多网站功能",()->external(UrlPolicy.ORIGIN));
         ui.space(body,26);TextView exit=ui.button("退出当前账号",false,()->new AlertDialog.Builder(this).setTitle("退出登录？").setMessage("将清除这台设备上的登录会话。").setNegativeButton("取消",null).setPositiveButton("退出",(d,w)->logout()).show());body.addView(exit);
     }
@@ -414,10 +414,10 @@ public class MainActivity extends Activity {
     private void settingsHub(){
         toolbar("设置",true,()->render());section("账号与偏好","");
         menu("我的","编辑个人资料","昵称 / 简介 / 头像 / 空间背景",()->go(new Route("editProfile","编辑个人资料")));
-        menu("设置","账号安全","更改邮箱与密码",()->go(new Route("security","账号安全")));
-        menu("设置","阅读与外观","夜间主题 / 正文字号",()->go(new Route("appearance","阅读与外观")));
-        menu("设置","检查更新","当前版本 0.9.10",()->updates.check(true));
-        menu("设置","诊断信息","查看 / 复制 / 清空本机异常记录",()->CrashDiagnostics.show(this));
+        menu("安全","账号安全","更改邮箱与密码",()->go(new Route("security","账号安全")));
+        menu("外观","阅读与外观","主题、正文字号与分类页排版",()->go(new Route("appearance","阅读与外观")));
+        menu("下载","检查更新","当前版本 0.9.11",()->updates.check(true));
+        menu("诊断","诊断信息","查看 / 复制 / 清空本机异常记录",()->CrashDiagnostics.show(this));
     }
     private void settings(){
         toolbar("阅读与外观",true,()->render());section("让阅读更合心意","设置保存在这台设备上");
@@ -425,10 +425,10 @@ public class MainActivity extends Activity {
         menu("分类",library.categoryTabs()?"分类排版 · 顶部双层导航":"分类排版 · 卡片漫游","点击切换一级 / 二级导航与卡片排版",()->{library.categoryTabs(!library.categoryTabs());render();});
         ui.space(body,16);TextView size=ui.text("正文字号  "+library.textSize()+" sp",16,ui.text,true);body.addView(size);SeekBar slider=new SeekBar(this);slider.setMax(10);slider.setProgress(library.textSize()-14);body.addView(slider,new LinearLayout.LayoutParams(-1,ui.dp(56)));TextView preview=ui.text("把喜欢的世界，装进口袋。\n每一次翻页，都是新的相遇。",library.textSize(),ui.text,false);preview.setLineSpacing(ui.dp(8),1.2f);ui.pad(preview,20,22,20,22);preview.setBackground(ui.round(ui.surface,20));body.addView(preview);slider.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){public void onProgressChanged(SeekBar s,int p,boolean from){library.textSize(p+14);size.setText("正文字号  "+(p+14)+" sp");preview.setTextSize(p+14);}public void onStartTrackingTouch(SeekBar s){}public void onStopTrackingTouch(SeekBar s){}});
         section("本地数据","");body.addView(ui.button("清空阅读足迹",false,()->new AlertDialog.Builder(this).setTitle("清空阅读足迹？").setMessage("将删除这个账号在当前设备上的阅读记录。").setNegativeButton("取消",null).setPositiveButton("清空",(d,w)->{library.clearHistory();toast("阅读足迹已清空");}).show()));
-        section("关于星屿","仓库 · 星屿  0.9.10");TextView about=ui.text("非官方安卓客户端。网站内容与账号服务由 cangku.moe 提供。\n\n聊天室与私信共用仓库认证，显示官网昵称、UID和头像；认证时临时使用官网会话核验，不保存该会话或密码。\n\n开通独立私信时，经你同意会把官网会话临时发送至 Cloudflare 服务验证身份，不保存该会话；官网密码不会发送。私信双方需安装并开通，消息保留7天。\n\n密码不落盘，本机会话与私信令牌由 Android Keystore 加密。\n\n网站可能调整接口。遇到特殊内容，可以通过文章底部的原文入口查看。",13,ui.muted,false);about.setLineSpacing(ui.dp(5),1.1f);body.addView(about);
+        section("关于星屿","仓库 · 星屿  0.9.11");TextView about=ui.text("非官方安卓客户端。网站内容与账号服务由 cangku.moe 提供。\n\n聊天室与私信共用仓库认证，显示官网昵称、UID和头像；认证时临时使用官网会话核验，不保存该会话或密码。\n\n开通独立私信时，经你同意会把官网会话临时发送至 Cloudflare 服务验证身份，不保存该会话；官网密码不会发送。私信双方需安装并开通，消息保留7天。\n\n密码不落盘，本机会话与私信令牌由 Android Keystore 加密。\n\n网站可能调整接口。遇到特殊内容，可以通过文章底部的原文入口查看。",13,ui.muted,false);about.setLineSpacing(ui.dp(5),1.1f);body.addView(about);
     }
     private void menu(String icon,String title,String subtitle,Runnable action){
-        LinearLayout item=ui.row();ui.pad(item,16,16,16,16);item.setBackground(ui.round(ui.surface,20));FrameLayout mark=new FrameLayout(this);mark.setBackground(ui.round(ui.soft,14));FrameLayout.LayoutParams ip=new FrameLayout.LayoutParams(ui.dp(23),ui.dp(23),Gravity.CENTER);mark.addView(ui.icon(icon,ui.accent),ip);item.addView(mark,new LinearLayout.LayoutParams(ui.dp(44),ui.dp(44)));LinearLayout words=ui.column();ui.pad(words,14,0,0,0);words.addView(ui.text(title,16,ui.text,true));ui.space(words,5);words.addView(ui.text(subtitle,11,ui.muted,false));item.addView(words,new LinearLayout.LayoutParams(0,-2,1));item.addView(ui.text("›",25,ui.muted,false));ui.click(item,action);body.addView(item,new LinearLayout.LayoutParams(-1,-2));ui.space(body,10);
+        LinearLayout item=ui.row();ui.pad(item,16,16,16,16);item.setBackground(ui.round(ui.surface,20));FrameLayout mark=new FrameLayout(this);mark.setBackground(ui.round(ui.soft,14));FrameLayout.LayoutParams ip=new FrameLayout.LayoutParams(ui.dp(23),ui.dp(23),Gravity.CENTER);mark.addView(ui.icon(Ui.semantic(title,icon),ui.accent),ip);item.addView(mark,new LinearLayout.LayoutParams(ui.dp(44),ui.dp(44)));LinearLayout words=ui.column();ui.pad(words,14,0,0,0);words.addView(ui.text(title,16,ui.text,true));ui.space(words,5);words.addView(ui.text(subtitle,11,ui.muted,false));item.addView(words,new LinearLayout.LayoutParams(0,-2,1));item.addView(ui.text("›",25,ui.muted,false));ui.click(item,action);body.addView(item,new LinearLayout.LayoutParams(-1,-2));ui.space(body,10);
     }
     private void logout(){
         epoch++;authoring.suspend();chat.resetAccount();direct.resetAccount();if(messageImages!=null)messageImages.clear();api.clear();user=null;if(following!=null)following.clear();library.setUser(0);history.clear();route=new Route("home","发现");login("");

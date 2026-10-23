@@ -211,9 +211,25 @@ void main() {
           '小さな冒険 Original 😀',
         );
         await tester.enterText(title, '[软件分享][测试作者] 示例工具');
+        final full = find.byKey(const Key('ai.categories.full'));
+        await reveal(full);
+        await tester.tap(full);
+        await tester.pumpAndSettle();
+        await tester.enterText(find.widgetWithText(TextField, '搜索分类'), '工具');
+        await tester.pumpAndSettle();
+        final toolChoice = find.widgetWithText(CheckboxListTile, '其他 / 工具');
+        if (!tester.widget<CheckboxListTile>(toolChoice).value!) {
+          await tester.tap(toolChoice);
+        }
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('确认分类'));
+        await tester.pumpAndSettle();
         final categories = find.widgetWithText(CheckboxListTile, '使用已确认分类');
-        expect(tester.widget<CheckboxListTile>(categories).value, false);
+        expect(tester.widget<CheckboxListTile>(categories).value, true);
         await reveal(categories);
+        await tester.tap(categories);
+        await tester.pump();
+        expect(tester.widget<CheckboxListTile>(categories).value, false);
         await tester.tap(categories);
         await tester.pump();
         expect(find.text('其他 / 工具（含上级分类；将替换原选择）'), findsOneWidget);

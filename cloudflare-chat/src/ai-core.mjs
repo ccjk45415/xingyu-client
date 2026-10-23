@@ -1,3 +1,4 @@
+import {submissionTaskInput, submissionTaskResult, SUBMISSION_TASK_SYSTEM} from './submission-tools.mjs';
 import {TRANSLATION_LIMITS,TRANSLATION_SYSTEM,translationInput,translationPlan,translatedSegments,translatedDraft} from './translation.mjs';
 // No public-page fetching, website cookies, user-supplied model, tools or chat history here.
 // Native clients extract public pages locally. All submitted material remains untrusted data.
@@ -42,10 +43,10 @@ export function createAiHub(Base,{clock=()=>Date.now(),infer}={}){return class e
     const token_hash=await digest(auth.slice(7)),identity=await this.env.DM.get(this.env.DM.idFromName('xingyu-dm-v1')).fetch(new Request('https://internal.invalid/internal/identity',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token_hash})}));
     if(!identity.ok)fail('仓库认证已过期或不可用，请重新认证',identity.status);const uid=(await identity.json()).user.id,now=clock(),day=Math.floor(now/86400000);
     if(path==='/ai/v1/quota'&&req.method==='GET')return json(this.quota(day,uid));
-    const translating=path==='/ai/v2/draft';if(!['/ai/v1/draft','/ai/v2/draft'].includes(path)||req.method!=='POST')fail('接口不存在',404);
+    const translating=path==='/ai/v2/draft',tasking=path==='/ai/v3/task';if(!['/ai/v1/draft','/ai/v2/draft','/ai/v3/task'].includes(path)||req.method!=='POST')fail('接口不存在',404);
     if(!req.headers.get('Content-Type')?.startsWith('application/json'))fail('请求格式错误');
     let size=0,chunks=[];const reader=req.body?.getReader();if(!reader)fail('请求为空');for(;;){const r=await reader.read();if(r.done)break;size+=r.value.length;if(size>(translating?200000:12000)){await reader.cancel();fail('内置模式素材过长',413);}chunks.push(r.value);}const bytes=new Uint8Array(size);let at=0;for(const c of chunks){bytes.set(c,at);at+=c.length;}let parsed;try{parsed=JSON.parse(new TextDecoder().decode(bytes));}catch{fail('JSON格式错误');}
-    const b=translating?translationInput(parsed,sourceUrl):input(parsed),plan=translating?translationPlan(b):null,units=translating?plan.chunks.length:1,fingerprint=await digest(JSON.stringify(b));let cached;
+    const b=tasking?submissionTaskInput(parsed):translating?translationInput(parsed,sourceUrl):input(parsed),plan=translating?translationPlan(b):null,units=translating?plan.chunks.length:1,fingerprint=await digest(JSON.stringify(b));let cached;
     this.ctx.storage.transactionSync(()=>{
       // Keep nonce tombstones for the entire quota day, even after cached draft expiry.
       this.sql.exec("UPDATE ai_runs SET result='' WHERE created<?",now-3600000);this.sql.exec('DELETE FROM ai_runs WHERE created<?',now-2*86400000);this.sql.exec('DELETE FROM ai_counts WHERE day<?',day-2);
@@ -60,13 +61,17 @@ export function createAiHub(Base,{clock=()=>Date.now(),infer}={}){return class e
       if(this.active.size>=4)fail('服务正忙，请稍后再试',429);
       if(this.count(day,uid)>=3)fail('今日3次内置AI额度已用完',429);if(this.count(day,0)+units>16)fail('今日共享免费预算已用完，请明天再试或切换自定义AI',429);
       this.sql.exec('INSERT INTO ai_counts(day,uid,n) VALUES(?,?,1) ON CONFLICT(day,uid) DO UPDATE SET n=n+1',day,uid);this.sql.exec('INSERT INTO ai_counts(day,uid,n) VALUES(?,0,?) ON CONFLICT(day,uid) DO UPDATE SET n=n+excluded.n',day,units);
-      this.sql.exec('INSERT INTO ai_runs(uid,id,hash,state,result,created,protocol) VALUES(?,?,?,\'running\',\'\',?,?)',uid,b.request_id,fingerprint,now,translating?2:1);
+      this.sql.exec('INSERT INTO ai_runs(uid,id,hash,state,result,created,protocol) VALUES(?,?,?,\'running\',\'\',?,?)',uid,b.request_id,fingerprint,now,tasking?3:translating?2:1);
     });
-    if(cached)return json({draft:JSON.parse(cached.result),...this.quota(day,uid),cached:true});
+    if(cached)return json({[tasking?'result':'draft']:JSON.parse(cached.result),...this.quota(day,uid),cached:true});
     this.active.add(uid);if(!await this.ctx.storage.getAlarm())await this.ctx.storage.setAlarm(now+3600000);
     try{
       let result;
-      if(translating){
+      if(tasking){
+        const args={messages:[{role:'system',content:SUBMISSION_TASK_SYSTEM},{role:'user',content:JSON.stringify({task:b.task,title:b.title,instruction:b.instruction,segments:b.segments,sources:b.sources})}],max_tokens:3000,temperature:0,stream:false,response_format:{type:'json_object'}};
+        const out=await (infer?infer(args):this.env.AI.run(AI_POLICY.model,args));
+        result=submissionTaskResult(out?.choices?.[0]?.message?.content??out?.response,b);
+      }else if(translating){
         const values=new Map();
         for(const chunk of plan.chunks){
           const args={messages:[{role:'system',content:TRANSLATION_SYSTEM},{role:'user',content:JSON.stringify({segments:chunk})}],max_tokens:3000,temperature:0,stream:false,response_format:{type:'json_object'}};
@@ -78,7 +83,7 @@ export function createAiHub(Base,{clock=()=>Date.now(),infer}={}){return class e
         const args={messages:[{role:'system',content:AI_SYSTEM},{role:'user',content:JSON.stringify({type:b.type,sources:b.sources,material:b.material})}],max_tokens:3000,temperature:0.2,stream:false};
         const out=await (infer?infer(args):this.env.AI.run(AI_POLICY.model,args));result=draft(out?.choices?.[0]?.message?.content??out?.response,b);
       }
-      this.sql.exec("UPDATE ai_runs SET state='done',result=? WHERE uid=? AND id=?",JSON.stringify(result),uid,b.request_id);return json({draft:result,...this.quota(day,uid)});
+      this.sql.exec("UPDATE ai_runs SET state='done',result=? WHERE uid=? AND id=?",JSON.stringify(result),uid,b.request_id);return json({[tasking?'result':'draft']:result,...this.quota(day,uid)});
     }catch(e){this.sql.exec("UPDATE ai_runs SET state='failed',result='' WHERE uid=? AND id=?",uid,b.request_id);if(e.status)throw e;fail('内置AI暂时不可用，额度已预留；可稍后使用自定义AI',503);}finally{this.active.delete(uid);}
   }catch(e){return json({error:e.status?e.message:'投稿助手暂时不可用'},e.status||503);}}
   async alarm(){const now=clock();this.sql.exec("UPDATE ai_runs SET result='' WHERE created<?",now-3600000);this.sql.exec('DELETE FROM ai_runs WHERE created<?',now-2*86400000);this.sql.exec('DELETE FROM ai_counts WHERE day<?',Math.floor(now/86400000)-2);if(this.first('SELECT uid FROM ai_runs LIMIT 1'))await this.ctx.storage.setAlarm(now+3600000);}

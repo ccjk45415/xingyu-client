@@ -1,0 +1,88 @@
+"""Build the shared Flutter Android app locally; never stages/deploys updates.
+
+Use an ASCII staging directory because Windows CMake/Ninja's native plugin
+builds cannot reliably round-trip this workspace's Unicode path.
+"""
+import argparse
+import hashlib
+import json
+import os
+from pathlib import Path
+import shutil
+import subprocess
+
+ROOT = Path(__file__).resolve().parents[1]
+TOOL = Path(os.environ.get('XINGYU_TOOL_ROOT', 'C:/codex-tools'))
+SDK = TOOL / 'xingyu-android-sdk'
+CACHE = TOOL / 'xingyu-pub-cache'
+STAGE = TOOL / 'xingyu-android-build'
+FLUTTER = Path(os.environ.get('FLUTTER_ROOT', TOOL / 'flutter'))
+
+def linked_copy(source, target):
+    source, target = Path(source), Path(target)
+    if target.exists():
+        return str(target)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        os.link(source, target)
+    except OSError:
+        shutil.copy2(source, target)
+    return str(target)
+
+def prepare():
+    STAGE.mkdir(parents=True, exist_ok=True)
+    sdk_source = ROOT / '.toolchain/android-sdk'
+    shutil.copytree(sdk_source, SDK, dirs_exist_ok=True, copy_function=linked_copy,
+                    ignore=shutil.ignore_patterns('.temp', '.downloadIntermediates'))
+    pub = Path(os.environ.get('LOCALAPPDATA', '')) / 'Pub/Cache'
+    for folder in ['hosted', 'hosted-hashes']:
+        if (pub / folder).exists():
+            shutil.copytree(pub / folder, CACHE / folder, dirs_exist_ok=True, copy_function=linked_copy)
+    source = ROOT / 'desktop'
+    for name in ['pubspec.yaml', 'pubspec.lock', '.metadata', 'analysis_options.yaml']:
+        if (source / name).is_file(): shutil.copy2(source / name, STAGE / name)
+    for name in ['lib', 'assets', 'android', 'integration_test']:
+        shutil.copytree(source / name, STAGE / name, dirs_exist_ok=True,
+            ignore=shutil.ignore_patterns('build', '.gradle', '.cxx', 'local.properties', '*.iml'))
+    # Never synthesize a new signing identity.
+    original_key = ROOT / '.toolchain/keys/debug.keystore'
+    if not original_key.is_file(): raise SystemExit('Original test signing key is missing')
+    key = TOOL / 'xingyu-test-keys/debug.keystore'
+    linked_copy(original_key, key)
+    if key.read_bytes() != original_key.read_bytes(): raise SystemExit('Test signing identity differs')
+    props = f'sdk.dir={SDK.as_posix()}\nflutter.sdk={FLUTTER.as_posix()}\n'
+    (STAGE / 'android/local.properties').write_text(props, encoding='utf-8')
+    env = os.environ.copy()
+    env.update(ANDROID_HOME=str(SDK), ANDROID_SDK_ROOT=str(SDK),
+        JAVA_HOME=os.environ.get('JAVA_HOME', 'C:/Program Files/Java/jdk-17'),
+        PUB_CACHE=str(CACHE), GRADLE_USER_HOME=str(TOOL / 'gradle-cache'),
+        FLUTTER_SUPPRESS_ANALYTICS='true', CI='true', XINGYU_TEST_KEYSTORE=str(key))
+    return env
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--device-test', help='Run isolated, synthetic integration tests on this ADB device')
+    args = parser.parse_args()
+    env = prepare()
+    command = [str(FLUTTER / 'bin/cache/dart-sdk/bin/dart.exe'), str(FLUTTER / 'bin/cache/flutter_tools.snapshot')]
+    def run(arguments):
+        print('FLUTTER', ' '.join(arguments), flush=True)
+        subprocess.run(command + arguments, cwd=STAGE, env=env, check=True)
+    run(['pub', 'get', '--offline'])
+    if args.device_test:
+        run(['test', '--no-pub', 'integration_test/android_client_test.dart', '-d', args.device_test,
+             '--dart-define=XINGYU_ANDROID_TEST=true', '--reporter=expanded'])
+        return
+    # Let Flutter regenerate release registrants without dev-only plugins.
+    # --no-pub after a debug/pub-get pass leaves integration_test registered.
+    run(['build', 'apk', '--release', '--target-platform=android-arm64',
+         '--build-name=0.11.0', '--build-number=33', '--dart-define=XINGYU_ANDROID_TEST=false'])
+    output = ROOT / 'output/Cangku-Xingyu-0.11.0-arm64.apk'
+    output.parent.mkdir(exist_ok=True)
+    shutil.copy2(STAGE / 'build/app/outputs/flutter-apk/app-release.apk', output)
+    if output.stat().st_size > 24 * 1024 * 1024:
+        raise SystemExit('APK exceeds the original Android updater limit')
+    print(json.dumps({'apk': output.name, 'bytes': output.stat().st_size,
+        'sha256': hashlib.sha256(output.read_bytes()).hexdigest(), 'uploaded': False}, ensure_ascii=False), flush=True)
+
+if __name__ == '__main__': main()

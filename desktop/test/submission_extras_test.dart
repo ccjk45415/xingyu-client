@@ -230,7 +230,7 @@ void main() {
           tester.getRect(find.text('作品类型')).left,
           closeTo(tester.getRect(kind).left, 1),
         );
-        final category = find.byKey(const ValueKey('guide.path.other.'));
+        final category = find.byKey(const Key('ai.categories.full'));
         await reveal(category);
         expect(
           tester.getRect(find.text('投稿分类')).bottom,

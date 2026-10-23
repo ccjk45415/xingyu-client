@@ -5,19 +5,19 @@ ROOT=Path(__file__).resolve().parents[1]
 OUT=ROOT/'output';OUT.mkdir(exist_ok=True)
 archive=OUT/'Cangku-Xingyu-source.zip'
 files=[ROOT/x for x in ['.gitignore','README.md','LICENSE','THIRD_PARTY_NOTICES.md','CHANGELOG.md','build.gradle','settings.gradle','gradle.properties','announcements.example.json','discovery.example.json']]
-for folder in ['docs','tests','tools','app/src']:
+for folder in ['docs','tests','tools','app/src','.github']:
     files += [p for p in (ROOT/folder).rglob('*') if p.is_file() and '__pycache__' not in p.parts]
 files.append(ROOT/'app/build.gradle')
 for base,dirs,names in os.walk(ROOT/'desktop'):
-    dirs[:]=[d for d in dirs if d not in ['build','.dart_tool','.idea','ephemeral','.git','__pycache__']]
+    dirs[:]=[d for d in dirs if d not in ['build','.dart_tool','.idea','ephemeral','.git','__pycache__','.gradle','.cxx','.kotlin','.externalNativeBuild','.symlinks','Pods','xcuserdata','.swiftpm']]
     for name in names:
         p=Path(base)/name
-        if p.suffix not in ['.iml','.log'] and name!='.flutter-plugins-dependencies':files.append(p)
+        if p.suffix not in ['.iml','.log','.jks','.keystore'] and name not in ['.flutter-plugins-dependencies','local.properties','key.properties','GeneratedPluginRegistrant.java']:files.append(p)
 server_files=[p for p in (ROOT/'chat-server').iterdir() if p.is_file() and p.name!='.env']
 files+=server_files
 cloud_files=[ROOT/'cloudflare-chat'/x for x in ['package.json','package-lock.json','wrangler.jsonc','README.md']]
 for folder in ['src','test','public']:
-    cloud_files += [p for p in (ROOT/'cloudflare-chat'/folder).rglob('*') if p.is_file() and p.suffix not in ['.apk','.zip']]
+    cloud_files += [p for p in (ROOT/'cloudflare-chat'/folder).rglob('*') if p.is_file() and p.suffix not in ['.apk','.zip','.pkg','.dmg','.part'] and not {'releases','release-chunks'} & set(p.relative_to(ROOT/'cloudflare-chat').parts)]
 files+=cloud_files
 entry_files=[p for p in (ROOT/'cloudflare-entry').iterdir() if p.is_file()]
 files+=entry_files

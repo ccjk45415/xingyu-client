@@ -72,7 +72,24 @@ public final class AuthoringEntryShell {
         String diagnostic=CrashDiagnostics.report(host);if(!diagnostic.contains("—— 异常 10 ——")||diagnostic.contains("—— 异常 11 ——")||diagnostic.contains("private-record-"))throw new AssertionError("history bounds or privacy");
         CrashDiagnostics.clear(host);if(!CrashDiagnostics.report(host).contains("异常 1"))throw new AssertionError("copy acknowledgement deleted history");
         CrashDiagnostics.clearHistory(host);if(!CrashDiagnostics.report(host).contains("暂无异常记录"))throw new AssertionError("history clear failed");System.out.println("DIAGNOSTICS_HISTORY_PASS");
+        verifyDesign(host,ui,body);
         System.out.println("AUTHORING_ENTRY_PASS: create, layout, injected failure recovery, private report, retry");System.exit(0);
+    }
+    static void verifyDesign(Host host,Ui ui,LinearLayout body)throws Exception {
+        String[][] labels={{"账号安全","安全"},{"诊断信息","诊断"},{"我的私信","私信"},{"通知","通知"},{"阅读与外观","外观"},{"检查更新","下载"},{"投稿与管理","投稿"},{"首页筛选","筛选"}};
+        for(String[] pair:labels)if(!Ui.semantic(pair[0],"").equals(pair[1]))throw new AssertionError("misleading semantic icon: "+pair[0]);
+        String[] names={"首页","分类","排行","聊天室","动态","我的","设置","安全","通知","私信","投稿","关注","收藏","历史","积分","诊断","外观","下载","上传","搜索","筛选","预览","复制","删除","保存","链接","发送","AI"};
+        java.util.Set<Integer> hashes=new java.util.HashSet<>();int cell=ui.dp(76),width=cell*4,height=cell*((names.length+3)/4);
+        android.graphics.Bitmap atlas=android.graphics.Bitmap.createBitmap(width,height,android.graphics.Bitmap.Config.ARGB_8888);android.graphics.Canvas canvas=new android.graphics.Canvas(atlas);canvas.drawColor(ui.bg);
+        for(int i=0;i<names.length;i++){
+            android.graphics.Bitmap icon=android.graphics.Bitmap.createBitmap(ui.dp(24),ui.dp(24),android.graphics.Bitmap.Config.ARGB_8888);new Ui.Symbol(names[i],ui.accent,ui.dp(24)).draw(new android.graphics.Canvas(icon));int[] pixels=new int[icon.getWidth()*icon.getHeight()];icon.getPixels(pixels,0,icon.getWidth(),0,0,icon.getWidth(),icon.getHeight());hashes.add(java.util.Arrays.hashCode(pixels));
+            int x=(i%4)*cell,y=(i/4)*cell;canvas.drawBitmap(icon,x+ui.dp(26),y+ui.dp(10),null);icon.recycle();android.graphics.Paint font=new android.graphics.Paint(3);font.setColor(ui.text);font.setTextSize(ui.dp(12));font.setTextAlign(android.graphics.Paint.Align.CENTER);canvas.drawText(names[i],x+cell/2f,y+ui.dp(56),font);
+        }
+        if(hashes.size()<26)throw new AssertionError("unrelated actions reuse the same icon");
+        try(java.io.FileOutputStream out=new java.io.FileOutputStream("/data/local/tmp/xingyu-ui-icons.png")){atlas.compress(android.graphics.Bitmap.CompressFormat.PNG,100,out);}atlas.recycle();
+        body.removeAllViews();Method settings=MainActivity.class.getDeclaredMethod("settingsHub");settings.setAccessible(true);settings.invoke(host);
+        body.measure(android.view.View.MeasureSpec.makeMeasureSpec(ui.dp(360),1073741824),0);body.layout(0,0,body.getMeasuredWidth(),body.getMeasuredHeight());android.graphics.Bitmap image=android.graphics.Bitmap.createBitmap(body.getWidth(),body.getHeight(),android.graphics.Bitmap.Config.ARGB_8888);android.graphics.Canvas page=new android.graphics.Canvas(image);page.drawColor(ui.bg);body.draw(page);
+        try(java.io.FileOutputStream out=new java.io.FileOutputStream("/data/local/tmp/xingyu-ui-settings.png")){image.compress(android.graphics.Bitmap.CompressFormat.PNG,100,out);}image.recycle();System.out.println("SEMANTIC_ICONS_AND_SETTINGS_DRAW_PASS");
     }
     static void draw(android.view.View view,Ui ui){view.measure(android.view.View.MeasureSpec.makeMeasureSpec(ui.dp(320),1073741824),android.view.View.MeasureSpec.makeMeasureSpec(ui.dp(220),1073741824));view.layout(0,0,view.getMeasuredWidth(),view.getMeasuredHeight());android.graphics.Bitmap b=android.graphics.Bitmap.createBitmap(view.getWidth(),view.getHeight(),android.graphics.Bitmap.Config.ARGB_8888);view.draw(new android.graphics.Canvas(b));b.recycle();}
 }

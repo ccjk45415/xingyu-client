@@ -1,11 +1,11 @@
 {
   "available": true,
-  "product": "moe.cangku.xingyu.desktop",
+  "versionName": "0.5.0",
+  "versionCode": 24,
+  "notes": "安卓客户端升级为 Flutter 引擎，沿用原版应用名称，支持覆盖安装。Windows 新增更新包自动下载、完整性校验、自动替换与重启，失败时恢复旧版；macOS 接入独立更新通道。完善 AI 投稿助手、作品资料与分类识别、正文图片和视频、评论表情及图片功能，优化首页、分类、排行、动态和聊天室的加载、滚动与页面布局，修复多项已知问题。",
+  "url": "https://xingyu-chat-ccjk45415.pages.dev/releases/Xingyu-Windows-0.5.0-x64.zip",
+  "size": 38015426,
+  "sha256": "bdfe74fe8875cdef00ca59b82b919b3843412634b4de732dce91122f39d6e023",
   "platform": "windows-x64",
-  "versionCode": 14,
-  "versionName": "0.4.7",
-  "notes": "优化了一些细节，新增首页分类，新增排版布局分类设置（我的-设置-阅读与外观）。新增关注和粉丝和动态功能。",
-  "url": "https://xingyu-chat-ccjk45415.pages.dev/releases/Xingyu-Windows-0.4.7-x64.zip",
-  "size": 14561218,
-  "sha256": "e7807edb0d550c3840eadd6df466dd3b0c33fd7a4792ecc16a2cc857837aaca9"
+  "product": "moe.cangku.xingyu.desktop"
 }

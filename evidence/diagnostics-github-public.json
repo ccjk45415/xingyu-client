@@ -1,0 +1,66 @@
+{
+  "assets": [
+    {
+      "apiUrl": "https://api.github.com/repos/ccjk45415/xingyu-client/releases/assets/665526660",
+      "contentType": "application/vnd.android.package-archive",
+      "createdAt": "2026-10-22T10:40:14Z",
+      "digest": "sha256:b5e9260cf0f73907001428084d4417cfdfe218dbf399ce28e6ba2fdd5b0751d4",
+      "downloadCount": 0,
+      "id": "RA_kwDOVR02EM4nqyGE",
+      "label": "",
+      "name": "Cangku-Xingyu-0.9.10-debug.apk",
+      "size": 779039,
+      "state": "uploaded",
+      "updatedAt": "2026-10-22T10:40:14Z",
+      "url": "https://github.com/ccjk45415/xingyu-client/releases/download/v0.9.10/Cangku-Xingyu-0.9.10-debug.apk"
+    },
+    {
+      "apiUrl": "https://api.github.com/repos/ccjk45415/xingyu-client/releases/assets/665526663",
+      "contentType": "application/zip",
+      "createdAt": "2026-10-22T10:40:14Z",
+      "digest": "sha256:cabe6a0b06cfdfa03edc7ba43200fd444476056b9333ba8919a8f6af2dd9eaf2",
+      "downloadCount": 0,
+      "id": "RA_kwDOVR02EM4nqyGH",
+      "label": "",
+      "name": "Cangku-Xingyu-source.zip",
+      "size": 3905850,
+      "state": "uploaded",
+      "updatedAt": "2026-10-22T10:40:15Z",
+      "url": "https://github.com/ccjk45415/xingyu-client/releases/download/v0.9.10/Cangku-Xingyu-source.zip"
+    },
+    {
+      "apiUrl": "https://api.github.com/repos/ccjk45415/xingyu-client/releases/assets/665526662",
+      "contentType": "text/plain; charset=utf-8",
+      "createdAt": "2026-10-22T10:40:14Z",
+      "digest": "sha256:908ce279e85c9edbdf2adfe9ca690f9b0347a19f66033ed8a6b67cd6baff1810",
+      "downloadCount": 0,
+      "id": "RA_kwDOVR02EM4nqyGG",
+      "label": "",
+      "name": "Release-SHA256SUMS.txt",
+      "size": 286,
+      "state": "uploaded",
+      "updatedAt": "2026-10-22T10:40:14Z",
+      "url": "https://github.com/ccjk45415/xingyu-client/releases/download/v0.9.10/Release-SHA256SUMS.txt"
+    },
+    {
+      "apiUrl": "https://api.github.com/repos/ccjk45415/xingyu-client/releases/assets/665526655",
+      "contentType": "application/zip",
+      "createdAt": "2026-10-22T10:40:14Z",
+      "digest": "sha256:e7807edb0d550c3840eadd6df466dd3b0c33fd7a4792ecc16a2cc857837aaca9",
+      "downloadCount": 0,
+      "id": "RA_kwDOVR02EM4nqyF_",
+      "label": "",
+      "name": "Xingyu-Windows-0.4.7-x64.zip",
+      "size": 14561218,
+      "state": "uploaded",
+      "updatedAt": "2026-10-22T10:40:15Z",
+      "url": "https://github.com/ccjk45415/xingyu-client/releases/download/v0.9.10/Xingyu-Windows-0.4.7-x64.zip"
+    }
+  ],
+  "body": "优化了一些细节，新增首页分类，新增排版布局分类设置（我的-设置-阅读与外观）。新增关注和粉丝和动态功能。\r\n",
+  "isDraft": false,
+  "publishedAt": "2026-10-22T10:40:52Z",
+  "tagName": "v0.9.10",
+  "targetCommitish": "main",
+  "url": "https://github.com/ccjk45415/xingyu-client/releases/tag/v0.9.10"
+}

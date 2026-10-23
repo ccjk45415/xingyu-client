@@ -36,6 +36,12 @@ env['WindowsSdkDir']=str(sdk)+os.sep;env['WindowsSDKVersion']=sdkversion+os.sep
 build=APP/'build/windows/native-x64'
 run([cmake,'-S',APP/'windows','-B',build,'-G','Ninja',f'-DCMAKE_MAKE_PROGRAM={ninja}',f'-DCMAKE_CXX_COMPILER={msvc / "bin/Hostx64/x64/cl.exe"}',f'-DCMAKE_RC_COMPILER={sdk / "bin" / sdkversion / "x64/rc.exe"}',f'-DCMAKE_MT={sdk / "bin" / sdkversion / "x64/mt.exe"}','-DCMAKE_BUILD_TYPE=Release','-DFLUTTER_TARGET_PLATFORM=windows-x64','-DCMAKE_POLICY_VERSION_MINIMUM=3.5'],env=env,check=True)
 if args.configure_only:raise SystemExit(0)
+# media_kit declares extracted import libraries as link inputs. Ninja must
+# materialize these before it can construct the full native dependency graph.
+if (build/'mpv-dev-x86_64-20230924-git-652a1dd.7z').is_file() and not (build/'libmpv/libmpv.dll.a').is_file():
+    run([cmake,'--build',build,'--target','media_kit_libs_windows_video_LIBMPV_EXTRACT'],env=env,check=True)
+if (build/'ANGLE.7z').is_file() and not (build/'ANGLE/libEGL.dll').is_file():
+    run([cmake,'--build',build,'--target','media_kit_libs_windows_video_ANGLE_EXTRACT'],env=env,check=True)
 run([cmake,'--build',build,'--target','flutter_assemble'],env=env,check=True)
 # Ninja needs the import library to exist before constructing the full dependency graph.
 # Restore the SDK artifacts explicitly when Flutter's ephemeral cache was invalidated.

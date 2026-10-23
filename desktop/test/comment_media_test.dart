@@ -14,6 +14,7 @@ import 'package:xingyu_desktop/core/native_storage.dart';
 import 'package:xingyu_desktop/core/state.dart';
 import 'package:xingyu_desktop/ui/comment_composer.dart';
 import 'package:xingyu_desktop/ui/shared.dart';
+import 'package:xingyu_desktop/ui/cached_image.dart';
 
 import 'widget_test.dart' show FakeSite, FakeService, OfflineSocket;
 import 'widget_test.dart' show capture;
@@ -255,21 +256,21 @@ void main() {
           ),
         );
         await tester.pumpAndSettle();
-        final sticker = find.byWidgetPredicate(
-          (w) =>
-              w is Image &&
-              w.image is NetworkImage &&
-              (w.image as NetworkImage).url == siteStickerGroups[1].url(12),
+        final sticker = find.descendant(
+          of: find.byWidgetPredicate(
+            (w) => w is CachedImage && w.url == siteStickerGroups[1].url(12),
+          ),
+          matching: find.byType(Image),
         );
         expect(tester.getSize(sticker), const Size(32, 32));
         expect(tester.getRect(sticker).left, greaterThan(80));
         await tester.tap(find.text('点击显示隐藏文字'));
         await tester.pumpAndSettle();
-        final long = find.byWidgetPredicate(
-          (w) =>
-              w is Image &&
-              w.image is NetworkImage &&
-              (w.image as NetworkImage).url.endsWith('long-demo.png'),
+        final long = find.descendant(
+          of: find.byWidgetPredicate(
+            (w) => w is CachedImage && w.url.endsWith('long-demo.png'),
+          ),
+          matching: find.byType(Image),
         );
         expect(tester.getSize(long).height, lessThanOrEqualTo(520));
         expect(tester.getSize(long).width, lessThanOrEqualTo(760));
