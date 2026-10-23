@@ -19,7 +19,8 @@ class NoUpdateService extends ServiceApi {
     String? method,
   }) async {
     requests++;
-    throw StateError('macOS must never request a Windows update');
+    expect(path, '/updates/macos.json');
+    return {'available': false};
   }
 }
 
@@ -33,8 +34,8 @@ void main() {
   });
 
   test('macOS has independent version, system fonts and Command shortcuts', () {
-    expect(clientVersion, '0.1.0-macos-test');
-    expect(clientBuild, 1);
+    expect(clientVersion, '0.1.1');
+    expect(clientBuild, 2);
     expect(uiFont, null);
     expect(monoFont, 'Menlo');
     expect(secureStorageLabel, 'macOS 钥匙串');
@@ -90,30 +91,30 @@ void main() {
     debugDefaultTargetPlatformOverride = null;
   });
 
-  testWidgets(
-    'macOS update UI identifies test channel and never calls Windows updater',
-    (tester) async {
-      final service = NoUpdateService();
-      final state = AppState(serviceApi: service)..user = {'id': 1};
-      await tester.pumpWidget(
-        MaterialApp(
-          home: DeskScope(
-            app: state,
-            open: (_) {},
-            child: const Scaffold(body: SettingsPage('updates')),
-          ),
+  testWidgets('macOS update UI uses its own official update manifest', (
+    tester,
+  ) async {
+    final service = NoUpdateService();
+    final state = AppState(serviceApi: service)..user = {'id': 1};
+    await tester.pumpWidget(
+      MaterialApp(
+        home: DeskScope(
+          app: state,
+          open: (_) {},
+          child: const Scaffold(body: SettingsPage('updates')),
         ),
-      );
-      expect(find.text('仓库 · 星屿 macOS 测试版'), findsOneWidget);
-      expect(find.text('星屿 0.1.0-macos-test'), findsOneWidget);
-      await tester.tap(find.text('检查新版本'));
-      await tester.pump();
-      expect(find.text('当前为 macOS 独立测试版，暂不接入正式更新通道。'), findsOneWidget);
-      expect(service.requests, 0);
-      expect(tester.takeException(), isNull);
-      await tester.pumpWidget(const SizedBox());
-      state.dispose();
-      debugDefaultTargetPlatformOverride = null;
-    },
-  );
+      ),
+    );
+    expect(find.text('仓库 · 星屿 macOS 客户端'), findsOneWidget);
+    expect(find.text('星屿 0.1.1'), findsOneWidget);
+    await tester.tap(find.text('检查新版本'));
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('当前没有可用的新版本'), findsOneWidget);
+    expect(service.requests, 1);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+    state.dispose();
+    debugDefaultTargetPlatformOverride = null;
+  });
 }

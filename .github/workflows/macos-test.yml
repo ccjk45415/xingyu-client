@@ -1,4 +1,4 @@
-name: macOS Apple Silicon test installer
+name: macOS Apple Silicon installer
 on:
   push:
     branches: [macos-test]
@@ -22,13 +22,13 @@ jobs:
           channel: stable
           architecture: arm64
           cache: false
-      - name: Build, verify and package local test installers
+      - name: Build, verify and package installers
         run: python3 tools/build_macos.py --native-check
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: Xingyu-macOS-Apple-Silicon-test
+          name: Xingyu-macOS-Apple-Silicon
           if-no-files-found: error
-          retention-days: 1
+          retention-days: 7
           path: |
             output/Xingyu-macOS-*.pkg
             output/Xingyu-macOS-*.dmg

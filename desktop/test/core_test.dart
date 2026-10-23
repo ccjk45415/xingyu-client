@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:typed_data';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:xingyu_desktop/core/api.dart';
@@ -88,6 +89,7 @@ void main() {
   test('Windows update metadata cannot substitute external files or APKs', () {
     final good = {
       'platform': 'windows-x64',
+      'versionName': '0.2.0',
       'versionCode': 2,
       'size': 1024,
       'sha256': 'a' * 64,
@@ -108,63 +110,54 @@ void main() {
       );
     }
   });
-  test(
-    'image recompression has bounded JPEG dimensions, no source metadata and white transparency',
-    () {
-      final source = img.Image(width: 1800, height: 1000, numChannels: 4);
-      img.fill(source, color: img.ColorRgba8(255, 0, 0, 0));
-      source.textData = {'private-source-metadata': 'must-not-leave-client'};
-      final encoded = compressImage(img.encodePng(source));
-      final decoded = img.decodeJpg(encoded)!;
-      expect(encoded.length, lessThanOrEqualTo(192 * 1024));
-      expect(decoded.width, lessThanOrEqualTo(1280));
-      expect(decoded.height, lessThanOrEqualTo(1280));
-      expect(latin1.decode(encoded).contains('must-not-leave-client'), false);
-      expect(decoded.getPixel(0, 0).r, greaterThan(240));
-      expect(
-        () => compressImage(Uint8List.fromList([1, 2, 3])),
-        throwsA(isA<ApiFailure>()),
-      );
-    },
-  );
-  test(
-    'edit conflict fingerprint ignores response order but detects content, status and categories',
-    () {
-      final post = {
-        'title': '作品',
-        'content': '正文',
-        'status': 'draft',
-        'thumb': '',
-        'created_at': '2026-10-21',
+  test('image recompression has bounded JPEG dimensions, no source metadata and white transparency', () {
+    final source = img.Image(width: 1800, height: 1000, numChannels: 4);
+    img.fill(source, color: img.ColorRgba8(255, 0, 0, 0));
+    source.textData = {'private-source-metadata': 'must-not-leave-client'};
+    final encoded = compressImage(img.encodePng(source));
+    final decoded = img.decodeJpg(encoded)!;
+    expect(encoded.length, lessThanOrEqualTo(192 * 1024));
+    expect(decoded.width, lessThanOrEqualTo(1280));
+    expect(decoded.height, lessThanOrEqualTo(1280));
+    expect(latin1.decode(encoded).contains('must-not-leave-client'), false);
+    expect(decoded.getPixel(0, 0).r, greaterThan(240));
+    expect(
+      () => compressImage(Uint8List.fromList([1, 2, 3])),
+      throwsA(isA<ApiFailure>()),
+    );
+  });
+  test('edit conflict fingerprint ignores response order but detects content, status and categories', () {
+    final post = {
+      'title': '作品',
+      'content': '正文',
+      'status': 'draft',
+      'thumb': '',
+      'created_at': '2026-10-21',
+      'categories': [
+        {'id': 2},
+        {'id': 1},
+      ],
+      'tags': [
+        {'name': 'b'},
+        {'name': 'a'},
+      ],
+    };
+    final original = postFingerprint(post);
+    expect(
+      postFingerprint({
+        ...post,
         'categories': [
-          {'id': 2},
           {'id': 1},
+          {'id': 2},
         ],
         'tags': [
-          {'name': 'b'},
           {'name': 'a'},
+          {'name': 'b'},
         ],
-      };
-      final original = postFingerprint(post);
-      expect(
-        postFingerprint({
-          ...post,
-          'categories': [
-            {'id': 1},
-            {'id': 2},
-          ],
-          'tags': [
-            {'name': 'a'},
-            {'name': 'b'},
-          ],
-        }),
-        original,
-      );
-      expect(
-        postFingerprint({...post, 'content': '网站上更新过的正文'}),
-        isNot(original),
-      );
-      expect(postFingerprint({...post, 'status': 'publish'}), isNot(original));
-    },
-  );
+      }),
+      original,
+    );
+    expect(postFingerprint({...post, 'content': '网站上更新过的正文'}), isNot(original));
+    expect(postFingerprint({...post, 'status': 'publish'}), isNot(original));
+  });
 }

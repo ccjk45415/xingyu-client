@@ -413,9 +413,9 @@ class SettingsPage extends StatelessWidget {
             Heading(
               '检查更新',
               isAndroid
-                  ? '仓库 · 星屿 Flutter 安卓测试版'
+                  ? '仓库 · 星屿 Android 客户端'
                   : isMacOS
-                  ? '仓库 · 星屿 macOS 测试版'
+                  ? '仓库 · 星屿 macOS 客户端'
                   : '仓库 · 星屿 Windows 客户端',
             ),
             Surface(
@@ -434,10 +434,10 @@ class SettingsPage extends StatelessWidget {
                   const SizedBox(height: 12),
                   Text(
                     isAndroid
-                        ? 'Flutter Android · 独立测试版\n可与原版同时安装。测试包暂不连接正式更新通道，测试完成后再发布。'
+                        ? 'Flutter Android · ARM64\n沿用原版应用名称与签名，可覆盖安装。更新下载完成后自动打开系统安装程序。'
                         : isMacOS
-                        ? 'Flutter Desktop · macOS Apple Silicon\n本机测试版，暂不连接 Windows 或安卓更新通道。'
-                        : 'Flutter Desktop · Windows x64\n更新下载会校验来源、大小和SHA-256，解压后运行完整程序目录。',
+                        ? 'Flutter Desktop · macOS Apple Silicon\n下载完成后自动打开 PKG 安装器，按系统提示安装。'
+                        : 'Flutter Desktop · Windows x64\n自动下载并校验更新包，完成后替换程序、重新启动，失败时恢复旧版。',
                     style: const TextStyle(height: 1.8),
                   ),
                   const SizedBox(height: 24),

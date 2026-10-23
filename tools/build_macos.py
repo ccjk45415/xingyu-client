@@ -1,4 +1,4 @@
-"""Build Apple Silicon test installers on macOS. Never publishes or changes update feeds."""
+"""Build Apple Silicon installers on macOS. Never publishes or changes update feeds."""
 import argparse
 import hashlib
 import json
@@ -12,7 +12,7 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 APP = ROOT / 'desktop'
-VERSION, BUILD = '0.1.0', '1'
+VERSION, BUILD = '0.1.1', '2'
 
 
 def run(argv, **kwargs):
@@ -57,9 +57,9 @@ def main():
     if not shutil.which('pod'):
         raise SystemExit('Install CocoaPods before building; AVIF and native video plugins require it.')
     run([flutter, 'pub', 'get'])
-    run([flutter, 'analyze', 'lib', 'test/macos_platform_test.dart'])
+    run([flutter, 'analyze', 'lib', 'test/macos_platform_test.dart', 'test/updates_test.dart'])
     if not args.skip_tests:
-        run([flutter, 'test', '--no-pub', 'test/macos_platform_test.dart', 'test/core_test.dart'])
+        run([flutter, 'test', '--no-pub', 'test/macos_platform_test.dart', 'test/core_test.dart', 'test/updates_test.dart'])
     run([flutter, 'build', 'macos', '--release', f'--build-name={VERSION}', f'--build-number={BUILD}'])
     bundle = APP / 'build/macos/Build/Products/Release/Xingyu.app'
     binary = bundle / 'Contents/MacOS/Xingyu'
@@ -89,16 +89,16 @@ def main():
         report['native_self_check'] = native
     out = ROOT / 'output'
     out.mkdir(exist_ok=True)
-    package = out / f'Xingyu-macOS-{VERSION}-test-arm64.pkg'
+    package = out / f'Xingyu-macOS-{VERSION}-arm64.pkg'
     run(['pkgbuild', '--component', bundle, '--identifier', 'moe.cangku.xingyu.macos.installer',
          '--version', VERSION, '--install-location', '/Applications', '--ownership', 'recommended', package])
-    image = out / f'Xingyu-macOS-{VERSION}-test-arm64.dmg'
+    image = out / f'Xingyu-macOS-{VERSION}-arm64.dmg'
     with tempfile.TemporaryDirectory(prefix='xingyu-macos-package-') as folder:
         stage = Path(folder)
         run(['ditto', bundle, stage / 'Xingyu.app'])
         (stage / 'Applications').symlink_to('/Applications', target_is_directory=True)
         (stage / '安装说明.txt').write_text(
-            '星屿 macOS Apple Silicon 测试版\n\n拖动 Xingyu.app 到 Applications 安装。'
+            '星屿 macOS Apple Silicon\n\n拖动 Xingyu.app 到 Applications 安装。'
             '也可使用同版本 PKG 安装器。\n本包为本机测试签名，尚未做 Apple Developer ID 签名与公证；'
             '首次打开时 macOS 可能要求在“系统设置 → 隐私与安全性”确认。\n'
             '不需要关闭 Gatekeeper、关闭系统保护或提供 Apple ID 密码。\n', encoding='utf-8')
