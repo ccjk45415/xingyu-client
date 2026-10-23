@@ -1,3 +1,6 @@
+import 'cache_settings.dart';
+import 'submission_workbench.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -6,9 +9,10 @@ import '../core/api.dart';
 import '../core/comment_content.dart';
 import '../core/media.dart';
 import '../core/updates.dart';
+import '../core/platform.dart';
 import '../ui/shared.dart';
 import 'discovery.dart';
-import 'following.dart';
+import 'account_overview.dart';
 import 'diagnostics.dart';
 
 class AccountPage extends StatelessWidget {
@@ -29,7 +33,7 @@ class AccountPage extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Heading('阅读足迹', '按账号保存在这台电脑，只记录最近150篇作品。'),
+            Heading('阅读足迹', '按账号保存在本机，只记录最近150篇作品。'),
             if (app.history.isEmpty)
               const Blank('还没有阅读足迹', '去发现页看看吧。')
             else
@@ -65,206 +69,7 @@ class AccountPage extends StatelessWidget {
         ),
       );
     }
-    final user = app.user ?? {};
-    return PageBody(
-      width: 1120,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Heading(
-            '我的星屿',
-            '整理收藏，记录创作，也与同好保持联系。',
-            trailing: IconButton(
-              onPressed: () => action(context, app.refreshUser),
-              tooltip: '刷新资料',
-              icon: const Icon(Icons.refresh),
-            ),
-          ),
-          Surface(
-            child: Row(
-              children: [
-                Avatar(user, radius: 44),
-                const SizedBox(width: 24),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        text(user['nickname']),
-                        style: Theme.of(context).textTheme.headlineSmall
-                            ?.copyWith(fontWeight: FontWeight.w800),
-                      ),
-                      TextButton(
-                        onPressed: () => copy(context, '${app.uid}', '已复制UID'),
-                        style: TextButton.styleFrom(
-                          padding: EdgeInsets.zero,
-                          alignment: Alignment.centerLeft,
-                        ),
-                        child: Text('UID ${app.uid}  ·  点击复制'),
-                      ),
-                      Text(
-                        text(user['description'], '在这里，珍藏每一种喜欢。'),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-                FilledButton.tonalIcon(
-                  onPressed: () =>
-                      openRoute(context, const DeskRoute('profile', '编辑个人资料')),
-                  icon: const Icon(Icons.edit_outlined, size: 17),
-                  label: const Text('编辑资料'),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 18),
-          const FollowStats(),
-          const SizedBox(height: 20),
-          Wrap(
-            spacing: 20,
-            runSpacing: 20,
-            children: [
-              for (final e in [
-                (
-                  '我的收藏',
-                  '${number(user['favorite_post_count'])}',
-                  Icons.star_outline,
-                  'favorites',
-                ),
-                (
-                  '我的投稿',
-                  '${number(user['post_count'])}',
-                  Icons.edit_note_outlined,
-                  'manage',
-                ),
-                (
-                  '我的评论',
-                  '${number(user['comment_count'])}',
-                  Icons.chat_bubble_outline,
-                  'myComments',
-                ),
-                (
-                  '等级与积分',
-                  'Lv.${number(user['level'])}',
-                  Icons.auto_awesome_outlined,
-                  'logs',
-                ),
-              ])
-                SizedBox(
-                  width: 245,
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(22),
-                    onTap: () => openRoute(context, DeskRoute(e.$4, e.$1)),
-                    child: Surface(
-                      child: Row(
-                        children: [
-                          Icon(e.$3, color: violet),
-                          const SizedBox(width: 18),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                e.$2,
-                                style: const TextStyle(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                              const SizedBox(height: 7),
-                              Text(
-                                e.$1,
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 28),
-          Surface(
-            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-            child: Column(
-              children: [
-                for (final e in [
-                  (
-                    '通知',
-                    '查看作品、评论的回复与点赞',
-                    Icons.notifications_none,
-                    'notifications',
-                  ),
-                  ('独立私信', '与安装星屿并开通私信的用户交流', Icons.mail_outline, 'inbox'),
-                  ('阅读足迹', '继续上次的阅读', Icons.history_rounded, 'history'),
-                  (
-                    '本机草稿',
-                    '还没写完的故事，先留在这里',
-                    Icons.description_outlined,
-                    'drafts',
-                  ),
-                  (
-                    '设置',
-                    '个人资料、账号安全、阅读外观与更新',
-                    Icons.settings_outlined,
-                    'settings',
-                  ),
-                ])
-                  ListTile(
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 7,
-                    ),
-                    leading: Icon(e.$3, color: violet),
-                    title: Text(
-                      e.$1,
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                    subtitle: Padding(
-                      padding: const EdgeInsets.only(top: 5),
-                      child: Text(e.$2, style: const TextStyle(fontSize: 12)),
-                    ),
-                    trailing: const Icon(
-                      Icons.chevron_right,
-                      color: Colors.grey,
-                    ),
-                    onTap: () => openRoute(
-                      context,
-                      DeskRoute(
-                        e.$4,
-                        e.$1,
-                        filter: e.$4 == 'notifications' ? 'reply' : '',
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 25),
-          TextButton.icon(
-            onPressed: () async {
-              if (await confirm(
-                    context,
-                    '退出当前账号？',
-                    '会清除本机登录和聊天认证，保留本机阅读足迹与草稿。',
-                  ) &&
-                  context.mounted) {
-                MediaCache.clear();
-                await app.logout();
-              }
-            },
-            icon: const Icon(Icons.logout, size: 17),
-            label: const Text('退出登录'),
-          ),
-        ],
-      ),
-    );
+    return const AccountOverview();
   }
 }
 
@@ -309,6 +114,7 @@ class SocialListPage extends StatelessWidget {
               mine ? '我的评论' : '通知',
               mine ? '管理自己发布的评论，继续参与讨论。' : '与你有关的每一次回应。',
               trailing: IconButton(
+                tooltip: '刷新列表',
                 onPressed: reload,
                 icon: const Icon(Icons.refresh),
               ),
@@ -604,21 +410,35 @@ class SettingsPage extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Heading('检查更新', '仓库 · 星屿 Windows 客户端'),
+            Heading(
+              '检查更新',
+              isAndroid
+                  ? '仓库 · 星屿 Flutter 安卓测试版'
+                  : isMacOS
+                  ? '仓库 · 星屿 macOS 测试版'
+                  : '仓库 · 星屿 Windows 客户端',
+            ),
             Surface(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Icon(Icons.auto_awesome, size: 44, color: violet),
                   const SizedBox(height: 20),
-                  const Text(
-                    '星屿 $desktopVersion',
-                    style: TextStyle(fontSize: 25, fontWeight: FontWeight.w800),
+                  Text(
+                    '星屿 $clientVersion',
+                    style: const TextStyle(
+                      fontSize: 25,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                   const SizedBox(height: 12),
-                  const Text(
-                    'Flutter Desktop · Windows x64\n更新下载会校验来源、大小和SHA-256，解压后运行完整程序目录。',
-                    style: TextStyle(height: 1.8),
+                  Text(
+                    isAndroid
+                        ? 'Flutter Android · 独立测试版\n可与原版同时安装。测试包暂不连接正式更新通道，测试完成后再发布。'
+                        : isMacOS
+                        ? 'Flutter Desktop · macOS Apple Silicon\n本机测试版，暂不连接 Windows 或安卓更新通道。'
+                        : 'Flutter Desktop · Windows x64\n更新下载会校验来源、大小和SHA-256，解压后运行完整程序目录。',
+                    style: const TextStyle(height: 1.8),
                   ),
                   const SizedBox(height: 24),
                   FilledButton.icon(
@@ -647,10 +467,15 @@ class SettingsPage extends StatelessWidget {
                 for (final e in [
                   ('编辑个人资料', '昵称、简介、头像与背景', Icons.badge_outlined, 'profile'),
                   ('账号安全', '修改密码、更改绑定邮箱', Icons.shield_outlined, 'security'),
-                  ('阅读与外观', '深色模式、正文字号', Icons.palette_outlined, 'appearance'),
+                  (
+                    '阅读与外观',
+                    '主题、正文字号与分类页排版',
+                    Icons.palette_outlined,
+                    'appearance',
+                  ),
                   (
                     '检查更新',
-                    '当前版本 $desktopVersion',
+                    '当前版本 $clientVersion',
                     Icons.system_update_alt_outlined,
                     'updates',
                   ),
@@ -660,7 +485,7 @@ class SettingsPage extends StatelessWidget {
                       vertical: 10,
                       horizontal: 12,
                     ),
-                    leading: Icon(e.$3, color: violet),
+                    leading: IconBadge(e.$3),
                     title: Text(e.$1),
                     subtitle: Text(e.$2, style: const TextStyle(fontSize: 12)),
                     trailing: const Icon(Icons.chevron_right),
@@ -671,7 +496,41 @@ class SettingsPage extends StatelessWidget {
                     vertical: 10,
                     horizontal: 12,
                   ),
-                  leading: const Icon(Icons.bug_report_outlined, color: violet),
+                  leading: const IconBadge(Icons.storage_rounded),
+                  title: const Text('本地缓存'),
+                  subtitle: const Text(
+                    '缓存浏览内容、图片与清理空间',
+                    style: TextStyle(fontSize: 12),
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => showCacheSettings(context, app),
+                ),
+                ListTile(
+                  contentPadding: const EdgeInsets.symmetric(
+                    vertical: 10,
+                    horizontal: 12,
+                  ),
+                  leading: const IconBadge(Icons.tune_rounded),
+                  title: const Text('个人投稿习惯'),
+                  subtitle: const Text(
+                    '正文字号、行高与段落间距',
+                    style: TextStyle(fontSize: 12),
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => showSubmissionWorkbench(
+                    context,
+                    app: app,
+                    title: '',
+                    body: '',
+                    task: 'habits',
+                  ),
+                ),
+                ListTile(
+                  contentPadding: const EdgeInsets.symmetric(
+                    vertical: 10,
+                    horizontal: 12,
+                  ),
+                  leading: const IconBadge(Icons.bug_report_outlined),
                   title: const Text('诊断信息'),
                   subtitle: const Text(
                     '查看、复制和清空本机异常记录',

@@ -1,3 +1,7 @@
+import '../core/submission_workbench.dart';
+import 'submission_workbench.dart';
+import '../ui/submission_categories.dart';
+
 import 'dart:async';
 import 'dart:convert';
 
@@ -20,6 +24,7 @@ import '../ui/editor_templates.dart';
 import '../core/media.dart';
 import '../core/reader.dart';
 import '../core/state.dart';
+import '../core/platform.dart';
 import '../ui/shared.dart';
 import 'account.dart';
 import 'ai_assistant.dart';
@@ -74,7 +79,7 @@ class AuthoringPage extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Heading('本机草稿', '仅保存在当前电脑，按仓库账号隔离，不会自动提交网站。'),
+            const Heading('本机草稿', '仅保存在本机，按仓库账号隔离，不会自动提交网站。'),
             if (app.drafts.isEmpty) const Blank('还没有本机草稿', '在投稿编辑器中输入后会自动保存。'),
             for (final e in app.drafts.entries)
               Padding(
@@ -95,7 +100,7 @@ class AuthoringPage extends StatelessWidget {
                         if (await confirm(
                               context,
                               '删除本机草稿？',
-                              '只删除这台电脑上的草稿，不改动网站投稿。',
+                              '只删除本机草稿，不改动网站投稿。',
                               action: '删除',
                             ) &&
                             context.mounted) {
@@ -191,85 +196,127 @@ class AuthoringPage extends StatelessWidget {
                     horizontal: 17,
                     vertical: 13,
                   ),
-                  child: Row(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(Icons.article_outlined, color: violet),
-                      const SizedBox(width: 18),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              text(post['title']),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                              ),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: violet.withValues(alpha: .08),
+                              borderRadius: BorderRadius.circular(14),
                             ),
-                            const SizedBox(height: 9),
-                            Text(
-                              '${dateText(post['created_at'])}  ·  ${postStatuses[status]}',
-                              style: const TextStyle(
-                                fontSize: 11,
-                                color: Colors.grey,
-                              ),
+                            child: Icon(
+                              status == 'draft'
+                                  ? Icons.edit_note_rounded
+                                  : Icons.article_rounded,
+                              color: violet,
                             ),
-                            if (status == 'rejected')
-                              Text(
-                                '退回说明：${text(object(post['meta'])['reject_reason'], '请在编辑器或官网查看详细原因')}',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Theme.of(context).colorScheme.error,
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  text(post['title']),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  '${dateText(post['created_at'])}  ·  ${postStatuses[status]}',
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (status == 'rejected')
+                        Padding(
+                          padding: const EdgeInsets.only(top: 10),
+                          child: Text(
+                            '退回说明：${text(object(post['meta'])['reject_reason'], '请在编辑器或官网查看详细原因')}',
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.error,
+                            ),
+                          ),
+                        ),
+                      const SizedBox(height: 14),
+                      Wrap(
+                        spacing: 10,
+                        runSpacing: 8,
+                        children: [
+                          if (status != 'trash')
+                            FilledButton.tonalIcon(
+                              key: ValueKey('post.view.${post['id']}'),
+                              onPressed: () => openRoute(
+                                context,
+                                DeskRoute(
+                                  'article',
+                                  status == 'draft' ? '草稿预览' : '作品详情',
+                                  id: number(post['id']),
+                                  filter: status == 'publish'
+                                      ? ''
+                                      : 'private-preview',
                                 ),
                               ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 15),
-                      if (status != 'trash')
-                        TextButton(
-                          onPressed: () => openRoute(
-                            context,
-                            DeskRoute('editor', '编辑投稿', id: number(post['id'])),
-                          ),
-                          child: const Text('编辑'),
-                        ),
-                      if (status == 'publish')
-                        IconButton(
-                          onPressed: () => openRoute(
-                            context,
-                            DeskRoute(
-                              'article',
-                              '作品详情',
-                              id: number(post['id']),
+                              icon: Icon(
+                                status == 'draft'
+                                    ? Icons.preview_rounded
+                                    : Icons.visibility_rounded,
+                                size: 20,
+                              ),
+                              label: Text(status == 'draft' ? '查看草稿' : '查看作品'),
                             ),
-                          ),
-                          tooltip: '查看作品',
-                          icon: const Icon(Icons.open_in_new, size: 19),
-                        ),
-                      TextButton(
-                        onPressed: () async {
-                          if (!await confirm(
+                          if (status != 'trash')
+                            OutlinedButton.icon(
+                              onPressed: () => openRoute(
                                 context,
-                                status == 'trash' ? '恢复这篇投稿？' : '移入回收站？',
-                                text(post['title']),
-                              ) ||
-                              !context.mounted) {
-                            return;
-                          }
-                          await action(context, () async {
-                            await app.post(
+                                DeskRoute(
+                                  'editor',
+                                  '编辑投稿',
+                                  id: number(post['id']),
+                                ),
+                              ),
+                              icon: const Icon(Icons.edit_outlined, size: 18),
+                              label: const Text('编辑'),
+                            ),
+                          TextButton.icon(
+                            onPressed: () async {
+                              if (!await confirm(
+                                    context,
+                                    status == 'trash' ? '恢复这篇投稿？' : '移入回收站？',
+                                    text(post['title']),
+                                  ) ||
+                                  !context.mounted) {
+                                return;
+                              }
+                              await action(context, () async {
+                                await app.post(
+                                  status == 'trash'
+                                      ? 'post/restore'
+                                      : 'post/delete',
+                                  {'id': post['id']},
+                                );
+                                reload();
+                              }, success: '操作成功');
+                            },
+                            icon: Icon(
                               status == 'trash'
-                                  ? 'post/restore'
-                                  : 'post/delete',
-                              {'id': post['id']},
-                            );
-                            reload();
-                          }, success: '操作成功');
-                        },
-                        child: Text(status == 'trash' ? '恢复' : '回收站'),
+                                  ? Icons.restore_rounded
+                                  : Icons.delete_outline_rounded,
+                              size: 18,
+                            ),
+                            label: Text(status == 'trash' ? '恢复' : '回收站'),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -313,6 +360,7 @@ class _PostEditorState extends State<PostEditor> {
   int owner = 0;
   String guideKind = 'other';
   bool guideAiImages = false;
+  List<Json> sourceMaterials = [];
   String status = 'draft',
       oldStatus = 'draft',
       version = '',
@@ -391,6 +439,7 @@ class _PostEditorState extends State<PostEditor> {
       html = source['editor_mode'] == 'source';
       guideKind = text(source['guide_kind'], 'other');
       guideAiImages = source['guide_ai_images'] == true;
+      sourceMaterials = rows(source['source_materials']);
       visual.load(content.text);
       visual.onSourceChanged = visualChanged;
       visual.onEditError = (error) {
@@ -437,6 +486,7 @@ class _PostEditorState extends State<PostEditor> {
     'editor_mode': html ? 'source' : 'visual',
     'guide_kind': guideKind,
     'guide_ai_images': guideAiImages,
+    'source_materials': sourceMaterials,
     'editor_font_size': sourceFontSize.toInt(),
     'category_ids': categories.toList(),
     'version': version,
@@ -479,7 +529,7 @@ class _PostEditorState extends State<PostEditor> {
     super.dispose();
   }
 
-  String bodyHtml() => content.text;
+  String bodyHtml() => removeEmptyListPlaceholders(content.text);
   EditorSnapshot captureEdit() => EditorSnapshot(
     content.text,
     !html && visual.selection.isValid
@@ -958,15 +1008,46 @@ class _PostEditorState extends State<PostEditor> {
   Future<void> aiAssistant() async {
     if (busy) return;
     final app = stateOf(context), owner = stateOf(context).uid;
+    final before = content.text, selected = captureEdit();
     final result = await showAiAssistant(
       context,
+      editorTitle: title.text,
+      editorBody: before,
+      editorCover: thumb.text,
+      editorKind: guideKind,
+      editorAiImages: guideAiImages,
+      editorSources: sourceMaterials,
+      editorCategories: {...categories},
+      selection: selected,
+      postId: widget.route.id,
       proofPicker: widget.imagePicker,
     );
     if (!mounted || result == null || app.uid != owner) return;
+    if (content.text != before) {
+      message(context, '正文已变化，请重新打开助手，当前内容已保留');
+      return;
+    }
+    if (result.editingExisting) {
+      sourceMaterials = rows(result.draft.data['source_materials']);
+      if (result.draft.body != before) {
+        applyEdit(
+          EditorSnapshot(
+            result.draft.body,
+            result.draft.body.length,
+            result.draft.body.length,
+          ),
+        );
+        changed();
+      }
+      return;
+    }
+    sourceMaterials = rows(result.draft.data['source_materials']);
     final nextBody = result.body
         ? mergeSubmissionBody(
             content.text,
-            result.draft.body,
+            app.submissionHabits['enabled'] == true
+                ? applySubmissionHabits(result.draft.body, app.submissionHabits)
+                : result.draft.body,
             result.append,
             result.purchaseProof,
           )
@@ -995,199 +1076,477 @@ class _PostEditorState extends State<PostEditor> {
     changed();
   }
 
+  Widget mobileTools() => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      FilledButton.tonalIcon(
+        onPressed: busy ? null : aiAssistant,
+        icon: const Icon(Icons.auto_awesome_rounded),
+        label: const Text('AI 投稿助手'),
+      ),
+      const SizedBox(height: 10),
+      LayoutBuilder(
+        builder: (c, size) => Wrap(
+          spacing: 4,
+          runSpacing: 4,
+          children: [
+            for (final t in <(String, IconData, VoidCallback?)>[
+              (
+                '撤销',
+                Icons.undo_rounded,
+                editHistory?.canUndo == true ? () => undoEdit(false) : null,
+              ),
+              (
+                '重做',
+                Icons.redo_rounded,
+                editHistory?.canRedo == true ? () => undoEdit(true) : null,
+              ),
+              ('加粗', Icons.format_bold, () => wrap('<strong>', '</strong>')),
+              ('斜体', Icons.format_italic, () => wrap('<em>', '</em>')),
+              ('链接', Icons.link_rounded, insertLinkDialog),
+              ('上传图片', Icons.image_outlined, upload),
+              ('下载卡片', Icons.cloud_download_outlined, insertDownloadDialog),
+              ('更多排版', Icons.tune_rounded, moreMobileTools),
+            ])
+              SizedBox(
+                width: (size.maxWidth - 12) / 4,
+                child: Tooltip(
+                  message: t.$1,
+                  child: TextButton(
+                    onPressed: busy ? null : t.$3,
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 0,
+                        vertical: 8,
+                      ),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(t.$2, size: 22),
+                        const SizedBox(height: 4),
+                        Text(t.$1, style: const TextStyle(fontSize: 11)),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    ],
+  );
+
+  Future<void> moreMobileTools() => showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    builder: (sheet) => SafeArea(
+      child: SizedBox(
+        height: MediaQuery.sizeOf(sheet).height * .7,
+        child: Column(
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 0, 20, 12),
+              child: Text(
+                '排版与插入',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+              ),
+            ),
+            Expanded(
+              child: GridView.extent(
+                maxCrossAxisExtent: 120,
+                childAspectRatio: 1.25,
+                padding: const EdgeInsets.all(12),
+                mainAxisSpacing: 6,
+                crossAxisSpacing: 6,
+                children: [
+                  for (final t in <(String, IconData, VoidCallback)>[
+                    ('下划线', Icons.format_underlined, () => wrap('<u>', '</u>')),
+                    (
+                      '删除线',
+                      Icons.format_strikethrough,
+                      () => wrap('<del>', '</del>'),
+                    ),
+                    for (final n in [1, 2, 3])
+                      (
+                        '$n级标题',
+                        Icons.title_rounded,
+                        () => wrap('<h$n>', '</h$n>'),
+                      ),
+                    ('段落', Icons.notes_rounded, () => wrap('<p>', '</p>')),
+                    ('换行', Icons.keyboard_return_rounded, () => insert('<br>')),
+                    (
+                      '无序列表',
+                      Icons.format_list_bulleted,
+                      () => applyEdit(listMarkup(captureEdit(), false)),
+                    ),
+                    (
+                      '有序列表',
+                      Icons.format_list_numbered,
+                      () => applyEdit(listMarkup(captureEdit(), true)),
+                    ),
+                    (
+                      '引用',
+                      Icons.format_quote_rounded,
+                      () => wrap('<blockquote>', '</blockquote>'),
+                    ),
+                    (
+                      '网络图片',
+                      Icons.add_photo_alternate_outlined,
+                      () => insertLinkDialog(image: true),
+                    ),
+                    (
+                      '外部链接',
+                      Icons.open_in_browser_outlined,
+                      insertExternalDialog,
+                    ),
+                    ('表格', Icons.table_chart_outlined, () => extra('table')),
+                    (
+                      '行内代码',
+                      Icons.code_rounded,
+                      () => wrap('<code>', '</code>'),
+                    ),
+                    (
+                      '代码块',
+                      Icons.integration_instructions_outlined,
+                      showCodeDialog,
+                    ),
+                    (
+                      '分隔线',
+                      Icons.horizontal_rule_rounded,
+                      () => insert('\n<hr>\n'),
+                    ),
+                    ('正文字号', Icons.format_size, chooseFontSize),
+                    (
+                      '字体',
+                      Icons.font_download_outlined,
+                      () => extra('fontFamily'),
+                    ),
+                    (
+                      '段落行高',
+                      Icons.format_line_spacing,
+                      () => extra('lineHeight'),
+                    ),
+                    ('表情', Icons.emoji_emotions_outlined, () => extra('emoji')),
+                    (
+                      '特殊字符',
+                      Icons.insert_emoticon_outlined,
+                      () => extra('special'),
+                    ),
+                    ('彩虹文字', Icons.palette_outlined, () => extra('rainbow')),
+                    ('黑幕文字', Icons.rectangle_outlined, () => extra('blackbar')),
+                    (
+                      '折叠内容',
+                      Icons.unfold_less_rounded,
+                      () => extra('collapse'),
+                    ),
+                    (
+                      '随机文件名',
+                      Icons.shuffle_rounded,
+                      () => extra('randomFileName'),
+                    ),
+                    ('投票', Icons.poll_outlined, () => extra('poll')),
+                    (
+                      '抽奖',
+                      Icons.card_giftcard_outlined,
+                      () => extra('lottery'),
+                    ),
+                    ('文字颜色', Icons.format_color_text, () => chooseColor(false)),
+                    ('背景色', Icons.format_color_fill, () => chooseColor(true)),
+                    for (final align in [
+                      ('左对齐', 'left', Icons.format_align_left),
+                      ('居中', 'center', Icons.format_align_center),
+                      ('右对齐', 'right', Icons.format_align_right),
+                      ('两端对齐', 'justify', Icons.format_align_justify),
+                    ])
+                      (
+                        align.$1,
+                        align.$3,
+                        () =>
+                            wrap('<p style="text-align:${align.$2}">', '</p>'),
+                      ),
+                    ('上标', Icons.superscript, () => wrap('<sup>', '</sup>')),
+                    ('下标', Icons.subscript, () => wrap('<sub>', '</sub>')),
+                    (
+                      '增加缩进',
+                      Icons.format_indent_increase,
+                      () => applyEdit(indentSource(captureEdit(), false)),
+                    ),
+                    (
+                      '减少缩进',
+                      Icons.format_indent_decrease,
+                      () => applyEdit(indentSource(captureEdit(), true)),
+                    ),
+                    (
+                      '清除格式',
+                      Icons.format_clear,
+                      () => applyEdit(removeSelectionFormat(captureEdit())),
+                    ),
+                    ('查找替换', Icons.find_replace_rounded, findReplace),
+                    (
+                      '全选正文',
+                      Icons.select_all_rounded,
+                      () {
+                        final active = html ? content : visual;
+                        active.selection = TextSelection(
+                          baseOffset: 0,
+                          extentOffset: active.text.length,
+                        );
+                        contentFocus.requestFocus();
+                      },
+                    ),
+                    (
+                      '专注编辑',
+                      Icons.fullscreen_rounded,
+                      () => setState(() => focusedEditor = !focusedEditor),
+                    ),
+                    ('导出 HTML', Icons.file_download_outlined, exportPost),
+                    ('工具说明', Icons.help_outline_rounded, showEditorHelp),
+                    ('编辑字缩小', Icons.text_decrease, () => editorZoom(-1)),
+                    ('编辑字放大', Icons.text_increase, () => editorZoom(1)),
+                  ])
+                    TextButton(
+                      onPressed: () {
+                        Navigator.pop(sheet);
+                        t.$3();
+                      },
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(t.$2, size: 24),
+                          const SizedBox(height: 7),
+                          Text(
+                            t.$1,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+
   Widget toolbar() => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
-      Wrap(
-        spacing: 2,
-        runSpacing: 4,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: [
-          tool('AI 投稿助手', Icons.auto_awesome_outlined, aiAssistant),
-          tool('官网投稿规范检查', Icons.fact_check_outlined, checkSubmissionGuidance),
-          tool(
-            '撤销',
-            Icons.undo_rounded,
-            editHistory?.canUndo == true ? () => undoEdit(false) : null,
-          ),
-          tool(
-            '重做',
-            Icons.redo_rounded,
-            editHistory?.canRedo == true ? () => undoEdit(true) : null,
-          ),
-          tool(
-            '加粗',
-            Icons.format_bold,
-            () => wrap('<strong>', '</strong>', placeholder: '加粗文字'),
-          ),
-          tool(
-            '斜体',
-            Icons.format_italic,
-            () => wrap('<em>', '</em>', placeholder: '斜体文字'),
-          ),
-          tool('下划线', Icons.format_underlined, () => wrap('<u>', '</u>')),
-          tool(
-            '删除线',
-            Icons.format_strikethrough,
-            () => wrap('<del>', '</del>'),
-          ),
-          for (final size in [1, 2, 3])
+      if (MediaQuery.sizeOf(context).width < 700)
+        mobileTools()
+      else
+        Wrap(
+          spacing: 2,
+          runSpacing: 4,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
             Tooltip(
-              message: '$size级标题',
-              child: IconButton(
-                onPressed: busy
-                    ? null
-                    : () => wrap('<h$size>', '</h$size>', placeholder: '标题'),
-                icon: Text(
-                  'H$size',
-                  style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w700,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                style: IconButton.styleFrom(minimumSize: const Size(40, 40)),
+              message: 'AI 投稿助手',
+              child: FilledButton.tonalIcon(
+                onPressed: busy ? null : aiAssistant,
+                icon: const Icon(Icons.auto_awesome_rounded, size: 20),
+                label: const Text('AI 投稿助手'),
               ),
             ),
-          tool(
-            '段落',
-            Icons.notes_rounded,
-            () => wrap('<p>', '</p>', placeholder: '段落文字'),
-          ),
-          tool('插入换行', Icons.keyboard_return_rounded, () => insert('<br>')),
-          tool(
-            '无序列表',
-            Icons.format_list_bulleted,
-            () => applyEdit(listMarkup(captureEdit(), false)),
-          ),
-          tool(
-            '有序列表',
-            Icons.format_list_numbered,
-            () => applyEdit(listMarkup(captureEdit(), true)),
-          ),
-          tool(
-            '引用',
-            Icons.format_quote_rounded,
-            () => wrap('<blockquote>', '</blockquote>', placeholder: '引用文字'),
-          ),
-          tool('编辑/插入链接', Icons.link_rounded, insertLinkDialog),
-          tool('上传正文图片', Icons.image_outlined, upload),
-          tool(
-            '插入网络图片',
-            Icons.add_photo_alternate_outlined,
-            () => insertLinkDialog(image: true),
-          ),
-          tool('插入下载卡片模板', Icons.cloud_download_outlined, insertDownloadDialog),
-          tool('插入外部链接', Icons.open_in_browser_outlined, insertExternalDialog),
-          tool('插入表格', Icons.table_chart_outlined, () => extra('table')),
-          tool(
-            '行内代码',
-            Icons.code_rounded,
-            () => wrap('<code>', '</code>', placeholder: 'code'),
-          ),
-          tool(
-            '插入代码块',
-            Icons.integration_instructions_outlined,
-            showCodeDialog,
-          ),
-          tool(
-            '水平分隔线',
-            Icons.horizontal_rule_rounded,
-            () => insert('\n<hr>\n'),
-          ),
-          tool('正文字号', Icons.format_size, chooseFontSize),
-          tool('字体', Icons.font_download_outlined, () => extra('fontFamily')),
-          tool('段落行高', Icons.format_line_spacing, () => extra('lineHeight')),
-          tool('表情', Icons.emoji_emotions_outlined, () => extra('emoji')),
-          tool('特殊字符', Icons.insert_emoticon_outlined, () => extra('special')),
-          tool('彩虹文字', Icons.palette_outlined, () => extra('rainbow')),
-          tool('黑幕文字', Icons.rectangle_outlined, () => extra('blackbar')),
-          tool('折叠内容', Icons.unfold_less_rounded, () => extra('collapse')),
-          tool('随机文件名', Icons.shuffle_rounded, () => extra('randomFileName')),
-          tool('插入投票', Icons.poll_outlined, () => extra('poll')),
-          tool('插入抽奖', Icons.card_giftcard_outlined, () => extra('lottery')),
-          tool('文字颜色', Icons.format_color_text, () => chooseColor(false)),
-          tool('文字背景色', Icons.format_color_fill, () => chooseColor(true)),
-          tool(
-            '左对齐',
-            Icons.format_align_left,
-            () => wrap('<p style="text-align:left">', '</p>'),
-          ),
-          tool(
-            '居中',
-            Icons.format_align_center,
-            () => wrap('<p style="text-align:center">', '</p>'),
-          ),
-          tool(
-            '右对齐',
-            Icons.format_align_right,
-            () => wrap('<p style="text-align:right">', '</p>'),
-          ),
-          tool(
-            '两端对齐',
-            Icons.format_align_justify,
-            () => wrap('<p style="text-align:justify">', '</p>'),
-          ),
-          tool('上标', Icons.superscript, () => wrap('<sup>', '</sup>')),
-          tool('下标', Icons.subscript, () => wrap('<sub>', '</sub>')),
-          tool(
-            '增加缩进',
-            Icons.format_indent_increase,
-            () => applyEdit(indentSource(captureEdit(), false)),
-          ),
-          tool(
-            '减少缩进',
-            Icons.format_indent_decrease,
-            () => applyEdit(indentSource(captureEdit(), true)),
-          ),
-          tool('清除选区格式', Icons.format_clear, () {
-            if (captureEdit().a == captureEdit().b) {
-              message(context, '请先选择需要清除格式的正文');
-              return;
-            }
-            applyEdit(removeSelectionFormat(captureEdit()));
-          }),
-          tool(
-            'HTML特殊字符',
-            Icons.text_fields,
-            () => insert('&lt;标签&gt; &amp; 文本'),
-          ),
-          tool('插入当前日期', Icons.today_outlined, () {
-            final d = DateTime.now().toUtc().add(const Duration(hours: 8));
-            insert(
-              '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}',
-            );
-          }),
-          tool('查找与替换', Icons.find_replace_rounded, findReplace),
-          tool('全选正文', Icons.select_all_rounded, () {
-            final active = html ? content : visual;
-            active.selection = TextSelection(
-              baseOffset: 0,
-              extentOffset: active.text.length,
-            );
-            contentFocus.requestFocus();
-          }),
-          tool(
-            focusedEditor ? '退出专注编辑' : '专注编辑',
-            focusedEditor
-                ? Icons.fullscreen_exit_rounded
-                : Icons.fullscreen_rounded,
-            () => setState(() => focusedEditor = !focusedEditor),
-          ),
-          tool('打印/导出 HTML', Icons.print_outlined, exportPost),
-          tool('工具说明', Icons.help_outline_rounded, showEditorHelp),
-          tool(
-            '减小编辑字号',
-            Icons.text_decrease,
-            sourceFontSize > 10 ? () => editorZoom(-1) : null,
-          ),
-          tool(
-            '增大编辑字号',
-            Icons.text_increase,
-            sourceFontSize < 28 ? () => editorZoom(1) : null,
-          ),
-        ],
-      ),
+            tool(
+              '撤销',
+              Icons.undo_rounded,
+              editHistory?.canUndo == true ? () => undoEdit(false) : null,
+            ),
+            tool(
+              '重做',
+              Icons.redo_rounded,
+              editHistory?.canRedo == true ? () => undoEdit(true) : null,
+            ),
+            tool(
+              '加粗',
+              Icons.format_bold,
+              () => wrap('<strong>', '</strong>', placeholder: '加粗文字'),
+            ),
+            tool(
+              '斜体',
+              Icons.format_italic,
+              () => wrap('<em>', '</em>', placeholder: '斜体文字'),
+            ),
+            tool('下划线', Icons.format_underlined, () => wrap('<u>', '</u>')),
+            tool(
+              '删除线',
+              Icons.format_strikethrough,
+              () => wrap('<del>', '</del>'),
+            ),
+            for (final size in [1, 2, 3])
+              Tooltip(
+                message: '$size级标题',
+                child: IconButton(
+                  onPressed: busy
+                      ? null
+                      : () => wrap('<h$size>', '</h$size>', placeholder: '标题'),
+                  icon: Text(
+                    'H$size',
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  style: IconButton.styleFrom(minimumSize: const Size(40, 40)),
+                ),
+              ),
+            tool(
+              '段落',
+              Icons.notes_rounded,
+              () => wrap('<p>', '</p>', placeholder: '段落文字'),
+            ),
+            tool('插入换行', Icons.keyboard_return_rounded, () => insert('<br>')),
+            tool(
+              '无序列表',
+              Icons.format_list_bulleted,
+              () => applyEdit(listMarkup(captureEdit(), false)),
+            ),
+            tool(
+              '有序列表',
+              Icons.format_list_numbered,
+              () => applyEdit(listMarkup(captureEdit(), true)),
+            ),
+            tool(
+              '引用',
+              Icons.format_quote_rounded,
+              () => wrap('<blockquote>', '</blockquote>', placeholder: '引用文字'),
+            ),
+            tool('编辑/插入链接', Icons.link_rounded, insertLinkDialog),
+            tool('上传正文图片', Icons.image_outlined, upload),
+            tool(
+              '插入网络图片',
+              Icons.add_photo_alternate_outlined,
+              () => insertLinkDialog(image: true),
+            ),
+            tool(
+              '插入下载卡片模板',
+              Icons.cloud_download_outlined,
+              insertDownloadDialog,
+            ),
+            tool(
+              '插入外部链接',
+              Icons.open_in_browser_outlined,
+              insertExternalDialog,
+            ),
+            tool('插入表格', Icons.table_chart_outlined, () => extra('table')),
+            tool(
+              '行内代码',
+              Icons.code_rounded,
+              () => wrap('<code>', '</code>', placeholder: 'code'),
+            ),
+            tool(
+              '插入代码块',
+              Icons.integration_instructions_outlined,
+              showCodeDialog,
+            ),
+            tool(
+              '水平分隔线',
+              Icons.horizontal_rule_rounded,
+              () => insert('\n<hr>\n'),
+            ),
+            tool('正文字号', Icons.format_size, chooseFontSize),
+            tool('字体', Icons.font_download_outlined, () => extra('fontFamily')),
+            tool('段落行高', Icons.format_line_spacing, () => extra('lineHeight')),
+            tool('表情', Icons.emoji_emotions_outlined, () => extra('emoji')),
+            tool(
+              '特殊字符',
+              Icons.insert_emoticon_outlined,
+              () => extra('special'),
+            ),
+            tool('彩虹文字', Icons.palette_outlined, () => extra('rainbow')),
+            tool('黑幕文字', Icons.rectangle_outlined, () => extra('blackbar')),
+            tool('折叠内容', Icons.unfold_less_rounded, () => extra('collapse')),
+            tool('随机文件名', Icons.shuffle_rounded, () => extra('randomFileName')),
+            tool('插入投票', Icons.poll_outlined, () => extra('poll')),
+            tool('插入抽奖', Icons.card_giftcard_outlined, () => extra('lottery')),
+            tool('文字颜色', Icons.format_color_text, () => chooseColor(false)),
+            tool('文字背景色', Icons.format_color_fill, () => chooseColor(true)),
+            tool(
+              '左对齐',
+              Icons.format_align_left,
+              () => wrap('<p style="text-align:left">', '</p>'),
+            ),
+            tool(
+              '居中',
+              Icons.format_align_center,
+              () => wrap('<p style="text-align:center">', '</p>'),
+            ),
+            tool(
+              '右对齐',
+              Icons.format_align_right,
+              () => wrap('<p style="text-align:right">', '</p>'),
+            ),
+            tool(
+              '两端对齐',
+              Icons.format_align_justify,
+              () => wrap('<p style="text-align:justify">', '</p>'),
+            ),
+            tool('上标', Icons.superscript, () => wrap('<sup>', '</sup>')),
+            tool('下标', Icons.subscript, () => wrap('<sub>', '</sub>')),
+            tool(
+              '增加缩进',
+              Icons.format_indent_increase,
+              () => applyEdit(indentSource(captureEdit(), false)),
+            ),
+            tool(
+              '减少缩进',
+              Icons.format_indent_decrease,
+              () => applyEdit(indentSource(captureEdit(), true)),
+            ),
+            tool('清除选区格式', Icons.format_clear, () {
+              if (captureEdit().a == captureEdit().b) {
+                message(context, '请先选择需要清除格式的正文');
+                return;
+              }
+              applyEdit(removeSelectionFormat(captureEdit()));
+            }),
+            tool(
+              'HTML特殊字符',
+              Icons.text_fields,
+              () => insert('&lt;标签&gt; &amp; 文本'),
+            ),
+            tool('插入当前日期', Icons.today_outlined, () {
+              final d = DateTime.now().toUtc().add(const Duration(hours: 8));
+              insert(
+                '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}',
+              );
+            }),
+            tool('查找与替换', Icons.find_replace_rounded, findReplace),
+            tool('全选正文', Icons.select_all_rounded, () {
+              final active = html ? content : visual;
+              active.selection = TextSelection(
+                baseOffset: 0,
+                extentOffset: active.text.length,
+              );
+              contentFocus.requestFocus();
+            }),
+            tool(
+              focusedEditor ? '退出专注编辑' : '专注编辑',
+              focusedEditor
+                  ? Icons.fullscreen_exit_rounded
+                  : Icons.fullscreen_rounded,
+              () => setState(() => focusedEditor = !focusedEditor),
+            ),
+            tool('打印/导出 HTML', Icons.print_outlined, exportPost),
+            tool('工具说明', Icons.help_outline_rounded, showEditorHelp),
+            tool(
+              '减小编辑字号',
+              Icons.text_decrease,
+              sourceFontSize > 10 ? () => editorZoom(-1) : null,
+            ),
+            tool(
+              '增大编辑字号',
+              Icons.text_increase,
+              sourceFontSize < 28 ? () => editorZoom(1) : null,
+            ),
+          ],
+        ),
       const SizedBox(height: 10),
       Wrap(
         spacing: 12,
@@ -1220,7 +1579,9 @@ class _PostEditorState extends State<PostEditor> {
             onSelected: (v) => setState(() => preview = v),
           ),
           Text(
-            html ? '代码视图 · 直接编辑 HTML' : '正常模式 · 直接打字和插图，右键图片可编辑',
+            html
+                ? '代码视图 · 直接编辑 HTML'
+                : (isAndroid ? '正常模式 · 直接打字，长按图片编辑' : '正常模式 · 直接打字和插图，右键图片可编辑'),
             style: const TextStyle(fontSize: 11, color: violet),
           ),
           Text(
@@ -1358,7 +1719,7 @@ class _PostEditorState extends State<PostEditor> {
     context: context,
     builder: (c) => AlertDialog(
       title: const Text('投稿编辑工具'),
-      content: const SizedBox(
+      content: SizedBox(
         width: 600,
         child: SingleChildScrollView(
           child: Text(
@@ -1366,8 +1727,8 @@ class _PostEditorState extends State<PostEditor> {
             'HTML 源码：点击按钮切换代码视图。切换会保留原有图片、排版与网站组件；不支持直接显示的复杂组件会以卡片保留。\n\n'
             '资源：下载链接包含标题、上传时间、来源、提取码、解压码和多个地址；外部链接由官网解析为嵌入组件。表格卡片可点击编辑。\n\n'
             '扩展：表情、特殊字符、折叠内容、彩虹文字、黑幕文字、随机文件名、投票与抽奖。投票管理需要官网权限；创建前会再次确认。\n\n'
-            '撤销与重做支持工具栏和 Ctrl+Z / Ctrl+Shift+Z。Ctrl+B 加粗，Ctrl+I 斜体，Ctrl+U 下划线，Ctrl+F 查找替换。\n\n'
-            '实时预览可独立用鼠标滚轮查看长文章。专注编辑收起标题和投稿资料。打印会导出安全的 HTML 文件，并可在系统浏览器中按 Ctrl+P 打印。\n\n'
+            '撤销与重做支持工具栏和 $primaryModifierLabel+Z / $primaryModifierLabel+Shift+Z。$primaryModifierLabel+B 加粗，$primaryModifierLabel+I 斜体，$primaryModifierLabel+U 下划线，$primaryModifierLabel+F 查找替换。\n\n'
+            '实时预览可独立用鼠标滚轮查看长文章。专注编辑收起标题和投稿资料。打印会导出安全的 HTML 文件，并可在系统浏览器中按 $primaryModifierLabel+P 打印。\n\n'
             '本机草稿自动保存。只有点击提交并确认后才会提交网站。',
             style: TextStyle(height: 1.8),
           ),
@@ -1380,12 +1741,22 @@ class _PostEditorState extends State<PostEditor> {
   );
 
   Future<void> exportPost() async {
+    if (isAndroid) {
+      await action(context, () async {
+        final saved = await platformChannel.invokeMethod<bool>('saveHtml', {
+          'name': '星屿投稿.html',
+          'content': printablePost(title.text, content.text),
+        });
+        if (mounted && saved == true) message(context, '文章已导出');
+      });
+      return;
+    }
     final open = await showDialog<bool>(
       context: context,
       builder: (c) => AlertDialog(
         title: const Text('打印与导出'),
-        content: const Text(
-          '将当前标题和正文保存为 HTML 文件。选择“保存并打开”会用系统浏览器打开文件，再按 Ctrl+P 打印或另存为 PDF。',
+        content: Text(
+          '将当前标题和正文保存为 HTML 文件。选择“保存并打开”会用系统浏览器打开文件，再按 $primaryModifierLabel+P 打印或另存为 PDF。',
         ),
         actions: [
           TextButton(
@@ -1539,56 +1910,9 @@ class _PostEditorState extends State<PostEditor> {
 
   Future<void> selectCategories() async {
     if (app!.categories.isEmpty) await app!.loadCategories();
-    if (!mounted) return;
-    final selected = {...categories};
-    final list = <Json>[];
-    void flatten(List<Json> rows, String prefix) {
-      for (final c in rows) {
-        list.add({...c, '_label': '$prefix${text(c['name'])}'});
-        flatten(rowsFrom(c['children']), '$prefix    ');
-      }
-    }
-
-    flatten(app!.categories, '');
-    final yes = await showDialog<bool>(
-      context: context,
-      builder: (c) => StatefulBuilder(
-        builder: (c, set) => AlertDialog(
-          title: const Text('选择分类'),
-          content: SizedBox(
-            width: 450,
-            height: 500,
-            child: ListView(
-              children: [
-                for (final category in list)
-                  CheckboxListTile(
-                    value: selected.contains(number(category['id'])),
-                    title: Text(text(category['_label'])),
-                    onChanged: (v) => set(() {
-                      if (v == true) {
-                        selected.add(number(category['id']));
-                      } else {
-                        selected.remove(number(category['id']));
-                      }
-                    }),
-                  ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(c, false),
-              child: const Text('取消'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(c, true),
-              child: const Text('确定'),
-            ),
-          ],
-        ),
-      ),
-    );
-    if (yes == true && mounted) {
+    if (!mounted || app!.uid != owner) return;
+    final selected = await showSubmissionCategories(context, app!, categories);
+    if (selected != null && mounted && app!.uid == owner) {
       categories
         ..clear()
         ..addAll(selected);
@@ -1597,53 +1921,6 @@ class _PostEditorState extends State<PostEditor> {
   }
 
   List<Json> rowsFrom(dynamic value) => rows(value);
-  Future<void> checkSubmissionGuidance() async {
-    try {
-      final guide = await SubmissionGuidance.load();
-      if (app!.categories.isEmpty) {
-        try {
-          await app!.loadCategories();
-        } catch (_) {}
-      }
-      if (!mounted) return;
-      final report = guide.report(
-        guide.check(
-          title: title.text,
-          body: bodyHtml(),
-          selected: categories,
-          tree: app!.categories,
-          kind: guideKind,
-          aiImages: guideAiImages,
-        ),
-      );
-      await showDialog<void>(
-        context: context,
-        builder: (c) => AlertDialog(
-          title: const Text('官网投稿规范检查'),
-          content: SizedBox(
-            width: 680,
-            child: SingleChildScrollView(child: SelectableText(report)),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => launchUrl(
-                Uri.parse(guide.sourceUrl),
-                mode: LaunchMode.externalApplication,
-              ),
-              child: const Text('官网完整规则'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(c),
-              child: const Text('返回编辑'),
-            ),
-          ],
-        ),
-      );
-    } catch (_) {
-      if (mounted) message(context, '规则暂不可用，请对照官网投稿须知核对');
-    }
-  }
-
   Future<void> submit() async {
     if (busy) return;
     if (title.text.trim().isEmpty || content.text.trim().isEmpty) {
@@ -1672,6 +1949,14 @@ class _PostEditorState extends State<PostEditor> {
         tree: app!.categories,
         kind: guideKind,
         aiImages: guideAiImages,
+      );
+      issues.addAll(
+        extraPreflight(
+          title.text,
+          bodyHtml(),
+          cover: thumb.text,
+          sourceUrls: sourceMaterials.map((s) => text(s['url'])),
+        ).map((m) => GuideIssue('content.check', m)),
       );
       if (issues.isNotEmpty) {
         guideNote =
@@ -1786,14 +2071,22 @@ class _PostEditorState extends State<PostEditor> {
             unawaited(submit()),
       },
       child: PageBody(
-        padding: EdgeInsets.all(focusedEditor ? 12 : 32),
+        padding: EdgeInsets.all(
+          focusedEditor
+              ? 12
+              : MediaQuery.sizeOf(context).width < 700
+              ? 16
+              : 32,
+        ),
         width: focusedEditor ? 1800 : 1500,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Heading(
               widget.route.id == 0 ? '写下新的故事' : '继续你的创作',
-              '本机草稿自动保存 · Ctrl+S 保存本机 · Ctrl+Enter 提交确认',
+              isAndroid
+                  ? '本机草稿自动保存 · 支持正常模式与源码编辑'
+                  : '本机草稿自动保存 · $primaryModifierLabel+S 保存本机 · $primaryModifierLabel+Enter 提交确认',
               trailing: FilledButton.icon(
                 onPressed: busy ? null : submit,
                 icon: const Icon(Icons.publish_outlined, size: 18),
@@ -1905,36 +2198,21 @@ class _PostEditorState extends State<PostEditor> {
                     builder: (c, size) {
                       final editor = CallbackShortcuts(
                             bindings: {
-                              const SingleActivator(
-                                LogicalKeyboardKey.keyB,
-                                control: true,
-                              ): () =>
+                              primaryShortcut(LogicalKeyboardKey.keyB): () =>
                                   wrap('<strong>', '</strong>'),
-                              const SingleActivator(
-                                LogicalKeyboardKey.keyI,
-                                control: true,
-                              ): () =>
+                              primaryShortcut(LogicalKeyboardKey.keyI): () =>
                                   wrap('<em>', '</em>'),
-                              const SingleActivator(
-                                LogicalKeyboardKey.keyU,
-                                control: true,
-                              ): () =>
+                              primaryShortcut(LogicalKeyboardKey.keyU): () =>
                                   wrap('<u>', '</u>'),
-                              const SingleActivator(
-                                LogicalKeyboardKey.keyZ,
-                                control: true,
-                              ): () =>
+                              primaryShortcut(LogicalKeyboardKey.keyZ): () =>
                                   undoEdit(false),
-                              const SingleActivator(
+                              primaryShortcut(
                                 LogicalKeyboardKey.keyZ,
-                                control: true,
                                 shift: true,
                               ): () =>
                                   undoEdit(true),
-                              const SingleActivator(
-                                LogicalKeyboardKey.keyF,
-                                control: true,
-                              ): findReplace,
+                              primaryShortcut(LogicalKeyboardKey.keyF):
+                                  findReplace,
                             },
                             child: EditorImeAnchor(
                               focusNode: contentFocus,
@@ -1944,8 +2222,8 @@ class _PostEditorState extends State<PostEditor> {
                                 controller: html ? content : visual,
                                 focusNode: contentFocus,
                                 enabled: !busy,
-                                minLines: 21,
-                                maxLines: 45,
+                                minLines: isAndroid ? 10 : 21,
+                                maxLines: isAndroid ? 18 : 45,
                                 // Default EditableText forces every line to the
                                 // base font height, which overlaps tall widgets.
                                 strutStyle: html
@@ -1954,7 +2232,7 @@ class _PostEditorState extends State<PostEditor> {
                                 style: TextStyle(
                                   fontSize: sourceFontSize,
                                   height: 1.8,
-                                  fontFamily: html ? 'Consolas' : null,
+                                  fontFamily: html ? monoFont : null,
                                   fontFamilyFallback: [
                                     'Microsoft YaHei UI',
                                     'Microsoft YaHei',
@@ -2028,7 +2306,7 @@ class _PostEditorState extends State<PostEditor> {
             ),
             const SizedBox(height: 18),
             const Text(
-              '草稿只保存在当前电脑。上传图片和提交投稿都会写入网站，提交前请确认内容与权限。',
+              '草稿只保存在本机。上传图片和提交投稿都会写入网站，提交前请确认内容与权限。',
               style: TextStyle(fontSize: 11, color: Colors.grey, height: 1.8),
             ),
             const SizedBox(height: 25),

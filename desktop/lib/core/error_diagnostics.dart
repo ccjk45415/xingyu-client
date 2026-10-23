@@ -4,8 +4,8 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 
-import 'api.dart';
 import 'native_storage.dart';
+import 'platform.dart';
 
 /// Keeps bounded, private diagnostics. Never stores error messages or network data.
 class DiagnosticEntry {
@@ -130,8 +130,8 @@ class DiagnosticStore extends ChangeNotifier {
 
   String report() => [
     '星屿本机诊断',
-    'Version: $desktopVersion ($desktopBuild)',
-    'Engine: Flutter Desktop / Dart ${Platform.version.split('\n').first}',
+    'Version: $clientVersion ($clientBuild)',
+    'Engine: Flutter ${isAndroid ? 'Android' : 'Desktop'} / Dart ${Platform.version.split('\n').first}',
     'OS: ${Platform.operatingSystem} ${Platform.operatingSystemVersion}',
     '',
     '仅保存在本机，不自动上传。最近最多保留10条异常；不记录密码、会话、API Key、请求正文或异常消息。',

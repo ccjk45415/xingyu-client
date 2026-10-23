@@ -54,6 +54,7 @@ Future<Uint8List?> pickJpeg(BuildContext context) async {
       const XTypeGroup(
         label: '图片',
         extensions: ['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp'],
+        mimeTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/bmp'],
       ),
     ],
   );

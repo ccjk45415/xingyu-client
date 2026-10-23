@@ -36,7 +36,15 @@ Json translationRequest(
 Json builtinBodyOnlyRequest(Json original) {
   final wire = object(jsonDecode(jsonEncode(original)));
   wire['sources'] = rows(wire['sources'])
-      .map((s) => {...s, 'title': ''})
+      .map(
+        (s) => {
+          ...s,
+          'title': '',
+          'blocks': rows(s['blocks'])
+              .where((b) => b['kind'] != 'video')
+              .toList(),
+        },
+      )
       .toList();
   return wire;
 }
@@ -48,7 +56,7 @@ Json restoreOriginalSourceTitles(dynamic raw, Json request) {
   final extra = text(request['material']).trim().isEmpty ? 0 : 1;
   final expected = sources.fold<int>(
     extra,
-    (n, s) => n + rows(s['blocks']).length,
+    (n, s) => n + rows(s['blocks']).where((b) => b['kind'] != 'video').length,
   );
   if (sources.isEmpty ||
       result['blocks'] is! List ||
@@ -62,9 +70,18 @@ Json restoreOriginalSourceTitles(dynamic raw, Json request) {
     if (i > 0 && original.isNotEmpty) {
       restored.add({'kind': 'h2', 'text': original});
     }
-    final length = rows(sources[i]['blocks']).length + (i == 0 ? extra : 0);
-    restored.addAll(blocks.sublist(cursor, cursor + length));
-    cursor += length;
+    for (final block in rows(sources[i]['blocks'])) {
+      if (block['kind'] == 'video') {
+        restored.add({...block}); // immutable local media; never sent to AI
+      } else {
+        final translated = blocks[cursor++];
+        if (translated['kind'] != block['kind']) {
+          throw ApiFailure(502, '草稿段落对应失败，原素材已保留');
+        }
+        restored.add(block['kind'] == 'image' ? {...block} : translated);
+      }
+    }
+    if (i == 0 && extra > 0) restored.add(blocks[cursor++]);
   }
   return {...result, 'title': text(sources.first['title']), 'blocks': restored};
 }
@@ -96,7 +113,7 @@ class TranslationPlan {
       final s = sources[i];
       final blocks = rows(s['blocks']);
       for (var j = 0; j < blocks.length; j++) {
-        if (blocks[j]['kind'] != 'image' &&
+        if (!['image', 'video'].contains(blocks[j]['kind']) &&
             text(blocks[j]['text']).isNotEmpty) {
           add('$i:$j', text(blocks[j]['text']));
         }
@@ -134,7 +151,7 @@ class TranslationPlan {
       for (var j = 0; j < list.length; j++) {
         final b = list[j];
         blocks.add(
-          b['kind'] == 'image'
+          ['image', 'video'].contains(b['kind'])
               ? {...b}
               : {...b, 'text': translated('$i:$j', text(b['text']))},
         );
@@ -198,6 +215,19 @@ String orderedBody(List<Json> blocks) {
   const escape = HtmlEscape();
   for (final b in blocks) {
     final kind = text(b['kind']);
+    if (kind == 'video') {
+      final url = escape.convert(text(b['url']));
+      if (b['embed'] == true) {
+        out.write(
+          '<iframe src="$url" title="${escape.convert(text(b['title'], '作品视频'))}" allowfullscreen></iframe>\n',
+        );
+      } else {
+        out.write(
+          '<video controls muted playsinline preload="none" src="$url" poster="${escape.convert(text(b['poster']))}" data-source-url="${escape.convert(text(b['source_url']))}" title="${escape.convert(text(b['title'], '作品视频'))}"><a href="$url">查看原视频</a></video>\n',
+        );
+      }
+      continue;
+    }
     if (kind == 'image') {
       out.write(
         '<p><img src="${escape.convert(text(b['url']))}" alt="${escape.convert(text(b['alt']))}"></p>\n',

@@ -7,6 +7,7 @@ import 'package:html/parser.dart' as html;
 import 'api.dart';
 import 'source_document.dart';
 import 'translation.dart';
+import 'video_source.dart';
 
 const aiTypes = {
   'auto': '自动识别',
@@ -132,6 +133,7 @@ class AiDraft {
           .map((s) => text(s['cover']))
           .firstWhere((s) => s.startsWith('https://'), orElse: () => '');
   String get body {
+    if (data['organized_html'] is String) return text(data['organized_html']);
     String para(String s) => s
         .split(RegExp(r'\n+'))
         .where((s) => s.trim().isNotEmpty)
@@ -174,7 +176,7 @@ class AiDraft {
         throw ApiFailure(502, '译文结构错误');
       }
       for (final b in rows(d['blocks'])) {
-        if (b['kind'] == 'image') {
+        if (b['kind'] == 'image' || b['kind'] == 'video') {
           aiSourceUrl(text(b['url']));
         } else if (!['p', 'h2', 'h3', 'li', 'quote'].contains(b['kind']) ||
             b['text'] is! String) {
@@ -361,6 +363,41 @@ class AiTransport {
     _publicDns[host] = DateTime.now().add(const Duration(minutes: 1));
   }
 
+  Future<String> playableVideo(String raw) async {
+    var uri = aiSourceUrl(raw);
+    if (directVideoUrl(uri.toString())) return uri.toString();
+    for (var redirects = 0; redirects < 4; redirects++) {
+      await checkSourceHost(uri.host);
+      final request = await client
+          .getUrl(uri)
+          .timeout(const Duration(seconds: 20));
+      request.followRedirects = false;
+      request.headers.set('User-Agent', 'Mozilla/5.0 Xingyu-Public-Video/1');
+      final response = await request.close().timeout(
+        const Duration(seconds: 25),
+      );
+      if ([301, 302, 303, 307, 308].contains(response.statusCode)) {
+        final location = response.headers.value('location');
+        await response.drain<void>();
+        if (location == null) throw ApiFailure(502, '视频跳转无效');
+        uri = aiSourceUrl(uri.resolve(location).toString());
+        if (directVideoUrl(uri.toString())) return uri.toString();
+        continue;
+      }
+      if (response.statusCode != 200 ||
+          response.headers.contentType?.mimeType != 'text/html') {
+        await response.drain<void>();
+        throw ApiFailure(502, '视频暂时无法读取，请重试');
+      }
+      final bytes = await bounded(response, 2 * 1024 * 1024);
+      return playableVideoFromHtml(
+        const Utf8Decoder(allowMalformed: true).convert(bytes),
+        uri,
+      );
+    }
+    throw ApiFailure(502, '视频跳转过多');
+  }
+
   Future<Json> source(String raw) async {
     var uri = desktopSourceUri(aiSourceUrl(raw));
     final steam = uri.host == 'store.steampowered.com'
@@ -380,13 +417,7 @@ class AiTransport {
               )['data'],
             );
         if (text(d['name']).isNotEmpty) {
-          final source = parseSourceDocument(
-            text(d['detailed_description']),
-            uri,
-          );
-          source['title'] = text(d['name']);
-          source['cover'] = text(d['header_image']);
-          return source;
+          return parseSteamSource(d, uri);
         }
       } catch (_) {
         if (closed) rethrow;

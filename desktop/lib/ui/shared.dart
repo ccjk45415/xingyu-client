@@ -1,4 +1,8 @@
+import 'inline_video.dart';
+import 'cached_image.dart';
+
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
@@ -7,13 +11,70 @@ import 'package:flutter_widget_from_html_core/flutter_widget_from_html_core.dart
 import 'package:url_launcher/url_launcher.dart';
 
 import '../core/api.dart';
+import '../core/browse_cache.dart';
 import '../core/state.dart';
 import '../core/qr.dart';
 import '../core/error_diagnostics.dart';
+import '../core/platform.dart';
 
 const violet = Color(0xff8a6adb),
     pink = Color(0xffe797b7),
     ink = Color(0xff322c48);
+
+IconData pageIcon(String title) {
+  for (final entry in <(List<String>, IconData)>[
+    (['AI', '智能'], Icons.auto_awesome_rounded),
+    (['诊断'], Icons.bug_report_outlined),
+    (['安全', '密码', '邮箱'], Icons.shield_outlined),
+    (['外观', '阅读偏好'], Icons.palette_outlined),
+    (['更新'], Icons.system_update_alt_rounded),
+    (['设置'], Icons.tune_rounded),
+    (['通知'], Icons.notifications_none_rounded),
+    (['评论', '回复', '讨论'], Icons.chat_bubble_outline_rounded),
+    (['私信', '会话'], Icons.mail_outline_rounded),
+    (['聊天', '频道'], Icons.forum_outlined),
+    (['关注', '粉丝'], Icons.people_outline_rounded),
+    (['动态'], Icons.rss_feed_rounded),
+    (['分类'], Icons.dashboard_customize_outlined),
+    (['排行'], Icons.local_fire_department_outlined),
+    (['投稿', '草稿', '创作'], Icons.edit_note_rounded),
+    (['资料', '作者', '我的'], Icons.person_outline_rounded),
+    (['收藏'], Icons.bookmarks_outlined),
+    (['足迹', '记录', '历史'], Icons.history_rounded),
+    (['搜索'], Icons.manage_search_rounded),
+    (['下载'], Icons.download_rounded),
+    (['发现', '首页'], Icons.explore_outlined),
+  ]) {
+    if (entry.$1.any(title.contains)) return entry.$2;
+  }
+  return Icons.auto_stories_outlined;
+}
+
+class IconBadge extends StatelessWidget {
+  final IconData icon;
+  final double size;
+  const IconBadge(this.icon, {super.key, this.size = 44});
+  @override
+  Widget build(BuildContext context) => Container(
+    width: size,
+    height: size,
+    decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(size * .31),
+      gradient: LinearGradient(
+        colors: [violet.withValues(alpha: .14), pink.withValues(alpha: .13)],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
+      border: Border.all(color: violet.withValues(alpha: .1)),
+    ),
+    alignment: Alignment.center,
+    child: Icon(
+      icon,
+      size: size * .5,
+      color: Theme.of(context).colorScheme.primary,
+    ),
+  );
+}
 
 class DeskRoute {
   final String kind, title, query, filter;
@@ -54,7 +115,7 @@ void message(BuildContext c, String text) {
     SnackBar(
       content: Text(text),
       behavior: SnackBarBehavior.floating,
-      width: 480,
+      width: (MediaQuery.sizeOf(c).width - 32).clamp(0, 480),
     ),
   );
 }
@@ -178,8 +239,9 @@ Widget _image(String url, Widget fallback, {BoxFit fit = BoxFit.cover}) {
       child: Center(child: fallback),
     );
   }
-  return Image.network(
+  return CachedImage(
     url,
+    headers: const {'Referer': '$siteOrigin/'},
     fit: fit,
     cacheWidth: 1000,
     errorBuilder: (_, _, _) => ColoredBox(
@@ -223,13 +285,22 @@ class Surface extends StatelessWidget {
   Widget build(BuildContext context) => Material(
     color: color ?? Theme.of(context).colorScheme.surface,
     shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(22),
+      borderRadius: BorderRadius.circular(20),
       side: BorderSide(
         color: Theme.of(context).colorScheme.outlineVariant
             .withValues(alpha: .3),
       ),
     ),
-    child: Padding(padding: padding, child: child),
+    elevation: 1,
+    shadowColor: violet.withValues(alpha: .09),
+    child: Padding(
+      padding:
+          MediaQuery.sizeOf(context).width < 700 &&
+              padding == const EdgeInsets.all(24)
+          ? const EdgeInsets.all(16)
+          : padding,
+      child: child,
+    ),
   );
 }
 
@@ -251,8 +322,38 @@ class PageBody extends StatefulWidget {
 
 class _PageBodyState extends State<PageBody> {
   final owned = ScrollController();
+  // Nested carousels/grids must never overwrite the reading viewport offset.
+  final contentPositions = PageStorageBucket();
+  @override
+  void initState() {
+    super.initState();
+    (widget.controller ?? owned).addListener(rememberPosition);
+  }
+
+  @override
+  void didUpdateWidget(covariant PageBody oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.controller != widget.controller) {
+      (oldWidget.controller ?? owned).removeListener(rememberPosition);
+      (widget.controller ?? owned).addListener(rememberPosition);
+    }
+  }
+
+  void rememberPosition() {
+    final controller = widget.controller ?? owned;
+    if (!controller.keepScrollOffset || controller.positions.length != 1) {
+      return;
+    }
+    final position = controller.position;
+    if (!position.hasPixels) return;
+    final storageContext = position.context.storageContext;
+    PageStorage.maybeOf(storageContext)
+        ?.writeState(storageContext, position.pixels);
+  }
+
   @override
   void dispose() {
+    (widget.controller ?? owned).removeListener(rememberPosition);
     owned.dispose();
     super.dispose();
   }
@@ -264,13 +365,19 @@ class _PageBodyState extends State<PageBody> {
       thumbVisibility: true,
       controller: controller,
       child: SingleChildScrollView(
+        key: const PageStorageKey('page-body'),
         controller: controller,
-        padding: widget.padding,
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding:
+            MediaQuery.sizeOf(context).width < 700 &&
+                widget.padding == const EdgeInsets.all(32)
+            ? const EdgeInsets.all(16)
+            : widget.padding,
         child: Align(
           alignment: Alignment.topCenter,
           child: ConstrainedBox(
             constraints: BoxConstraints(maxWidth: widget.width),
-            child: widget.child,
+            child: PageStorage(bucket: contentPositions, child: widget.child),
           ),
         ),
       ),
@@ -283,35 +390,67 @@ class Heading extends StatelessWidget {
   final Widget? trailing;
   const Heading(this.title, this.subtitle, {super.key, this.trailing});
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 24),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: Theme.of(context).textTheme.headlineMedium
-                    ?.copyWith(fontWeight: FontWeight.w800),
-              ),
-              if (subtitle.isNotEmpty) ...[
-                const SizedBox(height: 8),
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final compact = constraints.maxWidth < 600;
+      final titleBlock = Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          IconBadge(pageIcon(title), size: compact ? 40 : 46),
+          const SizedBox(width: 13),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
                 Text(
-                  subtitle,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  title,
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    fontSize: compact ? 23 : 27,
+                    fontWeight: FontWeight.w800,
+                    height: 1.28,
+                    letterSpacing: -.35,
                   ),
                 ),
+                if (subtitle.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    subtitle,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      height: 1.6,
+                    ),
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
-        ),
-        ?trailing,
-      ],
-    ),
+        ],
+      );
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 24),
+        child: compact && trailing is! IconButton
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  titleBlock,
+                  if (trailing != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: trailing,
+                    ),
+                ],
+              )
+            : Row(
+                children: [
+                  Expanded(child: titleBlock),
+                  if (trailing != null) ...[
+                    const SizedBox(width: 18),
+                    trailing!,
+                  ],
+                ],
+              ),
+      );
+    },
   );
 }
 
@@ -335,11 +474,23 @@ class Blank extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 48, color: violet),
+            IconBadge(icon, size: 68),
             const SizedBox(height: 20),
-            Text(title, style: Theme.of(context).textTheme.titleLarge),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.titleLarge
+                  ?.copyWith(fontWeight: FontWeight.w700),
+            ),
             const SizedBox(height: 12),
-            Text(subtitle, textAlign: TextAlign.center),
+            Text(
+              subtitle,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                height: 1.65,
+              ),
+            ),
             if (button != null) ...[const SizedBox(height: 22), button!],
           ],
         ),
@@ -350,6 +501,10 @@ class Blank extends StatelessWidget {
 
 class AsyncPane extends StatefulWidget {
   final Object? refreshToken;
+
+  /// Only public browsing pages opt in. Private drafts/messages never enter it.
+  final String? cacheKey;
+  final bool articlePlaceholder;
   final Future<Json> Function() load;
   final Widget Function(Json, VoidCallback) builder;
   const AsyncPane({
@@ -357,51 +512,281 @@ class AsyncPane extends StatefulWidget {
     required this.load,
     required this.builder,
     this.refreshToken,
+    this.cacheKey,
+    this.articlePlaceholder = false,
   });
   @override
   State<AsyncPane> createState() => _AsyncPaneState();
 }
 
 class _AsyncPaneState extends State<AsyncPane> {
-  late Future<Json> future;
+  Json? shown;
+  Object? error;
+  bool busy = true, initialized = false;
+  int request = 0, owner = 0, accountGeneration = 0;
+  AppState? app;
+  String? get key => widget.cacheKey == null || owner <= 0
+      ? null
+      : 'pane:v1:$owner:${widget.cacheKey}';
+
   @override
-  void initState() {
-    super.initState();
-    future = widget.load();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final next = context.dependOnInheritedWidgetOfExactType<DeskScope>()?.app;
+    if (!initialized ||
+        next?.uid != app?.uid ||
+        owner != (next?.uid ?? 0) ||
+        accountGeneration != (next?.generation ?? 0)) {
+      app = next;
+      begin();
+    }
   }
 
   @override
   void didUpdateWidget(covariant AsyncPane oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.refreshToken != oldWidget.refreshToken) future = widget.load();
+    if (widget.refreshToken != oldWidget.refreshToken ||
+        widget.cacheKey != oldWidget.cacheKey) {
+      begin();
+    }
+  }
+
+  void begin({bool retain = false}) {
+    initialized = true;
+    owner = app?.uid ?? 0;
+    accountGeneration = app?.generation ?? 0;
+    busy = true;
+    error = null;
+    final snapshotKey = key;
+    if (!retain) {
+      final cached = snapshotKey == null
+          ? null
+          : BrowseCache.shared.peekJson(snapshotKey);
+      shown = cached == null ? null : {...cached, '_xingyu_cache': true};
+    }
+    final current = ++request, epoch = BrowseCache.shared.epoch;
+    unawaited(read(current, snapshotKey, epoch));
+  }
+
+  bool valid(int current) =>
+      mounted &&
+      current == request &&
+      (app == null ||
+          app!.uid == owner && app!.generation == accountGeneration);
+
+  Future<void> read(int current, String? snapshotKey, int epoch) async {
+    if (shown == null && snapshotKey != null) {
+      // Disk lookup and network run independently; a slow cache never delays fresh data.
+      unawaited(
+        BrowseCache.shared.json(snapshotKey).then((cached) {
+          if (valid(current) &&
+              busy &&
+              cached != null &&
+              epoch == BrowseCache.shared.epoch) {
+            setState(() => shown = {...cached, '_xingyu_cache': true});
+          }
+        }),
+      );
+    }
+    try {
+      final result = await runZoned(
+        widget.load,
+        zoneValues: {if (snapshotKey != null) browsingRevalidate: true},
+      );
+      if (!valid(current)) return;
+      if (snapshotKey != null &&
+          result['_xingyu_offline'] != true &&
+          epoch == BrowseCache.shared.epoch) {
+        unawaited(
+          BrowseCache.shared.putJson(snapshotKey, result, generation: epoch),
+        );
+      }
+      setState(() {
+        shown = result;
+        busy = false;
+        error = null;
+      });
+    } catch (failure, stack) {
+      unawaited(appDiagnostics.record(failure, stack, 'page-load'));
+      if (!valid(current)) return;
+      final transient =
+          failure is IOException ||
+          failure is TimeoutException ||
+          failure is ApiFailure && failure.status >= 500;
+      setState(() {
+        busy = false;
+        error = failure;
+        if (transient && shown != null) {
+          shown = {...shown!, '_xingyu_cache': true, '_xingyu_offline': true};
+        } else {
+          shown = null;
+        }
+      });
+    }
   }
 
   void reload() {
-    if (mounted) setState(() => future = widget.load());
+    if (!mounted || busy) return;
+    app?.refreshBrowsing();
+    setState(() => begin(retain: true));
   }
 
   @override
-  Widget build(BuildContext context) => FutureBuilder<Json>(
-    future: future,
-    builder: (c, snap) {
-      if (snap.hasError) {
-        return Blank(
-          '暂时没有连接上',
-          '${snap.error}',
-          icon: Icons.cloud_off_outlined,
-          button: FilledButton.tonalIcon(
-            onPressed: reload,
-            icon: const Icon(Icons.refresh),
-            label: const Text('重新加载'),
+  Widget build(BuildContext context) {
+    if (shown == null) {
+      if (error == null) {
+        if (widget.cacheKey != null || widget.articlePlaceholder) {
+          return LoadingLayout(article: widget.articlePlaceholder);
+        }
+        return Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.cloud_download_outlined,
+                size: 18,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: 10),
+              const Flexible(
+                child: Text('正在载入内容…', style: TextStyle(fontSize: 12)),
+              ),
+            ],
           ),
         );
       }
-      if (!snap.hasData) {
-        return const Center(child: CircularProgressIndicator(strokeWidth: 2));
-      }
-      return widget.builder(snap.data!, reload);
-    },
-  );
+      return Blank(
+        '暂时无法载入',
+        error is ApiFailure
+            ? (error as ApiFailure).message
+            : '请重试；如果问题持续，可在设置中复制诊断信息。',
+        icon: Icons.error_outline_rounded,
+        button: FilledButton.tonalIcon(
+          onPressed: reload,
+          icon: const Icon(Icons.refresh),
+          label: const Text('重新加载'),
+        ),
+      );
+    }
+    final content = widget.builder(shown!, reload);
+    final cached = shown!['_xingyu_cache'] == true;
+    if (widget.cacheKey == null && !cached) return content;
+    return Column(
+      children: [
+        SizedBox(
+          child: !cached
+              ? const SizedBox.shrink()
+              : Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 4,
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        shown!['_xingyu_offline'] == true
+                            ? Icons.cloud_off_outlined
+                            : Icons.offline_bolt_outlined,
+                        size: 15,
+                        color: violet,
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          shown!['_xingyu_offline'] == true
+                              ? '网络暂不可用，正在显示本机缓存'
+                              : busy
+                              ? '已显示上次内容 · 后台更新中'
+                              : '已从本机缓存载入',
+                          style: const TextStyle(fontSize: 11),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: busy ? null : reload,
+                        child: Text(busy ? '更新中' : '刷新'),
+                      ),
+                    ],
+                  ),
+                ),
+        ),
+        Expanded(child: content),
+      ],
+    );
+  }
+}
+
+/// Quiet, static placeholders keep navigation responsive on the first visit.
+class LoadingLayout extends StatelessWidget {
+  final bool article;
+  const LoadingLayout({super.key, this.article = false});
+  @override
+  Widget build(BuildContext context) {
+    final color = Theme.of(context).colorScheme.onSurface
+        .withValues(alpha: .055);
+    Widget block(double height, [double? width]) => Container(
+      height: height,
+      width: width,
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(12),
+      ),
+    );
+    return ExcludeSemantics(
+      child: PageBody(
+        key: const PageStorageKey('loading-placeholder'),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            block(article ? 38 : 28, 240),
+            const SizedBox(height: 14),
+            block(14, 170),
+            const SizedBox(height: 28),
+            if (article) ...[
+              block(200),
+              const SizedBox(height: 24),
+              for (var i = 0; i < 6; i++)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 14),
+                  child: block(14),
+                ),
+            ] else
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final columns = constraints.maxWidth < 600
+                      ? 2
+                      : constraints.maxWidth < 1000
+                      ? 3
+                      : 4;
+                  final width =
+                      (constraints.maxWidth - (columns - 1) * 16) / columns;
+                  return Wrap(
+                    spacing: 16,
+                    runSpacing: 24,
+                    children: [
+                      for (var i = 0; i < columns * 2; i++)
+                        SizedBox(
+                          width: width,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              block(width * .6),
+                              const SizedBox(height: 12),
+                              block(14),
+                              const SizedBox(height: 8),
+                              block(11, width * .6),
+                            ],
+                          ),
+                        ),
+                    ],
+                  );
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class Pagination extends StatelessWidget {
@@ -441,10 +826,12 @@ class Pagination extends StatelessWidget {
 
 class RichContent extends StatelessWidget {
   final String html;
+  final bool preloadVideos;
   final double? fontSize, maxImageHeight, maxImageWidth;
   const RichContent(
     this.html, {
     super.key,
+    this.preloadVideos = true,
     this.fontSize,
     this.maxImageHeight,
     this.maxImageWidth,
@@ -454,6 +841,7 @@ class RichContent extends StatelessWidget {
     html,
     textStyle: TextStyle(
       fontSize: fontSize ?? stateOf(context).fontSize,
+      color: Theme.of(context).colorScheme.onSurface,
       height: 1.85,
     ),
     onTapUrl: (url) async {
@@ -470,6 +858,40 @@ class RichContent extends StatelessWidget {
       }
     },
     customWidgetBuilder: (element) {
+      if (element.classes.contains('xingyu-video') ||
+          element.localName == 'video') {
+        final url =
+            element.attributes['data-url'] ??
+            element.attributes['src'] ??
+            element.querySelector('source')?.attributes['src'] ??
+            '';
+        if (!safeExternal(url) || Uri.tryParse(url)?.scheme != 'https') {
+          return const SizedBox.shrink();
+        }
+        return Align(
+          alignment: Alignment.centerLeft,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: maxImageWidth ?? 760),
+            child: InlineArticleVideo(
+              key: ValueKey('article-video:$url'),
+              url: url,
+              preload: preloadVideos,
+              sourceUrl:
+                  element.attributes['data-original'] ??
+                  element.attributes['data-source-url'] ??
+                  '',
+              poster:
+                  element.attributes['data-poster'] ??
+                  element.attributes['poster'] ??
+                  '',
+              title:
+                  element.attributes['data-title'] ??
+                  element.attributes['title'] ??
+                  '作品视频',
+            ),
+          ),
+        );
+      }
       if ([
         'script',
         'style',
@@ -552,7 +974,7 @@ class RichContent extends StatelessWidget {
             element.classes.contains('emoji') &&
                 uri.host == 'cangku.moe' &&
                 uri.path.startsWith('/images/stickers/');
-        final image = Image.network(
+        final image = CachedImage(
           url,
           headers: const {
             'Referer': '$siteOrigin/',
@@ -578,7 +1000,7 @@ class RichContent extends StatelessWidget {
             child: QrImageActions(
               url: url,
               child: Tooltip(
-                message: '点击查看原图 · 右键识别二维码',
+                message: isAndroid ? '点击查看原图 · 长按识别二维码' : '点击查看原图 · 右键识别二维码',
                 child: InkWell(
                   onTap: () => showImage(context, url: url),
                   child: image,
@@ -729,6 +1151,37 @@ class _QrImageActionsState extends State<QrImageActions> {
   @override
   Widget build(BuildContext context) => GestureDetector(
     behavior: HitTestBehavior.opaque,
+    onLongPress: busy
+        ? null
+        : () async {
+            final selected = await showModalBottomSheet<String>(
+              context: context,
+              showDragHandle: true,
+              builder: (c) => SafeArea(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ListTile(
+                      leading: const Icon(Icons.qr_code_scanner_rounded),
+                      title: const Text('识别二维码链接'),
+                      onTap: () => Navigator.pop(c, 'qr'),
+                    ),
+                    if (widget.url != null)
+                      ListTile(
+                        leading: const Icon(Icons.link_rounded),
+                        title: const Text('复制图片链接'),
+                        onTap: () => Navigator.pop(c, 'copy'),
+                      ),
+                  ],
+                ),
+              ),
+            );
+            if (!mounted) return;
+            if (selected == 'qr') await recognize();
+            if (selected == 'copy' && context.mounted) {
+              await copy(context, widget.url!);
+            }
+          },
     onSecondaryTapDown: (details) async {
       final overlay =
           Overlay.of(context).context.findRenderObject()! as RenderBox;
@@ -767,7 +1220,7 @@ Future<void> showImage(BuildContext c, {String? url, Uint8List? bytes}) =>
       barrierColor: Colors.black87,
       builder: (dialogContext) => Dialog(
         backgroundColor: Colors.transparent,
-        insetPadding: const EdgeInsets.all(40),
+        insetPadding: EdgeInsets.all(isAndroid ? 8 : 40),
         child: Stack(
           children: [
             Positioned.fill(
@@ -783,7 +1236,7 @@ Future<void> showImage(BuildContext c, {String? url, Uint8List? bytes}) =>
                   maxScale: 5,
                   child: bytes != null
                       ? Image.memory(bytes, fit: BoxFit.contain)
-                      : Image.network(
+                      : CachedImage(
                           url!,
                           fit: BoxFit.contain,
                           errorBuilder: (_, _, _) => Center(
@@ -811,7 +1264,7 @@ Future<void> showImage(BuildContext c, {String? url, Uint8List? bytes}) =>
               left: 10,
               child: IgnorePointer(
                 child: Text(
-                  '右键图片可识别二维码链接 · 滚轮缩放',
+                  isAndroid ? '长按识别二维码 · 双指缩放' : '右键图片可识别二维码链接 · 滚轮缩放',
                   style: TextStyle(color: Colors.white70),
                 ),
               ),
@@ -820,6 +1273,7 @@ Future<void> showImage(BuildContext c, {String? url, Uint8List? bytes}) =>
               top: 0,
               right: 0,
               child: IconButton.filledTonal(
+                tooltip: '关闭图片',
                 onPressed: () => Navigator.pop(c),
                 icon: const Icon(Icons.close),
               ),

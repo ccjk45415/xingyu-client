@@ -6,6 +6,8 @@ import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'api.dart';
+import 'browse_cache.dart';
+import 'following_feed.dart';
 
 class AppState extends ChangeNotifier {
   final SiteApi site;
@@ -20,6 +22,11 @@ class AppState extends ChangeNotifier {
   Directory? directory;
   int generation = 0, socialRevision = 0;
   final Map<int, Json> authorCache = {};
+  late final FollowingFeedStore followingFeed = FollowingFeedStore(
+    get: get,
+    social: (path) => social(path),
+    active: () => verified && uid > 0,
+  );
   VoidCallback? onLogout;
   bool _syncing = false;
   DateTime _checkedProfile = DateTime(2000);
@@ -43,12 +50,16 @@ class AppState extends ChangeNotifier {
     try {
       directory = await getApplicationSupportDirectory();
       await directory!.create(recursive: true);
+      BrowseCache.shared.directory = Directory(
+        '${directory!.path}/browse-cache',
+      );
       final file = File('${directory!.path}/library.json');
       if (await file.exists() && await file.length() < 8 * 1024 * 1024) {
         try {
           local = object(jsonDecode(await file.readAsString()));
         } catch (_) {}
       }
+      BrowseCache.shared.enabled = local['cacheEnabled'] != false;
       dark = local['dark'] == true;
       fontSize = (local['fontSize'] as num?)?.toDouble().clamp(13, 26) ?? 17;
       if (await site.restore()) {
@@ -78,6 +89,7 @@ class AppState extends ChangeNotifier {
 
   Future<void> login(String account, String password, bool keep) async {
     final result = await site.login(account.trim(), password, keep);
+    followingFeed.clear();
     user = result;
     generation++;
     await loadIdentity();
@@ -110,18 +122,96 @@ class AppState extends ChangeNotifier {
     } catch (_) {}
   }
 
-  Future<Json> get(String path, [Map<String, dynamic>? params]) async {
+  final Map<String, Future<Json>> _browsingFlights = {};
+
+  DateTime bypassCacheUntil = DateTime(2000);
+  void refreshBrowsing() {
+    bypassCacheUntil = DateTime.now().add(const Duration(seconds: 3));
+  }
+
+  Future<Json> get(String path, [Map<String, dynamic>? params]) {
+    if (!cacheableRead(path, params)) return _read(path, params);
+    final key =
+        '$generation:${browsingKey(uid, path, params)}:${Zone.current[browsingRevalidate] == true || DateTime.now().isBefore(bypassCacheUntil)}';
+    final previous = _browsingFlights[key];
+    if (previous != null) return previous;
+    late final Future<Json> flight;
+    flight = _read(path, params).whenComplete(() {
+      if (identical(_browsingFlights[key], flight)) {
+        _browsingFlights.remove(key);
+      }
+    });
+    _browsingFlights[key] = flight;
+    return flight;
+  }
+
+  Future<Json> _read(String path, Map<String, dynamic>? params) async {
+    final account = uid,
+        current = generation,
+        cacheEpoch = BrowseCache.shared.epoch;
+    final cacheable = account > 0 && cacheableRead(path, params);
+    final key = browsingKey(account, path, params);
+    final force =
+        Zone.current[browsingRevalidate] == true ||
+        DateTime.now().isBefore(bypassCacheUntil);
+    if (cacheable && !force) {
+      final cached = await BrowseCache.shared.json(
+        key,
+        maxAge: path == 'category/list'
+            ? const Duration(days: 1)
+            : const Duration(minutes: 5),
+      );
+      if (cached != null && account == uid && current == generation) {
+        return {...cached, '_xingyu_cache': true};
+      }
+    }
     try {
-      return await site.get(path, params);
+      final value = await site.get(path, params);
+      if (uid != account || generation != current) {
+        throw ApiFailure(409, '账号已切换');
+      }
+      if (cacheable) {
+        unawaited(
+          BrowseCache.shared.putJson(key, value, generation: cacheEpoch),
+        );
+      }
+      return value;
     } on ApiFailure catch (e) {
       if ([301, 302, 303, 401, 419].contains(e.status)) await logout();
+      if (cacheable &&
+          e.status >= 500 &&
+          uid == account &&
+          generation == current) {
+        final old = await BrowseCache.shared.json(key);
+        if (old != null && uid == account && generation == current) {
+          return {...old, '_xingyu_cache': true, '_xingyu_offline': true};
+        }
+      }
+      rethrow;
+    } on IOException {
+      if (cacheable && uid == account && generation == current) {
+        final old = await BrowseCache.shared.json(key);
+        if (old != null && uid == account && generation == current) {
+          return {...old, '_xingyu_cache': true, '_xingyu_offline': true};
+        }
+      }
+      rethrow;
+    } on TimeoutException {
+      if (cacheable && uid == account && generation == current) {
+        final old = await BrowseCache.shared.json(key);
+        if (old != null && uid == account && generation == current) {
+          return {...old, '_xingyu_cache': true, '_xingyu_offline': true};
+        }
+      }
       rethrow;
     }
   }
 
   Future<Json> post(String path, Json body) async {
     try {
-      return await site.post(path, body);
+      final value = await site.post(path, body);
+      refreshBrowsing();
+      return value;
     } on ApiFailure catch (e) {
       if ([301, 302, 303, 401, 419].contains(e.status)) await logout();
       rethrow;
@@ -140,6 +230,7 @@ class AppState extends ChangeNotifier {
           uid == owner &&
           generation == current &&
           token == secret) {
+        followingFeed.clear();
         identity = null;
         await site.storage.delete(key: 'chat.$owner');
         notifyListeners();
@@ -149,6 +240,7 @@ class AppState extends ChangeNotifier {
   }
 
   void socialChanged() {
+    followingFeed.clear();
     socialRevision++;
     notifyListeners();
   }
@@ -226,6 +318,7 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> logout() async {
+    followingFeed.clear();
     onLogout?.call();
     final owner = uid, secret = token;
     generation++;
@@ -245,6 +338,7 @@ class AppState extends ChangeNotifier {
   }
 
   void expireIdentity() {
+    followingFeed.clear();
     identity = null;
     notifyListeners();
   }
@@ -263,6 +357,23 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> _writes = Future.value();
+  Json get submissionHabits =>
+      object(object(local['submissionHabits'])['$uid']);
+  Future<void> setSubmissionHabits(Json value) async {
+    final all = object(local['submissionHabits']);
+    all['$uid'] = value;
+    local['submissionHabits'] = all;
+    await persist();
+    notifyListeners();
+  }
+
+  Future<void> setCacheEnabled(bool enabled) async {
+    BrowseCache.shared.enabled = enabled;
+    local['cacheEnabled'] = enabled;
+    await persist();
+    notifyListeners();
+  }
+
   Future<void> setDark(bool value) async {
     dark = value;
     notifyListeners();

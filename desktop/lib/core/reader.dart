@@ -3,6 +3,28 @@ import 'dart:convert';
 import 'package:html/parser.dart' as html;
 
 import 'api.dart';
+import 'html_cleanup.dart';
+
+/// Empty list scaffolding can remain after deleting all visible rich text.
+/// Keep real list text, links, media and opaque components, including code examples.
+String removeEmptyListPlaceholders(String source) =>
+    removeEmptyEditingMarkup(source);
+
+String readerVideoMarkup(String source) => source.replaceAllMapped(
+  RegExp(r'<(video|iframe)\b[^>]*>[\s\S]*?</\1\s*>', caseSensitive: false),
+  (match) {
+    final node = html.parseFragment(match[0]!).children.firstOrNull;
+    final url =
+        node?.attributes['src'] ??
+        node?.querySelector('source')?.attributes['src'] ??
+        '';
+    if (!safeExternal(url) || Uri.tryParse(url)?.scheme != 'https') return '';
+    const escape = HtmlEscape();
+    final poster = node?.attributes['poster'] ?? '';
+    final original = node?.attributes['data-source-url'] ?? '';
+    return '<div class="xingyu-video" data-url="${escape.convert(url)}" data-poster="${escape.convert(poster)}" data-original="${escape.convert(original)}" data-title="${escape.convert(node?.attributes['title'] ?? '作品视频')}"><a href="${escape.convert(url)}">▶ 查看作品视频</a></div>';
+  },
+);
 
 class ResourceBox {
   final String title, info, time, from;
@@ -40,7 +62,7 @@ class ReaderDocument {
         return '$marker${protected.length - 1}_END';
       },
     );
-    var result = prepared
+    var result = readerVideoMarkup(removeEmptyEditingMarkup(prepared))
         .replaceAllMapped(
           RegExp(
             r'\[dlbox\s*([^\]]*)\](?:[\s\S]*?\[/dlbox\])?',
@@ -92,6 +114,22 @@ class ReaderDocument {
           (m) {
             final url = html.parseFragment(m[1]!).text?.trim() ?? '';
             const e = HtmlEscape();
+            final media = Uri.tryParse(url);
+            final video =
+                [
+                  'chobit.cc',
+                  'www.chobit.cc',
+                  'www.youtube.com',
+                  'youtu.be',
+                  'www.bilibili.com',
+                ].contains(media?.host) ||
+                RegExp(
+                  r'\.(mp4|webm|m3u8|mpd)$',
+                  caseSensitive: false,
+                ).hasMatch(media?.path ?? '');
+            if (video && safeExternal(url) && media?.scheme == 'https') {
+              return '<div class="xingyu-video" data-url="${e.convert(url)}" data-title="作品视频"><a href="${e.convert(url)}">▶ 查看作品视频</a></div>';
+            }
             return safeExternal(url) &&
                     ['http', 'https'].contains(Uri.tryParse(url)?.scheme)
                 ? '<div class="xingyu-external"><p><strong>外部内容</strong></p><p><a href="${e.convert(url)}">${e.convert(url)}</a></p><p>在系统浏览器打开</p></div>'

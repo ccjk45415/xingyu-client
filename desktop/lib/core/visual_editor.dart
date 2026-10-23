@@ -1,3 +1,5 @@
+import '../ui/cached_image.dart';
+
 import 'dart:convert';
 import 'dart:ui' as ui;
 
@@ -5,6 +7,8 @@ import 'package:flutter/material.dart';
 import 'package:html/parser.dart' as parser;
 
 import 'api.dart' show desktopVersion;
+import 'platform.dart';
+import 'html_cleanup.dart';
 
 /// A native editable projection of the original HTML, not a HTML serializer.
 /// Hidden tags, attributes, comments and opaque website components remain in
@@ -125,6 +129,7 @@ class VisualHtmlController extends TextEditingController {
       raw = raw.replaceRange(range.a, range.b, '');
     }
     raw = raw.replaceRange(at, at, markup);
+    if (b > a) raw = removeEmptyEditingMarkup(raw);
     if (raw.length > 1000000) {
       onEditError?.call('正文请控制在100万字符以内，已保留修改前的内容');
       return;
@@ -152,7 +157,7 @@ class VisualHtmlController extends TextEditingController {
   void _parse() {
     _atoms.clear();
     final tokens = RegExp(
-      r'''\[(?:dlbox|iframe|collapse|poll|lottery)\b[^\]]*\][\s\S]*?\[/(?:dlbox|iframe|collapse|poll|lottery)\]|<(?:script|style|iframe|svg|table)\b[^>]*>[\s\S]*?</(?:script|style|iframe|svg|table)\s*>|<!--[\s\S]*?-->|<(?:[^<>"']|"[^"]*"|'[^']*')*>''',
+      r'''\[(?:dlbox|iframe|collapse|poll|lottery)\b[^\]]*\][\s\S]*?\[/(?:dlbox|iframe|collapse|poll|lottery)\]|<(?:script|style|iframe|video|audio|svg|table)\b[^>]*>[\s\S]*?</(?:script|style|iframe|video|audio|svg|table)\s*>|<!--[\s\S]*?-->|<(?:[^<>"']|"[^"]*"|'[^']*')*>''',
       caseSensitive: false,
     );
     final stack = <({String tag, TextStyle style})>[];
@@ -189,7 +194,7 @@ class VisualHtmlController extends TextEditingController {
       }
       if (raw.startsWith('[') ||
           RegExp(
-            r'^<(script|style|iframe|svg|table)\b',
+            r'^<(script|style|iframe|video|audio|svg|table)\b',
             caseSensitive: false,
           ).hasMatch(raw)) {
         final label = raw.startsWith('[dlbox')
@@ -305,6 +310,10 @@ class VisualHtmlController extends TextEditingController {
     required bool withComposing,
   }) {
     final spans = <InlineSpan>[];
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final embedWidth = screenWidth < 700
+        ? (screenWidth - 112).clamp(100.0, 280.0)
+        : 280.0;
     final buffer = StringBuffer();
     TextStyle? runStyle;
     void flush() {
@@ -326,61 +335,66 @@ class VisualHtmlController extends TextEditingController {
         spans.add(
           WidgetSpan(
             alignment: PlaceholderAlignment.middle,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 3),
-              child: validImage
-                  ? GestureDetector(
-                      onSecondaryTap: () => onImageEdit?.call(
-                        atom.start,
-                        atom.end,
-                        source.substring(atom.start, atom.end),
-                      ),
-                      onLongPress: () => onImageEdit?.call(
-                        atom.start,
-                        atom.end,
-                        source.substring(atom.start, atom.end),
-                      ),
-                      child: Tooltip(
-                        message: '右键编辑图片 · 地址、说明、尺寸或移除',
-                        child: SizedBox(
-                          width: 280,
-                          height: 180,
-                          child: ImageFiltered(
-                            imageFilter: ui.ImageFilter.blur(
-                              sigmaX: atom.blurred ? 8 : 0,
-                              sigmaY: atom.blurred ? 8 : 0,
-                            ),
-                            child: Image.network(
-                              atom.image!,
-                              headers: const {
-                                'Referer': 'https://cangku.moe/',
-                                'User-Agent':
-                                    'Mozilla/5.0 XingyuDesktop/$desktopVersion',
-                              },
-                              fit: BoxFit.contain,
-                              errorBuilder: (_, _, _) => _card(
-                                '图片暂时无法加载 · 地址已保留',
-                                Icons.image_outlined,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: embedWidth + 6),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 3),
+                child: validImage
+                    ? GestureDetector(
+                        onSecondaryTap: () => onImageEdit?.call(
+                          atom.start,
+                          atom.end,
+                          source.substring(atom.start, atom.end),
+                        ),
+                        onLongPress: () => onImageEdit?.call(
+                          atom.start,
+                          atom.end,
+                          source.substring(atom.start, atom.end),
+                        ),
+                        child: Tooltip(
+                          message: isAndroid
+                              ? '长按编辑图片 · 地址、说明、尺寸或移除'
+                              : '右键编辑图片 · 地址、说明、尺寸或移除',
+                          child: SizedBox(
+                            width: embedWidth,
+                            height: embedWidth * 180 / 280,
+                            child: ImageFiltered(
+                              imageFilter: ui.ImageFilter.blur(
+                                sigmaX: atom.blurred ? 8 : 0,
+                                sigmaY: atom.blurred ? 8 : 0,
+                              ),
+                              child: CachedImage(
+                                atom.image!,
+                                headers: const {
+                                  'Referer': 'https://cangku.moe/',
+                                  'User-Agent':
+                                      'Mozilla/5.0 XingyuDesktop/$desktopVersion',
+                                },
+                                fit: BoxFit.contain,
+                                errorBuilder: (_, _, _) => _card(
+                                  '图片暂时无法加载 · 地址已保留',
+                                  Icons.image_outlined,
+                                ),
                               ),
                             ),
                           ),
                         ),
-                      ),
-                    )
-                  : GestureDetector(
-                      onTap: () => onComponentEdit?.call(
-                        atom.start,
-                        atom.end,
-                        source.substring(atom.start, atom.end),
-                      ),
-                      child: Tooltip(
-                        message: '点击编辑组件；选中后可删除',
-                        child: _card(
-                          atom.label ?? '网站组件',
-                          Icons.widgets_outlined,
+                      )
+                    : GestureDetector(
+                        onTap: () => onComponentEdit?.call(
+                          atom.start,
+                          atom.end,
+                          source.substring(atom.start, atom.end),
+                        ),
+                        child: Tooltip(
+                          message: '点击编辑组件；选中后可删除',
+                          child: _card(
+                            atom.label ?? '网站组件',
+                            Icons.widgets_outlined,
+                          ),
                         ),
                       ),
-                    ),
+              ),
             ),
           ),
         );
@@ -407,7 +421,14 @@ Widget _card(String label, IconData icon) => DecoratedBox(
       children: [
         Icon(icon, size: 19, color: const Color(0xff8864ca)),
         const SizedBox(width: 9),
-        Text(label, style: const TextStyle(fontSize: 12)),
+        Flexible(
+          child: Text(
+            label,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 12),
+          ),
+        ),
       ],
     ),
   ),

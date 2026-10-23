@@ -10,16 +10,36 @@ import '../ui/shared.dart';
 
 class ArticlePage extends StatelessWidget {
   final int id;
-  const ArticlePage(this.id, {super.key});
+  final bool ownerOnly;
+  const ArticlePage(this.id, {super.key, this.ownerOnly = false});
   @override
   Widget build(BuildContext context) {
-    final app = stateOf(context);
+    final app = stateOf(context), owner = app.uid, generation = app.generation;
     return AsyncPane(
-      load: () => app.get('post/info', {
-        'id': id,
-        'include': 'user,tags,categories,favorited,upvoted',
-      }),
+      cacheKey: ownerOnly ? null : 'article:$id',
+      articlePlaceholder: true,
+      load: () async {
+        if (ownerOnly && owner <= 0) throw ApiFailure(401, '请先登录草稿所属账号');
+        final result = await app.get('post/info', {
+          'id': id,
+          'include': ownerOnly
+              ? 'user,tags,categories'
+              : 'user,tags,categories,favorited,upvoted',
+          if (ownerOnly) 'exclude_view': 1,
+        });
+        final post = object(result['data']);
+        if (ownerOnly &&
+            (app.uid != owner ||
+                app.generation != generation ||
+                number(post['user_id']) != owner)) {
+          throw ApiFailure(403, '仅作者本人可以查看这篇草稿');
+        }
+        return result;
+      },
       builder: (result, reload) {
+        if (ownerOnly && (app.uid != owner || app.generation != generation)) {
+          return const Center(child: Text('账号已切换，请重新打开草稿'));
+        }
         final post = object(result['data']),
             author = object(post['user']),
             document = ReaderDocument.parse(text(post['content']));
@@ -29,6 +49,28 @@ class ArticlePage extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                if (ownerOnly)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 18),
+                    child: Surface(
+                      color: violet.withValues(alpha: .07),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.lock_outline_rounded, color: violet),
+                          const SizedBox(width: 10),
+                          const Expanded(child: Text('作者专属预览 · 未公开内容仅本人可见')),
+                          TextButton.icon(
+                            onPressed: () => openRoute(
+                              context,
+                              DeskRoute('editor', '编辑投稿', id: id),
+                            ),
+                            icon: const Icon(Icons.edit_outlined, size: 18),
+                            label: const Text('继续编辑'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
@@ -92,19 +134,22 @@ class ArticlePage extends StatelessWidget {
                         ],
                       ),
                     ),
-                    FavoriteButton(post),
-                    const SizedBox(width: 8),
-                    IconButton(
-                      tooltip: '复制作品链接',
-                      onPressed: () =>
-                          copy(context, '$siteOrigin/archives/$id'),
-                      icon: const Icon(Icons.ios_share_rounded),
-                    ),
+                    if (!ownerOnly) FavoriteButton(post),
+                    if (!ownerOnly) const SizedBox(width: 8),
+                    if (!ownerOnly)
+                      IconButton(
+                        tooltip: '复制作品链接',
+                        onPressed: () =>
+                            copy(context, '$siteOrigin/archives/$id'),
+                        icon: const Icon(Icons.ios_share_rounded),
+                      ),
                   ],
                 ),
                 const SizedBox(height: 30),
                 Surface(
-                  padding: const EdgeInsets.all(36),
+                  padding: EdgeInsets.all(
+                    MediaQuery.sizeOf(context).width < 700 ? 16 : 36,
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -167,15 +212,18 @@ class ArticlePage extends StatelessWidget {
                         ),
                       const SizedBox(height: 28),
                       const Divider(),
-                      Row(
+                      Wrap(
+                        spacing: 8,
+                        crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
                           TextButton.icon(
-                            onPressed: () =>
-                                openLink(context, '$siteOrigin/archives/$id'),
+                            onPressed: () => openLink(
+                              context,
+                              '$siteOrigin/archives/$id${ownerOnly ? '/preview' : ''}',
+                            ),
                             icon: const Icon(Icons.open_in_new, size: 16),
-                            label: const Text('在官网查看原文'),
+                            label: Text(ownerOnly ? '在官网查看草稿' : '在官网查看原文'),
                           ),
-                          const Spacer(),
                           const Icon(Icons.format_size, size: 18),
                           SizedBox(
                             width: 130,
@@ -192,9 +240,10 @@ class ArticlePage extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 30),
-                CommentsPane(id, locked: post['is_locked'] == true),
+                if (!ownerOnly)
+                  CommentsPane(id, locked: post['is_locked'] == true),
                 const SizedBox(height: 35),
-                _HistoryMarker(post),
+                if (!ownerOnly) _HistoryMarker(post),
               ],
             ),
           ),
@@ -307,14 +356,101 @@ Future<String?> composeText(
   return result;
 }
 
+int commentReplyCount(Json comment) {
+  final children = object(comment['children']), meta = object(children['meta']);
+  return [
+    number(comment['comment_count']),
+    number(meta['total']),
+    number(object(meta['pagination'])['total']),
+    rows(children['data']).length,
+  ].fold(0, (a, b) => a > b ? a : b);
+}
+
+Future<void> showDiscussionReplies(
+  BuildContext context, {
+  required int post,
+  required int root,
+  required bool locked,
+  required VoidCallback onChanged,
+}) async {
+  final scope = DeskScope.of(context),
+      owner = stateOf(context).uid,
+      generation = stateOf(context).generation;
+  bool changed = false;
+  await showDialog<void>(
+    context: context,
+    builder: (dialogContext) => AnimatedBuilder(
+      animation: scope.app,
+      builder: (_, _) => DeskScope(
+        app: scope.app,
+        open: (route) {
+          Navigator.of(dialogContext).pop();
+          if (context.mounted) scope.open(route);
+        },
+        child: Dialog(
+          insetPadding: const EdgeInsets.symmetric(
+            horizontal: 18,
+            vertical: 22,
+          ),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 820),
+            child: SizedBox(
+              width: 820,
+              height: MediaQuery.sizeOf(dialogContext).height * .86,
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Heading(
+                      '讨论回复',
+                      '按时间顺序查看这条讨论，支持回复与点赞。',
+                      trailing: IconButton(
+                        tooltip: '关闭讨论',
+                        onPressed: () => Navigator.of(dialogContext).pop(),
+                        icon: const Icon(Icons.close_rounded),
+                      ),
+                    ),
+                    Expanded(
+                      child:
+                          scope.app.uid != owner ||
+                              scope.app.generation != generation
+                          ? const Blank(
+                              '账号状态已变化',
+                              '请关闭讨论，再重新打开。',
+                              icon: Icons.person_outline_rounded,
+                            )
+                          : CommentsPane(
+                              post,
+                              root: root,
+                              locked: locked,
+                              showHeading: false,
+                              onChanged: () => changed = true,
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+  if (changed && context.mounted) onChanged();
+}
+
 class CommentsPane extends StatefulWidget {
   final int post, root;
-  final bool locked;
+  final bool locked, showHeading;
+  final VoidCallback? onChanged;
   const CommentsPane(
     this.post, {
     super.key,
     this.root = 0,
     this.locked = false,
+    this.showHeading = true,
+    this.onChanged,
   });
   @override
   State<CommentsPane> createState() => _CommentsPaneState();
@@ -331,9 +467,11 @@ class _CommentsPaneState extends State<CommentsPane> {
       'per_page': 8,
       'order_by': 'created_at',
       'order': widget.root == 0 ? 'desc' : 'asc',
-      'include': 'user,children.user,replyToUser',
+      'include': widget.root == 0
+          ? 'user,children.user,replyToUser'
+          : 'user,replyToUser',
       'with[0]': 'user',
-      'with[1]': 'children',
+      if (widget.root == 0) 'with[1]': 'children',
     });
     final comments = rows(response['data']),
         ids = [
@@ -354,65 +492,74 @@ class _CommentsPaneState extends State<CommentsPane> {
   }
 
   void refresh() {
-    if (mounted) setState(() => reload++);
+    if (mounted) {
+      setState(() => reload++);
+      widget.onChanged?.call();
+    }
   }
+
+  Widget results() => AsyncPane(
+    key: ValueKey('$page:$reload'),
+    load: load,
+    builder: (result, _) {
+      final likes = (result['_likes'] as List? ?? []).map(number).toSet(),
+          comments = rows(result['data']);
+      final content = Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (comments.isEmpty)
+            Blank(
+              widget.root == 0 ? '还没有评论' : '这条讨论暂无回复',
+              widget.root == 0 ? '写下第一条评论，和大家聊聊这部作品。' : '回复可能已删除，或还没有人加入讨论。',
+              icon: Icons.chat_bubble_outline_rounded,
+            ),
+          for (final c in comments)
+            CommentTile(
+              c,
+              widget.post,
+              locked: widget.locked,
+              child: widget.root != 0,
+              liked: likes,
+              onChange: refresh,
+            ),
+          Pagination(result, page, (p) => setState(() => page = p)),
+        ],
+      );
+      return widget.root == 0
+          ? content
+          : Scrollbar(child: SingleChildScrollView(child: content));
+    },
+  );
 
   @override
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Heading(
-        widget.root == 0 ? '作品评论' : '讨论回复',
-        widget.locked ? '作者已关闭评论' : '每一份交流，都让热爱更近一点。',
-        trailing: widget.root == 0 && !widget.locked
-            ? FilledButton.tonalIcon(
-                onPressed: () async {
-                  final value = await composeComment(context, '发表评论');
-                  if (value != null && context.mounted) {
-                    await action(context, () async {
-                      await stateOf(context).post('comment/create', {
-                        'post_id': widget.post,
-                        'content': value,
-                        'include': 'user',
-                      });
-                      refresh();
-                    }, success: '评论已发布');
-                  }
-                },
-                icon: const Icon(Icons.chat_bubble_outline, size: 18),
-                label: const Text('写评论'),
-              )
-            : null,
-      ),
-      SizedBox(
-        height: widget.root == 0 ? null : 590,
-        child: AsyncPane(
-          key: ValueKey('$page:$reload'),
-          load: load,
-          builder: (result, _) {
-            final likes = (result['_likes'] as List? ?? []).map(number).toSet(),
-                comments = rows(result['data']);
-            final content = Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                if (comments.isEmpty) const Blank('还没有评论', '第一条留言，也许就从你开始。'),
-                for (final c in comments)
-                  CommentTile(
-                    c,
-                    widget.post,
-                    locked: widget.locked,
-                    liked: likes,
-                    onChange: refresh,
-                  ),
-                Pagination(result, page, (p) => setState(() => page = p)),
-              ],
-            );
-            return widget.root == 0
-                ? content
-                : SingleChildScrollView(child: content);
-          },
+      if (widget.showHeading)
+        Heading(
+          widget.root == 0 ? '作品评论' : '讨论回复',
+          widget.locked ? '作者已关闭评论' : '交流感受，也欢迎补充作品信息。',
+          trailing: widget.root == 0 && !widget.locked
+              ? FilledButton.tonalIcon(
+                  onPressed: () async {
+                    final value = await composeComment(context, '发表评论');
+                    if (value != null && context.mounted) {
+                      await action(context, () async {
+                        await stateOf(context).post('comment/create', {
+                          'post_id': widget.post,
+                          'content': value,
+                          'include': 'user',
+                        });
+                        refresh();
+                      }, success: '评论已发布');
+                    }
+                  },
+                  icon: const Icon(Icons.chat_bubble_outline, size: 18),
+                  label: const Text('写评论'),
+                )
+              : null,
         ),
-      ),
+      if (widget.root == 0) results() else Expanded(child: results()),
     ],
   );
 }
@@ -500,7 +647,7 @@ class CommentTile extends StatelessWidget {
                   label: Text('${number(comment['vote_count'])}'),
                 ),
                 if (!locked)
-                  TextButton(
+                  TextButton.icon(
                     onPressed: () async {
                       final reply = await composeComment(
                         context,
@@ -519,10 +666,11 @@ class CommentTile extends StatelessWidget {
                         }, success: '回复已发布');
                       }
                     },
-                    child: const Text('回复'),
+                    icon: const Icon(Icons.reply_rounded, size: 17),
+                    label: const Text('回复'),
                   ),
                 if (number(comment['user_id']) == app.uid)
-                  TextButton(
+                  TextButton.icon(
                     onPressed: () async {
                       if (await confirm(
                             context,
@@ -539,7 +687,8 @@ class CommentTile extends StatelessWidget {
                         });
                       }
                     },
-                    child: const Text('删除'),
+                    icon: const Icon(Icons.delete_outline_rounded, size: 17),
+                    label: const Text('删除'),
                   ),
               ],
             ),
@@ -553,24 +702,17 @@ class CommentTile extends StatelessWidget {
                   locked: locked,
                   child: true,
                 ),
-              if (number(comment['comment_count']) > 0 ||
-                  number(object(object(comment['children'])['meta'])['total']) >
-                      0 ||
-                  rows(object(comment['children'])['data']).isNotEmpty)
-                TextButton(
-                  onPressed: () => showDialog<void>(
-                    context: context,
-                    builder: (c) => Dialog(
-                      child: SizedBox(
-                        width: 760,
-                        child: Padding(
-                          padding: const EdgeInsets.all(28),
-                          child: CommentsPane(post, root: root, locked: locked),
-                        ),
-                      ),
-                    ),
+              if (commentReplyCount(comment) > 0)
+                TextButton.icon(
+                  onPressed: () => showDiscussionReplies(
+                    context,
+                    post: post,
+                    root: root,
+                    locked: locked,
+                    onChanged: onChange,
                   ),
-                  child: const Text('查看讨论的全部回复  →'),
+                  icon: const Icon(Icons.forum_outlined, size: 17),
+                  label: Text('查看全部回复 · ${commentReplyCount(comment)}'),
                 ),
             ],
           ],
@@ -585,6 +727,7 @@ class AuthorPage extends StatelessWidget {
   const AuthorPage(this.id, {super.key});
   @override
   Widget build(BuildContext context) => AsyncPane(
+    cacheKey: 'author:$id',
     load: () => stateOf(context).get('user/info', {'id': id}),
     builder: (result, reload) {
       final user = object(result['data']);

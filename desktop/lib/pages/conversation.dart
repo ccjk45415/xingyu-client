@@ -1,9 +1,12 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
 import '../core/api.dart';
 import '../core/chat.dart';
 import '../core/media.dart';
+import '../core/platform.dart';
 import '../ui/shared.dart';
 
 class IdentityGate extends StatefulWidget {
@@ -62,9 +65,10 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
   ChatController? chat;
   final input = TextEditingController(),
       focus = FocusNode(),
-      scroll = ScrollController();
+      scroll = ScrollController(keepScrollOffset: false);
   bool uploading = false;
   int messageCount = 0;
+  String displayedChannel = '';
   @override
   void initState() {
     super.initState();
@@ -90,20 +94,24 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
         selection: TextSelection.collapsed(offset: room.draft.length),
       );
     }
-    final nearBottom =
-        !scroll.hasClients ||
-        scroll.position.maxScrollExtent - scroll.offset < 120;
+    final channelChanged = displayedChannel != chat!.channel;
+    displayedChannel = chat!.channel;
+    final nearBottom = !scroll.hasClients || scroll.offset < 120;
     final added = messageCount != room.messages.length;
     messageCount = room.messages.length;
     setState(() {});
-    if (nearBottom && added) {
+    if (channelChanged || nearBottom && added) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && scroll.hasClients) {
-          scroll.animateTo(
-            scroll.position.maxScrollExtent,
-            duration: const Duration(milliseconds: 200),
-            curve: Curves.easeOut,
-          );
+          if (channelChanged) {
+            scroll.jumpTo(0);
+          } else {
+            scroll.animateTo(
+              0,
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeOut,
+            );
+          }
         }
       });
     }
@@ -186,115 +194,181 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     final c = chat;
     if (c == null) return const SizedBox.shrink();
     final app = stateOf(context), room = c.room;
+    final compact = MediaQuery.sizeOf(context).width < 760;
+    final messages = room.messages.values
+        .toList(growable: false)
+        .reversed
+        .toList(growable: false);
     return IdentityGate(
       onReady: () => unawaited(c.start()),
       child: Row(
         children: [
-          Container(
-            width: 205,
-            decoration: BoxDecoration(
-              color: Theme.of(
-                context,
-              ).colorScheme.surface.withValues(alpha: .65),
-              border: Border(
-                right: BorderSide(color: Theme.of(context).dividerColor),
+          if (!compact)
+            Container(
+              width: 205,
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surface
+                    .withValues(alpha: .65),
+                border: Border(
+                  right: BorderSide(color: Theme.of(context).dividerColor),
+                ),
               ),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 9),
-                  const Text(
-                    '一起聊点喜欢的',
-                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17),
-                  ),
-                  const SizedBox(height: 10),
-                  const Text(
-                    '两个频道，各聊各的。',
-                    style: TextStyle(fontSize: 11, color: Colors.grey),
-                  ),
-                  const SizedBox(height: 28),
-                  for (final channel in ['1', '2'])
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 13),
-                      child: Material(
-                        color: c.channel == channel
-                            ? violet.withValues(alpha: .12)
-                            : Colors.transparent,
-                        borderRadius: BorderRadius.circular(14),
-                        child: ListTile(
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 5,
-                          ),
-                          leading: Icon(
-                            Icons.tag,
-                            color: c.channel == channel ? violet : Colors.grey,
-                          ),
-                          title: Text(
-                            '频道${channel == '1' ? '一' : '二'}',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 13,
-                            ),
-                          ),
-                          subtitle: const Text(
-                            '独立消息空间',
-                            style: TextStyle(fontSize: 10),
-                          ),
-                          onTap: () {
-                            input.clear();
-                            unawaited(c.choose(channel));
-                          },
-                        ),
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 9),
+                    const IconBadge(Icons.forum_rounded, size: 48),
+                    const SizedBox(height: 18),
+                    const Text(
+                      '一起聊点喜欢的',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 17,
                       ),
                     ),
-                  const Spacer(),
-                  const Icon(Icons.verified_outlined, color: violet, size: 20),
-                  const SizedBox(height: 10),
-                  const Text(
-                    '仓库账号认证\n昵称、UID、头像来自官网',
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: Colors.grey,
-                      height: 1.9,
+                    const SizedBox(height: 10),
+                    const Text(
+                      '遇见同好，分享此刻。',
+                      style: TextStyle(fontSize: 11, color: Colors.grey),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                ],
+                    const SizedBox(height: 28),
+                    for (final channel in ['1', '2'])
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 13),
+                        child: Material(
+                          color: c.channel == channel
+                              ? violet.withValues(alpha: .12)
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(14),
+                          child: ListTile(
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 5,
+                            ),
+                            leading: Icon(
+                              Icons.tag,
+                              color: c.channel == channel
+                                  ? violet
+                                  : Colors.grey,
+                            ),
+                            title: Text(
+                              '频道${channel == '1' ? '一' : '二'}',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 13,
+                              ),
+                            ),
+                            subtitle: const Text(
+                              '独立消息空间',
+                              style: TextStyle(fontSize: 10),
+                            ),
+                            onTap: () {
+                              input.clear();
+                              unawaited(c.choose(channel));
+                            },
+                          ),
+                        ),
+                      ),
+                    const Spacer(),
+                    const Icon(
+                      Icons.verified_outlined,
+                      color: violet,
+                      size: 20,
+                    ),
+                    const SizedBox(height: 10),
+                    const Text(
+                      '仓库账号认证\n昵称、UID、头像来自官网',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.grey,
+                        height: 1.9,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                ),
               ),
             ),
-          ),
           Expanded(
             child: Column(
               children: [
+                if (compact)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                    child: SegmentedButton<String>(
+                      showSelectedIcon: false,
+                      segments: const [
+                        ButtonSegment(
+                          value: '1',
+                          label: Text('频道一'),
+                          icon: Icon(Icons.tag_rounded),
+                        ),
+                        ButtonSegment(
+                          value: '2',
+                          label: Text('频道二'),
+                          icon: Icon(Icons.tag_rounded),
+                        ),
+                      ],
+                      selected: {c.channel},
+                      onSelectionChanged: (values) {
+                        input.clear();
+                        unawaited(c.choose(values.first));
+                      },
+                    ),
+                  ),
                 Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 25,
-                    vertical: 18,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: compact ? 16 : 25,
+                    vertical: compact ? 8 : 18,
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.tag, color: violet),
+                      IconBadge(
+                        c.channel == '1'
+                            ? Icons.waving_hand_outlined
+                            : Icons.bubble_chart_outlined,
+                        size: compact ? 36 : 42,
+                      ),
                       const SizedBox(width: 10),
-                      Text(
-                        '频道${c.channel == '1' ? '一' : '二'}',
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '频道${c.channel == '1' ? '一' : '二'}',
+                              style: const TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            const Text(
+                              '与同好聊聊喜欢的作品',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Colors.grey,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      const Spacer(),
                       TextButton.icon(
-                        onPressed: () => unawaited(c.start()),
+                        onPressed: c.connecting
+                            ? null
+                            : () => unawaited(c.start(reconnect: true)),
                         icon: Icon(
                           c.ready ? Icons.circle : Icons.refresh,
                           size: c.ready ? 7 : 16,
                           color: c.ready ? const Color(0xff72ad96) : violet,
                         ),
-                        label: const Text('重新连接'),
+                        label: Text(
+                          c.ready
+                              ? '已连接'
+                              : c.connecting
+                              ? '连接中'
+                              : '重新连接',
+                        ),
                       ),
                     ],
                   ),
@@ -303,55 +377,147 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                 Expanded(
                   child: Scrollbar(
                     controller: scroll,
-                    child: ListView(
+                    child: ListView.builder(
+                      reverse: true,
                       controller: scroll,
-                      padding: const EdgeInsets.fromLTRB(28, 20, 28, 20),
-                      children: [
-                        if (room.older && room.messages.length < 300)
-                          Center(
-                            child: TextButton(
-                              onPressed: room.loading
-                                  ? null
-                                  : () => action(context, c.older),
-                              child: Text(room.loading ? '加载中…' : '加载更早的消息'),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: compact ? 14 : 28,
+                        vertical: 16,
+                      ),
+                      itemCount: messages.length + 1,
+                      itemBuilder: (context, index) {
+                        if (index == messages.length) {
+                          if (room.older && messages.length < 300) {
+                            return Center(
+                              child: TextButton.icon(
+                                onPressed: room.loading
+                                    ? null
+                                    : () => action(context, c.older),
+                                icon: const Icon(
+                                  Icons.history_rounded,
+                                  size: 16,
+                                ),
+                                label: Text(room.loading ? '加载中…' : '加载更早的消息'),
+                              ),
+                            );
+                          }
+                          if (messages.isNotEmpty) {
+                            return const SizedBox.shrink();
+                          }
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 24),
+                            child: Surface(
+                              color: violet.withValues(alpha: .045),
+                              child: Column(
+                                children: [
+                                  const IconBadge(
+                                    Icons.chat_bubble_outline_rounded,
+                                    size: 56,
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    room.historyFailed
+                                        ? '暂时没有连上消息'
+                                        : room.historyLoaded
+                                        ? '这里还很安静'
+                                        : '欢迎来到聊天室',
+                                    style: const TextStyle(
+                                      fontSize: 19,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 10),
+                                  Text(
+                                    room.historyFailed
+                                        ? '可以重试加载，不会影响已经输入的内容。'
+                                        : room.historyLoaded
+                                        ? '点击头像或名字艾特，点击回复引用消息。'
+                                        : '消息正在同步，可以先写下想说的话。',
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey,
+                                      height: 1.7,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  if (room.historyFailed)
+                                    TextButton.icon(
+                                      onPressed: c.retryHistory,
+                                      icon: const Icon(Icons.refresh_rounded),
+                                      label: const Text('重新加载消息'),
+                                    )
+                                  else
+                                    const Wrap(
+                                      spacing: 12,
+                                      runSpacing: 8,
+                                      alignment: WrapAlignment.center,
+                                      children: [
+                                        Chip(
+                                          avatar: Icon(
+                                            Icons.verified_user_outlined,
+                                            size: 15,
+                                          ),
+                                          label: Text('仓库身份认证'),
+                                        ),
+                                        Chip(
+                                          avatar: Icon(
+                                            Icons.alternate_email_rounded,
+                                            size: 15,
+                                          ),
+                                          label: Text('点击头像艾特'),
+                                        ),
+                                      ],
+                                    ),
+                                ],
+                              ),
                             ),
-                          ),
-                        if (room.messages.isEmpty)
-                          const Blank('这里还很安静', '点击头像或名字可以艾特，消息下方可以引用回复。'),
-                        for (final m in room.messages.values)
-                          MessageBubble(
-                            messageData: m,
-                            user: c.profile(object(m['sender'])),
-                            mine: number(object(m['sender'])['id']) == app.uid,
-                            tagged:
-                                rows(
-                                  m['mentions'],
-                                ).any((p) => number(p['id']) == app.uid) ||
-                                number(
-                                      object(
-                                        object(m['reply_to'])['sender'],
-                                      )['id'],
-                                    ) ==
-                                    app.uid,
-                            onName: () => mention(object(m['sender'])),
-                            onReply: () {
-                              room.reply = m;
-                              c.update();
-                              focus.requestFocus();
-                            },
-                            profile: c.profile,
-                          ),
-                      ],
+                          );
+                        }
+                        final m = messages[index];
+                        return MessageBubble(
+                          key: ValueKey('${c.channel}:${m['id']}'),
+                          messageData: m,
+                          user: c.profile(object(m['sender'])),
+                          mine: number(object(m['sender'])['id']) == app.uid,
+                          tagged:
+                              rows(m['mentions'])
+                                  .any((p) => number(p['id']) == app.uid) ||
+                              number(
+                                    object(
+                                      object(m['reply_to'])['sender'],
+                                    )['id'],
+                                  ) ==
+                                  app.uid,
+                          onName: () => mention(object(m['sender'])),
+                          onReply: () {
+                            room.reply = m;
+                            c.update();
+                            focus.requestFocus();
+                          },
+                          profile: c.profile,
+                        );
+                      },
                     ),
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.fromLTRB(25, 12, 25, 20),
+                  margin: EdgeInsets.fromLTRB(
+                    compact ? 8 : 20,
+                    4,
+                    compact ? 8 : 20,
+                    compact ? 8 : 16,
+                  ),
+                  padding: EdgeInsets.fromLTRB(
+                    compact ? 12 : 25,
+                    8,
+                    compact ? 12 : 25,
+                    compact ? 10 : 20,
+                  ),
                   decoration: BoxDecoration(
                     color: Theme.of(context).colorScheme.surface,
-                    border: Border(
-                      top: BorderSide(color: Theme.of(context).dividerColor),
-                    ),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: violet.withValues(alpha: .12)),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -394,10 +560,14 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                               ),
                             ),
                           ),
-                          const Text(
-                            'Enter 发送 · Shift+Enter 换行',
-                            style: TextStyle(fontSize: 10, color: Colors.grey),
-                          ),
+                          if (!isAndroid)
+                            const Text(
+                              'Enter 发送 · Shift+Enter 换行',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Colors.grey,
+                              ),
+                            ),
                         ],
                       ),
                       const SizedBox(height: 7),
@@ -412,16 +582,14 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                                 ): () {
                                   if (!input.value.composing.isValid) c.send();
                                 },
-                                const SingleActivator(
-                                  LogicalKeyboardKey.enter,
-                                  control: true,
-                                ): c.send,
+                                primaryShortcut(LogicalKeyboardKey.enter):
+                                    c.send,
                               },
                               child: TextField(
                                 controller: input,
                                 focusNode: focus,
                                 enabled: !room.sending,
-                                minLines: 2,
+                                minLines: compact ? 1 : 2,
                                 maxLines: 5,
                                 maxLength: 600,
                                 onChanged: (v) {
@@ -481,7 +649,11 @@ class _QuoteBar extends StatelessWidget {
             style: const TextStyle(fontSize: 11),
           ),
         ),
-        IconButton(onPressed: remove, icon: const Icon(Icons.close, size: 15)),
+        IconButton(
+          tooltip: '取消引用',
+          onPressed: remove,
+          icon: const Icon(Icons.close, size: 15),
+        ),
       ],
     ),
   );
@@ -576,13 +748,14 @@ class MessageBubble extends StatelessWidget {
             ),
           ),
         if (onReply != null)
-          TextButton(
+          TextButton.icon(
+            icon: const Icon(Icons.reply_rounded, size: 14),
             onPressed: onReply,
             style: TextButton.styleFrom(
               minimumSize: const Size(0, 28),
               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 5),
             ),
-            child: const Text('回复', style: TextStyle(fontSize: 10)),
+            label: const Text('回复', style: TextStyle(fontSize: 11)),
           ),
       ],
     );

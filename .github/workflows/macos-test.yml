@@ -1,0 +1,36 @@
+name: macOS Apple Silicon test installer
+on:
+  push:
+    branches: [macos-test]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  installer:
+    runs-on: macos-15
+    timeout-minutes: 45
+    env:
+      CI: "true"
+      FLUTTER_SUPPRESS_ANALYTICS: "true"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          flutter-version: "3.47.7"
+          channel: stable
+          architecture: arm64
+          cache: false
+      - name: Build, verify and package local test installers
+        run: python3 tools/build_macos.py --native-check
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: Xingyu-macOS-Apple-Silicon-test
+          if-no-files-found: error
+          retention-days: 1
+          path: |
+            output/Xingyu-macOS-*.pkg
+            output/Xingyu-macOS-*.dmg
+            output/macOS-SHA256SUMS.txt
+            output/macOS-build-report.json

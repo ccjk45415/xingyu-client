@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../core/api.dart';
+import '../core/following_feed.dart';
 import '../core/state.dart';
 import '../ui/shared.dart';
 
@@ -375,342 +378,551 @@ class FollowPeoplePage extends StatelessWidget {
   }
 }
 
-class FollowingFeedPage extends StatelessWidget {
+class FollowingFeedPage extends StatefulWidget {
   final DeskRoute route;
   const FollowingFeedPage(this.route, {super.key});
-  Future<Json> load(AppState app) async {
-    final owner = app.uid, generation = app.generation;
-    final r = await app.social('/dm/v1/follows/ids'),
-        ids = (r['ids'] as List? ?? []).map(number).toSet();
-    if (ids.isEmpty) {
-      return {...r, 'posts': <Json>[], 'next_page': 1, 'has_more': false};
+  @override
+  State<FollowingFeedPage> createState() => _FollowingFeedPageState();
+}
+
+class _FollowingFeedPageState extends State<FollowingFeedPage> {
+  AppState? app;
+  String scope = '';
+  Json? data;
+  bool loading = false, loadingMore = false, fillQueued = false;
+  Object? error, moreError;
+  int job = 0, fillBudget = 2;
+  double lastOffset = 0;
+  double? restoreOffset;
+  final scroll = ScrollController();
+  DeskRoute get route => widget.route;
+  String scopeOf(AppState current) =>
+      '${current.uid}:${current.generation}:${current.socialRevision}:${current.verified}';
+  @override
+  void initState() {
+    super.initState();
+    scroll.addListener(onScroll);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final current = stateOf(context), key = scopeOf(stateOf(context));
+    if (scope != key || app != current) {
+      scope = key;
+      app = current;
+      reset();
     }
-    final selected = ids.contains(route.id) ? route.id : 0;
-    final posts = <Json>[], seen = <int>{};
-    var next = route.page, more = true;
-    for (var scan = 0; scan < (selected > 0 ? 1 : 3) && more; scan++) {
-      if (app.uid != owner || app.generation != generation) {
-        throw ApiFailure(409, '账号已切换');
+  }
+
+  void reset() {
+    job++;
+    loading = false;
+    loadingMore = false;
+    error = null;
+    moreError = null;
+    fillBudget = 2;
+    data =
+        app!.followingFeed.timeline(route.id) ??
+        app!.followingFeed.cached(route.id, 1);
+    restoreOffset = app!.followingFeed.timelineOffset(route.id);
+    lastOffset = restoreOffset!;
+    if (app!.verified &&
+        !(app!.followingFeed.timelineFresh(route.id) ||
+            app!.followingFeed.timeline(route.id) == null &&
+                app!.followingFeed.fresh(route.id, 1))) {
+      scheduleMicrotask(reload);
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant FollowingFeedPage old) {
+    super.didUpdateWidget(old);
+    if (old.route.id != route.id) {
+      remember(old.route.id);
+      reset();
+    }
+  }
+
+  bool active(int request) =>
+      mounted && request == job && app!.verified && scope == scopeOf(app!);
+  void remember([int? author]) {
+    if (data != null &&
+        app != null &&
+        app!.verified &&
+        scope == scopeOf(app!)) {
+      app!.followingFeed.rememberTimeline(
+        author ?? route.id,
+        data!,
+        scroll.hasClients ? scroll.offset : lastOffset,
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    remember();
+    job++;
+    scroll.dispose();
+    super.dispose();
+  }
+
+  void cacheAuthors(Json result) {
+    for (final post in rows(result['posts'])) {
+      final author = object(post['user']);
+      if (number(author['id']) > 0) {
+        app!.authorCache[number(author['id'])] = author;
       }
-      final result = await app.get('post/list', {
-        'page': next,
-        'per_page': 24,
-        'simple': 1,
-        'include': 'user,categories:simple',
-        'with[0]': 'user',
-        'with[1]': 'categories',
-        'order_by': 'created_at',
-        'order': 'desc',
-        if (selected > 0) 'user_id': selected,
+    }
+  }
+
+  Future<void> reload({bool force = false}) async {
+    if (!mounted || !app!.verified) return;
+    final request = ++job;
+    if (force) {
+      app!.followingFeed.clear();
+      app!.refreshBrowsing();
+    }
+    setState(() {
+      loading = true;
+      loadingMore = false;
+      error = null;
+      moreError = null;
+      fillBudget = 2;
+    });
+    try {
+      final result = await app!.followingFeed.load(
+        route.id,
+        1,
+        onPartial: (value) {
+          if (active(request) && data == null) setState(() => data = value);
+        },
+      );
+      if (!active(request)) return;
+      cacheAuthors(result);
+      setState(() {
+        data = result;
+        restoreOffset = force
+            ? 0
+            : restoreOffset ?? (scroll.hasClients ? scroll.offset : lastOffset);
       });
-      if (app.uid != owner || app.generation != generation) {
-        throw ApiFailure(409, '账号已切换');
-      }
-      for (final p in rows(result['data'])) {
-        final author = object(p['user']),
-            id = _n(p['user_id'], _n(author['id']));
-        if (ids.contains(id) &&
-            (selected == 0 || id == selected) &&
-            seen.add(_n(p['id']))) {
-          posts.add(p);
-          if (author.isNotEmpty) app.authorCache[id] = author;
-        }
-      }
-      more =
-          next <
-          _n(object(object(result['meta'])['pagination'])['total_pages'], next);
-      next++;
+      remember();
+    } catch (e) {
+      if (active(request)) setState(() => error = e);
+    } finally {
+      if (active(request)) setState(() => loading = false);
     }
-    posts.sort(
-      (a, b) => text(b['created_at']).compareTo(text(a['created_at'])),
+  }
+
+  Future<void> loadMore() async {
+    if (data == null ||
+        loading ||
+        loadingMore ||
+        data!['has_more'] != true ||
+        !app!.verified) {
+      return;
+    }
+    final request = job, nextPage = number(data!['next_page']);
+    if (nextPage < 1) return;
+    setState(() {
+      loadingMore = true;
+      moreError = null;
+    });
+    try {
+      final next = await app!.followingFeed.load(route.id, nextPage);
+      if (!active(request)) return;
+      cacheAuthors(next);
+      setState(() => data = appendFollowingWindow(data!, next));
+      remember();
+    } catch (e) {
+      if (active(request)) setState(() => moreError = e);
+    } finally {
+      if (active(request)) setState(() => loadingMore = false);
+    }
+  }
+
+  void onScroll() {
+    if (scroll.hasClients) lastOffset = scroll.offset;
+    if (scroll.hasClients &&
+        scroll.position.pixels > 0 &&
+        scroll.position.extentAfter < 420 &&
+        moreError == null) {
+      unawaited(loadMore());
+    }
+  }
+
+  void queueFill() {
+    if (fillQueued) return;
+    fillQueued = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      fillQueued = false;
+      if (!mounted || !scroll.hasClients) return;
+      if (restoreOffset != null) {
+        final offset = restoreOffset!;
+        restoreOffset = null;
+        scroll.jumpTo(offset.clamp(0, scroll.position.maxScrollExtent));
+      }
+      if (fillBudget > 0 &&
+          !loading &&
+          !loadingMore &&
+          moreError == null &&
+          rows(data?['posts']).isNotEmpty &&
+          scroll.position.maxScrollExtent < 40) {
+        fillBudget--;
+        unawaited(loadMore());
+      }
+    });
+  }
+
+  Widget authors(BuildContext context, Json r) => Surface(
+    padding: const EdgeInsets.fromLTRB(14, 8, 14, 12),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            const Expanded(
+              child: Text(
+                '关注动态',
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 17),
+              ),
+            ),
+            IconButton(
+              onPressed: loading ? null : () => reload(force: true),
+              tooltip: '刷新动态',
+              icon: const Icon(Icons.refresh_rounded, size: 20),
+            ),
+            TextButton(
+              onPressed: () => openRoute(
+                context,
+                const DeskRoute('followPeople', '我的关注', filter: 'following'),
+              ),
+              child: const Text('管理关注', style: TextStyle(fontSize: 12)),
+            ),
+          ],
+        ),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              ChoiceChip(
+                label: const Text('全部动态'),
+                selected: _n(r['selected']) == 0,
+                onSelected: (_) =>
+                    openRoute(context, const DeskRoute('followingFeed', '动态')),
+              ),
+              for (final author in rows(r['authors']))
+                Padding(
+                  padding: const EdgeInsets.only(left: 16),
+                  child: InkWell(
+                    onTap: () => openRoute(
+                      context,
+                      DeskRoute('followingFeed', '动态', id: _n(author['id'])),
+                    ),
+                    child: SizedBox(
+                      width: 54,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(2),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: route.id == _n(author['id'])
+                                    ? violet
+                                    : Colors.transparent,
+                                width: 2,
+                              ),
+                            ),
+                            child: Avatar(
+                              app!.authorCache[_n(author['id'])] ?? author,
+                              radius: 20,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            text(
+                              (app!.authorCache[_n(author['id'])] ??
+                                  author)['nickname'],
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 11),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+  Widget footer() {
+    if (loadingMore) {
+      return const Padding(
+        padding: EdgeInsets.all(24),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SizedBox(
+              width: 17,
+              height: 17,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            SizedBox(width: 10),
+            Text(
+              '正在加载更多动态…',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+          ],
+        ),
+      );
+    }
+    if (moreError != null) {
+      return Center(
+        child: TextButton.icon(
+          onPressed: loadMore,
+          icon: const Icon(Icons.refresh_rounded, size: 17),
+          label: const Text('加载失败，点击重试'),
+        ),
+      );
+    }
+    final more = data?['has_more'] == true;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 28),
+      child: Text(
+        loading
+            ? '正在同步最新动态…'
+            : more
+            ? '上拉加载更多'
+            : rows(data?['posts']).isEmpty
+            ? '关注作者后，新投稿会出现在这里'
+            : '已经到底啦',
+        textAlign: TextAlign.center,
+        style: const TextStyle(fontSize: 12, color: Colors.grey),
+      ),
     );
-    return {
-      ...r,
-      'posts': posts,
-      'next_page': next,
-      'has_more': more,
-      'selected': selected,
-    };
+  }
+
+  Widget postCard(BuildContext context, Json post) {
+    return Surface(
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Avatar(
+                object(post['user']),
+                radius: 19,
+                onTap: () => openRoute(
+                  context,
+                  DeskRoute('author', '作者主页', id: _n(post['user_id'])),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      text(object(post['user'])['nickname']),
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    Text(
+                      '${dateText(post['created_at'])} · 发布了新作品',
+                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                tooltip: '作者主页',
+                onPressed: () => openRoute(
+                  context,
+                  DeskRoute('author', '作者主页', id: _n(post['user_id'])),
+                ),
+                icon: const Icon(Icons.more_horiz),
+              ),
+            ],
+          ),
+          const SizedBox(height: 15),
+          InkWell(
+            onTap: () => openRoute(
+              context,
+              DeskRoute('article', '作品详情', id: _n(post['id'])),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  text(post['title']),
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    height: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: Cover(
+                    text(post['thumb']),
+                    height: MediaQuery.sizeOf(context).width < 700 ? 190 : 260,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Text(
+                '${_n(post['view_count'])} 次浏览',
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+              const Spacer(),
+              TextButton.icon(
+                onPressed: () => openRoute(
+                  context,
+                  DeskRoute('article', '作品详情', id: _n(post['id'])),
+                ),
+                icon: const Icon(Icons.open_in_new, size: 17),
+                label: const Text('查看作品'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final app = stateOf(context);
-    if (!app.verified) return const SocialGate();
-    return AsyncPane(
-      refreshToken: '${app.uid}:${app.socialRevision}',
-      load: () => load(app),
-      builder: (r, reload) => PageBody(
-        width: 1000,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Heading(
-              '关注动态',
-              '作者的新作品，与你的热爱保持同频。',
-              trailing: IconButton(
-                onPressed: reload,
-                tooltip: '刷新动态',
-                icon: const Icon(Icons.refresh_rounded),
+    if (!stateOf(context).verified) return const SocialGate();
+    final r = data;
+    if (r == null) {
+      return error == null
+          ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
+          : Blank(
+              '动态暂时未能加载',
+              '请检查网络后重试。',
+              button: FilledButton.icon(
+                onPressed: () => reload(force: true),
+                icon: const Icon(Icons.refresh),
+                label: const Text('重新加载'),
               ),
-            ),
-            Surface(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.rss_feed_rounded, color: violet),
-                      const SizedBox(width: 8),
-                      const Expanded(
-                        child: Text(
-                          '只看关注的作者',
-                          style: TextStyle(fontWeight: FontWeight.w700),
-                        ),
-                      ),
-                      TextButton(
-                        onPressed: () => openRoute(
-                          context,
-                          const DeskRoute(
-                            'followPeople',
-                            '我的关注',
-                            filter: 'following',
-                          ),
-                        ),
-                        child: const Text('管理关注'),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.only(right: 12),
-                          child: ChoiceChip(
-                            label: const Text('全部动态'),
-                            selected: _n(r['selected']) == 0,
-                            onSelected: (_) => openRoute(
-                              context,
-                              const DeskRoute('followingFeed', '动态'),
-                            ),
-                          ),
-                        ),
-                        for (final a in rows(r['authors']))
-                          Padding(
-                            padding: const EdgeInsets.only(right: 14),
-                            child: InkWell(
-                              onTap: () => openRoute(
-                                context,
-                                DeskRoute(
-                                  'followingFeed',
-                                  '动态',
-                                  id: _n(a['id']),
-                                ),
-                              ),
-                              child: SizedBox(
-                                width: 64,
-                                child: Column(
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.all(3),
-                                      decoration: BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        border: Border.all(
-                                          color: route.id == _n(a['id'])
-                                              ? violet
-                                              : Colors.transparent,
-                                          width: 2,
-                                        ),
-                                      ),
-                                      child: Avatar(
-                                        app.authorCache[_n(a['id'])] ?? a,
-                                        radius: 23,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 5),
-                                    Text(
-                                      text(
-                                        (app.authorCache[_n(a['id'])] ??
-                                            a)['nickname'],
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(fontSize: 11),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 18),
-            if ((r['ids'] as List? ?? []).isEmpty)
-              Blank(
-                '关注第一位作者',
-                '从作者主页点击关注，之后来这里看他们的新投稿。',
-                button: FilledButton.icon(
-                  onPressed: () => openRoute(
-                    context,
-                    const DeskRoute('search', '搜索作者', filter: 'authors'),
-                  ),
-                  icon: const Icon(Icons.person_search_outlined),
-                  label: const Text('发现作者'),
-                ),
-              )
-            else if (rows(r['posts']).isEmpty)
-              const Blank('这一段时间暂未发现投稿', '可以选择一位作者直接浏览，或继续向前查找。'),
-            for (final post in rows(r['posts']))
-              Padding(
-                padding: const EdgeInsets.only(bottom: 18),
-                child: Surface(
-                  padding: const EdgeInsets.all(18),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Row(
+            );
+    }
+    final posts = rows(r['posts']);
+    queueFill();
+    return Align(
+      alignment: Alignment.topCenter,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 980),
+        child: NotificationListener<ScrollNotification>(
+          onNotification: (event) {
+            final positive =
+                event is OverscrollNotification && event.overscroll > 0 ||
+                event is ScrollUpdateNotification &&
+                    (event.scrollDelta ?? 0) > 0;
+            if (event.depth == 0 &&
+                moreError == null &&
+                positive &&
+                event.metrics.extentAfter < 420) {
+              fillBudget = 2;
+              unawaited(loadMore());
+            }
+            return false;
+          },
+          child: RefreshIndicator(
+            onRefresh: () => reload(force: true),
+            child: Scrollbar(
+              controller: scroll,
+              child: CustomScrollView(
+                key: const Key('following.timeline'),
+                controller: scroll,
+                physics: const AlwaysScrollableScrollPhysics(),
+                slivers: [
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                    sliver: SliverToBoxAdapter(
+                      child: Column(
                         children: [
-                          Avatar(
-                            object(post['user']),
-                            radius: 23,
-                            onTap: () => openRoute(
-                              context,
-                              DeskRoute(
-                                'author',
-                                '作者主页',
-                                id: _n(post['user_id']),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                          authors(context, r),
+                          if (loading)
+                            const LinearProgressIndicator(minHeight: 2),
+                          if (error != null)
+                            Row(
                               children: [
-                                Text(
-                                  text(object(post['user'])['nickname']),
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w700,
+                                const Expanded(
+                                  child: Text(
+                                    '刷新失败，当前动态已保留。',
+                                    style: TextStyle(fontSize: 12),
                                   ),
                                 ),
-                                Text(
-                                  '${dateText(post['created_at'])} · 发布了新作品',
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey,
-                                  ),
+                                TextButton(
+                                  onPressed: () => reload(force: true),
+                                  child: const Text('重试'),
                                 ),
                               ],
                             ),
-                          ),
-                          IconButton(
-                            tooltip: '作者主页',
-                            onPressed: () => openRoute(
-                              context,
-                              DeskRoute(
-                                'author',
-                                '作者主页',
-                                id: _n(post['user_id']),
-                              ),
-                            ),
-                            icon: const Icon(Icons.more_horiz),
-                          ),
                         ],
                       ),
-                      const SizedBox(height: 15),
-                      InkWell(
-                        onTap: () => openRoute(
-                          context,
-                          DeskRoute('article', '作品详情', id: _n(post['id'])),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Text(
-                              text(post['title']),
-                              style: const TextStyle(
-                                fontSize: 17,
-                                fontWeight: FontWeight.w700,
-                                height: 1.5,
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(16),
-                              child: Cover(text(post['thumb']), height: 230),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Row(
-                        children: [
-                          Text(
-                            '${_n(post['view_count'])} 次浏览',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey,
-                            ),
-                          ),
-                          const Spacer(),
-                          TextButton.icon(
-                            onPressed: () => openRoute(
-                              context,
-                              DeskRoute('article', '作品详情', id: _n(post['id'])),
-                            ),
-                            icon: const Icon(Icons.open_in_new, size: 17),
-                            label: const Text('查看作品'),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                if (route.page > 1)
-                  TextButton(
-                    onPressed: () => openRoute(
-                      context,
-                      DeskRoute('followingFeed', '动态', id: route.id),
                     ),
-                    child: const Text('回到最新'),
                   ),
-                if (r['has_more'] == true)
-                  FilledButton.tonalIcon(
-                    onPressed: () => openRoute(
-                      context,
-                      DeskRoute(
-                        'followingFeed',
-                        '动态',
-                        id: route.id,
-                        page: _n(r['next_page'], 1),
+                  if (posts.isEmpty)
+                    SliverToBoxAdapter(
+                      child: Blank(
+                        (r['ids'] as List? ?? []).isEmpty
+                            ? '关注第一位作者'
+                            : '近期暂未发现投稿',
+                        (r['ids'] as List? ?? []).isEmpty
+                            ? '从作者主页关注，之后来这里看新投稿。'
+                            : '继续向上滑动，加载更早的动态。',
+                        button: (r['ids'] as List? ?? []).isEmpty
+                            ? FilledButton.icon(
+                                onPressed: () => openRoute(
+                                  context,
+                                  const DeskRoute(
+                                    'search',
+                                    '搜索作者',
+                                    filter: 'authors',
+                                  ),
+                                ),
+                                icon: const Icon(Icons.person_search_outlined),
+                                label: const Text('发现作者'),
+                              )
+                            : null,
                       ),
                     ),
-                    icon: const Icon(Icons.history_rounded),
-                    label: const Text('继续查找更早动态'),
+                  SliverPadding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    sliver: SliverList.builder(
+                      itemCount: posts.length,
+                      itemBuilder: (c, i) => Padding(
+                        key: ValueKey('following.post.${posts[i]['id']}'),
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: postCard(c, posts[i]),
+                      ),
+                      findChildIndexCallback: (key) {
+                        if (key is! ValueKey<String>) return null;
+                        final index = posts.indexWhere(
+                          (p) => key.value == 'following.post.${p['id']}',
+                        );
+                        return index < 0 ? null : index;
+                      },
+                    ),
                   ),
-              ],
-            ),
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 18),
-              child: Text(
-                '动态来自官网投稿；全部动态每次按时间检索最多3页，未找到时可继续向前查找。',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 11, color: Colors.grey),
+                  SliverToBoxAdapter(child: footer()),
+                ],
               ),
             ),
-          ],
+          ),
         ),
       ),
     );

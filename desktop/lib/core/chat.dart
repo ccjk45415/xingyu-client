@@ -2,7 +2,9 @@ import 'dart:async';
 import 'dart:collection';
 import 'dart:convert';
 import 'dart:io';
+
 import 'package:flutter/foundation.dart';
+
 import 'api.dart';
 import 'state.dart';
 
@@ -10,7 +12,11 @@ class ChatRoom {
   final SplayTreeMap<int, Json> messages = SplayTreeMap();
   String draft = '';
   Json? image, reply, pending;
-  bool sending = false, older = false, loading = false;
+  bool sending = false,
+      older = false,
+      loading = false,
+      historyLoaded = false,
+      historyFailed = false;
   final Map<int, String> mentions = {};
 }
 
@@ -23,7 +29,7 @@ class ChatController extends ChangeNotifier {
   late final connector = app.socketFactory();
   Timer? _heartbeat, _retry, _confirmation;
   int _generation = 0, _failures = 0;
-  bool active = false, ready = false, _disposed = false;
+  bool active = false, ready = false, connecting = false, _disposed = false;
   ChatController(this.app);
   ChatRoom get room => rooms[channel]!;
   void update() {
@@ -31,7 +37,8 @@ class ChatController extends ChangeNotifier {
   }
 
   Json profile(Json original) => profiles[number(original['id'])] ?? original;
-  Future<void> start() async {
+  Future<void> start({bool reconnect = false}) async {
+    if (!reconnect && active && (ready || connecting)) return;
     active = true;
     if (app.verified) await _connect();
   }
@@ -45,6 +52,7 @@ class ChatController extends ChangeNotifier {
     connector.cancel();
     _generation++;
     ready = false;
+    connecting = false;
     _heartbeat?.cancel();
     _retry?.cancel();
     _confirmation?.cancel();
@@ -78,15 +86,12 @@ class ChatController extends ChangeNotifier {
         selected = channel,
         owner = app.uid,
         token = app.token;
+    connecting = true;
+    unawaited(_history(request, selected, owner, token));
+    unawaited(_syncProfile(request, selected, owner));
     status = '正在连接频道${selected == '1' ? '一' : '二'}…';
     update();
     try {
-      try {
-        await app.syncProfile();
-      } catch (_) {
-        /* Existing token can still connect while the website is unavailable. */
-      }
-      if (!_valid(request, selected, owner)) return;
       final ws = await connector.connect(
         '${app.service.origin.replaceFirst('https:', 'wss:').replaceFirst('http:', 'ws:')}/ws?channel=$selected',
         headers: {'Authorization': 'Bearer $token'},
@@ -105,6 +110,7 @@ class ChatController extends ChangeNotifier {
             switch (event['type']) {
               case 'ready':
                 ready = true;
+                connecting = false;
                 _failures = 0;
                 final user = object(event['user']);
                 profiles[number(user['id'])] = user;
@@ -151,13 +157,6 @@ class ChatController extends ChangeNotifier {
       _heartbeat = Timer.periodic(const Duration(seconds: 35), (_) {
         if (_valid(request, selected, owner)) ws.add('ping');
       });
-      final history = await app.service.request(
-        '/v1/channels/$selected/messages?limit=30',
-        token: token,
-      );
-      if (!_valid(request, selected, owner)) return;
-      _merge(rooms[selected]!, history);
-      update();
     } catch (e) {
       if (!_valid(request, selected, owner)) return;
       if (e is ApiFailure && [401, 403].contains(e.status)) {
@@ -173,9 +172,53 @@ class ChatController extends ChangeNotifier {
     }
   }
 
+  Future<void> _syncProfile(int request, String selected, int owner) async {
+    try {
+      await app.syncProfile();
+      if (!_valid(request, selected, owner)) return;
+      final latest = object(app.identity?['user']);
+      if (number(latest['id']) == owner) profiles[owner] = latest;
+      update();
+    } catch (_) {
+      /* Existing verification remains usable while the website is unavailable. */
+    }
+  }
+
+  Future<void> _history(
+    int request,
+    String selected,
+    int owner,
+    String token,
+  ) async {
+    final target = rooms[selected]!;
+    target.historyFailed = false;
+    try {
+      final result = await app.service.request(
+        '/v1/channels/$selected/messages?limit=30',
+        token: token,
+      );
+      if (!_valid(request, selected, owner)) return;
+      _merge(target, result);
+      target.historyLoaded = true;
+      update();
+    } catch (error) {
+      if (!_valid(request, selected, owner)) return;
+      target.historyFailed = true;
+      if (error is ApiFailure && [401, 403].contains(error.status)) {
+        ready = false;
+        app.expireIdentity();
+      }
+      update();
+    }
+  }
+
+  Future<void> retryHistory() =>
+      _history(_generation, channel, app.uid, app.token);
+
   void _reconnect(int request, String selected, int owner) {
     if (!_valid(request, selected, owner) || _retry?.isActive == true) return;
     ready = false;
+    connecting = false;
     room.sending = false;
     status = '连接断开，正在重连…';
     update();

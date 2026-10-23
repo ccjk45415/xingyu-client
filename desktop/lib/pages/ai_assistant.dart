@@ -1,3 +1,11 @@
+import '../core/category_suggestion.dart';
+import '../core/reader.dart';
+import '../core/submission_workbench.dart';
+import '../core/browse_cache.dart';
+import '../ui/submission_categories.dart';
+import 'submission_workbench.dart';
+import '../ui/cached_image.dart';
+
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -5,13 +13,12 @@ import 'package:flutter/material.dart';
 
 import '../core/ai.dart';
 import '../core/translation.dart';
+import '../core/editor_tools.dart';
 import '../core/submission_guidance.dart';
 import '../core/submission_extras.dart';
 import '../core/media.dart';
 
 import 'package:url_launcher/url_launcher.dart';
-
-import 'package:flutter_widget_from_html_core/flutter_widget_from_html_core.dart';
 
 import '../core/api.dart';
 import '../core/state.dart';
@@ -23,7 +30,7 @@ class AiImport {
   final bool title, body, tags, cover, append;
   final Set<int>? categories;
   final String kind;
-  final bool aiImages;
+  final bool aiImages, editingExisting;
   final String? suggestedTitle;
   final String? purchaseProof;
   AiImport(
@@ -36,6 +43,7 @@ class AiImport {
     this.categories,
     this.kind = 'other',
     this.aiImages = false,
+    this.editingExisting = false,
     this.suggestedTitle,
     this.purchaseProof,
   });
@@ -44,24 +52,287 @@ class AiImport {
 Future<AiImport?> showAiAssistant(
   BuildContext context, {
   Future<Uint8List?> Function(BuildContext)? proofPicker,
+  String editorTitle = '',
+  String editorBody = '',
+  String editorCover = '',
+  String editorKind = 'other',
+  bool editorAiImages = false,
+  List<Json> editorSources = const [],
+  Set<int> editorCategories = const {},
+  EditorSnapshot? selection,
+  int postId = 0,
 }) {
-  final app = stateOf(context);
+  final scope = DeskScope.of(context);
   return showDialog<AiImport>(
     context: context,
     barrierDismissible: false,
-    builder: (_) => AiAssistantDialog(app, proofPicker: proofPicker),
+    builder: (c) => DeskScope(
+      app: scope.app,
+      open: (route) {
+        Navigator.pop(c);
+        scope.open(route);
+      },
+      child: AiAssistantHub(
+        scope.app,
+        proofPicker: proofPicker,
+        editorTitle: editorTitle,
+        editorBody: editorBody,
+        editorCover: editorCover,
+        editorKind: editorKind,
+        editorAiImages: editorAiImages,
+        editorSources: editorSources,
+        editorCategories: editorCategories,
+        selection: selection,
+        postId: postId,
+      ),
+    ),
   );
+}
+
+/// One assistant entry, one dialog, with state preserved across the two sections.
+class AiAssistantHub extends StatefulWidget {
+  final AppState app;
+  final Future<Uint8List?> Function(BuildContext)? proofPicker;
+  final String editorTitle, editorBody, editorCover, editorKind;
+  final bool editorAiImages;
+  final List<Json> editorSources;
+  final Set<int> editorCategories;
+  final EditorSnapshot? selection;
+  final int postId;
+  const AiAssistantHub(
+    this.app, {
+    super.key,
+    this.proofPicker,
+    this.editorTitle = '',
+    this.editorBody = '',
+    this.editorCover = '',
+    this.editorKind = 'other',
+    this.editorAiImages = false,
+    this.editorSources = const [],
+    this.editorCategories = const {},
+    this.selection,
+    this.postId = 0,
+  });
+  @override
+  State<AiAssistantHub> createState() => _AiAssistantHubState();
+}
+
+class _AiAssistantHubState extends State<AiAssistantHub> {
+  final generatorKey = GlobalKey<_AiAssistantDialogState>();
+  int section = 0, toolRevision = 0;
+  Widget? toolPanel;
+  String toolFingerprint = '';
+  bool switching = false;
+  Future<void> selectSection(int next, {String task = 'command'}) async {
+    if (switching || next == section && task == 'command') return;
+    final generator = generatorKey.currentState;
+    if (next == 0) {
+      setState(() => section = 0);
+      if (generator != null) await generator.load();
+      return;
+    }
+    if (generator?.disabled == true) {
+      message(context, '请等待当前任务完成或取消后，再切换功能');
+      return;
+    }
+    switching = true;
+    try {
+      if (generator?.loaded == true && generator!.configReady) {
+        await generator.save(validate: false);
+      }
+      if (!mounted) return;
+      final useDraft = generator?.draft != null;
+      final body = useDraft ? generator!.organizedBody : widget.editorBody;
+      final title = useDraft ? generator!.draftTitle.text : widget.editorTitle;
+      final sources = generator?.sources.isNotEmpty == true
+          ? generator!.sources
+          : widget.editorSources;
+      final categories = useDraft && generator!.proposedCategories.isNotEmpty
+          ? generator.proposedCategories
+          : widget.editorCategories;
+      final kind = useDraft ? generator!.guideKind : widget.editorKind;
+      final fingerprint = jsonEncode([
+        useDraft,
+        body,
+        title,
+        sources,
+        categories.toList()..sort(),
+        kind,
+        task,
+      ]);
+      if (fingerprint != toolFingerprint || toolPanel == null) {
+        toolFingerprint = fingerprint;
+        toolPanel = SubmissionWorkbench(
+          key: ValueKey(++toolRevision),
+          app: widget.app,
+          embedded: true,
+          title: title,
+          body: body,
+          sources: sources,
+          categories: categories,
+          kind: kind,
+          cover: widget.editorCover,
+          initialTask: task,
+          selection: useDraft ? null : widget.selection,
+          postId: widget.postId,
+          onClose: () => selectSection(0),
+          onApply: (change) {
+            if (!mounted) return;
+            if (useDraft) {
+              final state = generatorKey.currentState;
+              if (state == null ||
+                  !state.current ||
+                  state.draft == null ||
+                  state.organizedBody != body) {
+                message(context, '草稿已变化，请重新打开编辑与检查');
+                return;
+              }
+              state.setState(() {
+                state.draft = AiDraft({
+                  ...state.draft!.data,
+                  'organized_html': change.body,
+                });
+                state.organizedFields = [];
+                state.status = '修改已带回草稿预览，确认后再导入正文';
+              });
+              setState(() => section = 0);
+            } else {
+              Navigator.pop(
+                context,
+                AiImport(
+                  AiDraft({
+                    'title': widget.editorTitle,
+                    'organized_html': change.body,
+                    'source_materials': sources,
+                  }),
+                  false,
+                  true,
+                  false,
+                  false,
+                  false,
+                  kind: widget.editorKind,
+                  aiImages: widget.editorAiImages,
+                  editingExisting: true,
+                ),
+              );
+            }
+          },
+        );
+      }
+      setState(() => section = 1);
+    } catch (e) {
+      if (mounted) {
+        message(context, e is ApiFailure ? e.message : '暂时无法切换，请检查本机配置后重试');
+      }
+    } finally {
+      switching = false;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final compact = MediaQuery.sizeOf(context).width < 640;
+    return Dialog(
+      insetPadding: EdgeInsets.all(compact ? 10 : 24),
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
+      child: SizedBox(
+        width: 1140,
+        height: MediaQuery.sizeOf(context).height * .94,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: EdgeInsets.fromLTRB(compact ? 16 : 24, 16, 12, 12),
+              child: Row(
+                children: [
+                  const IconBadge(Icons.auto_awesome_rounded),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'AI 投稿助手',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        Text('整理资料、翻译与编辑，都在这里', style: TextStyle(fontSize: 12)),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: '关闭助手',
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close_rounded),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: compact ? 12 : 24),
+              child: SegmentedButton<int>(
+                showSelectedIcon: false,
+                segments: const [
+                  ButtonSegment(
+                    value: 0,
+                    icon: Icon(Icons.translate_rounded, size: 18),
+                    label: Text('资料与翻译'),
+                  ),
+                  ButtonSegment(
+                    value: 1,
+                    icon: Icon(Icons.edit_note_rounded, size: 20),
+                    label: Text('编辑与检查'),
+                  ),
+                ],
+                selected: {section},
+                onSelectionChanged: (v) => selectSection(v.first),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Expanded(
+              child: IndexedStack(
+                index: section,
+                sizing: StackFit.expand,
+                children: [
+                  AiAssistantDialog(
+                    widget.app,
+                    key: generatorKey,
+                    proofPicker: widget.proofPicker,
+                    embedded: true,
+                    openTools: () => selectSection(1),
+                  ),
+                  toolPanel ?? const SizedBox.shrink(),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class AiAssistantDialog extends StatefulWidget {
   final AppState app;
   final Future<Uint8List?> Function(BuildContext)? proofPicker;
-  const AiAssistantDialog(this.app, {super.key, this.proofPicker});
+  final bool embedded;
+  final VoidCallback? openTools;
+  const AiAssistantDialog(
+    this.app, {
+    super.key,
+    this.proofPicker,
+    this.embedded = false,
+    this.openTools,
+  });
   @override
   State<AiAssistantDialog> createState() => _AiAssistantDialogState();
 }
 
 class _AiAssistantDialogState extends State<AiAssistantDialog> {
+  final panelScroll = ScrollController();
   final links = TextEditingController(),
       material = TextEditingController(),
       address = TextEditingController(),
@@ -72,6 +343,7 @@ class _AiAssistantDialogState extends State<AiAssistantDialog> {
       guideAttributes = TextEditingController(),
       draftTitle = TextEditingController();
   AiTransport transport = AiTransport();
+  bool configReady = false;
   bool custom = false,
       busy = false,
       loaded = false,
@@ -86,6 +358,8 @@ class _AiAssistantDialogState extends State<AiAssistantDialog> {
   bool guideChosen = false, guideAiImages = false, importCategories = false;
   bool selfPurchased = false, proofUploading = false;
   String proofUrl = '';
+  Set<int>? manualCategories;
+  List<Json> organizedFields = [];
   bool get disabled => busy || proofUploading;
   int run = 0, sourceRevision = 0;
   late final int owner = widget.app.uid, generation = widget.app.generation;
@@ -113,6 +387,7 @@ class _AiAssistantDialogState extends State<AiAssistantDialog> {
       if (!current) return;
       final cfg = raw == null ? <String, dynamic>{} : object(jsonDecode(raw));
       setState(() {
+        configReady = true;
         custom = cfg['custom'] == true;
         address.text = text(cfg['address']);
         keyInput.text = text(cfg['key']);
@@ -123,6 +398,7 @@ class _AiAssistantDialogState extends State<AiAssistantDialog> {
       if (current) {
         setState(() {
           loaded = true;
+          configReady = false;
           status = '无法读取加密配置，请重新填写';
         });
       }
@@ -308,6 +584,17 @@ class _AiAssistantDialogState extends State<AiAssistantDialog> {
     }
   }
 
+  Future<Json> cachedSource(AiTransport io, String url) async {
+    final key = 'source:v2:$owner:$url',
+        cache = BrowseCache.shared,
+        epoch = BrowseCache.shared.epoch;
+    final old = await cache.json(key, maxAge: const Duration(hours: 6));
+    if (old != null) return old;
+    final source = await io.source(url);
+    await cache.putJson(key, source, generation: epoch);
+    return source;
+  }
+
   Future<void> extract({bool manual = false}) async {
     final job = run, io = transport;
     final urls = links.text
@@ -321,7 +608,9 @@ class _AiAssistantDialogState extends State<AiAssistantDialog> {
     for (final u in urls) {
       aiSourceUrl(u);
       found.add(
-        manual ? {'url': u, 'text': '', 'cover': ''} : await io.source(u),
+        manual
+            ? {'url': u, 'text': '', 'cover': ''}
+            : await cachedSource(io, u),
       );
     }
     if (current && run == job) {
@@ -329,27 +618,213 @@ class _AiAssistantDialogState extends State<AiAssistantDialog> {
         if (sources.isNotEmpty) proofUrl = '';
         sourceRevision++;
         sources = found;
+        organizedFields = [];
         if (!guideChosen && guidance != null) {
           guideKind = guidance!.guess(found);
-          guidePath = availablePaths.length == 1 ? availablePaths.single : '';
+          recommendSourceCategories();
         }
         draft = null;
         previous = null;
         status = manual
             ? '已采用链接及手动素材，粘贴作品介绍后生成'
-            : '已提取完整介绍：${found.fold<int>(0, (n, s) => n + text(s['text']).length)}字 / ${found.fold<int>(0, (n, s) => n + rows(s['blocks']).where((b) => b['kind'] == 'image').length)}张图片，原文不会精简';
+            : '已提取完整介绍：${found.fold<int>(0, (n, s) => n + text(s['text']).length)}字 / ${found.fold<int>(0, (n, s) => n + rows(s['blocks']).where((b) => b['kind'] == 'image').length)}张图片 / ${found.fold<int>(0, (n, s) => n + rows(s['blocks']).where((b) => b['kind'] == 'video').length)}个视频，原文不会精简';
       });
     }
   }
 
   List<String> get availablePaths =>
-      guidance
-          ?.paths(guideKind)
-          .where((p) => guidance!.resolve(widget.app.categories, p).isNotEmpty)
-          .toList() ??
-      [];
+      fullCategoryPaths(widget.app.categories).map((p) => p.label).toList();
   Set<int> get proposedCategories =>
-      guidance?.resolve(widget.app.categories, guidePath) ?? {};
+      manualCategories ??
+      guidance?.resolve(widget.app.categories, guidePath) ??
+      {};
+  String categoryReason = '';
+  void recommendSourceCategories() {
+    if (manualCategories != null || guidance == null) return;
+    final ids = sourceCategorySuggestion(
+      guidance!,
+      widget.app.categories,
+      guideKind,
+      traits: guideAttributes.text,
+    );
+    guidePath = categorySelectionLabel(widget.app.categories, ids);
+    importCategories = ids.isNotEmpty;
+    categoryReason = ids.length == 1
+        ? '已推荐大类；具体资源版本尚未确认，可继续选择子分类'
+        : ids.isEmpty
+        ? '资料不足时可手动选择官网分类'
+        : '已根据来源推荐分类，可修改';
+  }
+
+  Future<void> autoClassify() async {
+    final job = run;
+    if (sources.isEmpty) await extract();
+    if (!current) return;
+    if (widget.app.categories.isEmpty) await widget.app.loadCategories();
+    if (!current) return;
+    final guide = guidance ?? await SubmissionGuidance.load();
+    if (!current) return;
+    final classificationSources = [
+      ...sources,
+      if (material.text.trim().isNotEmpty)
+        <String, dynamic>{'url': '', 'text': material.text},
+    ];
+    final kind = guideChosen ? guideKind : guide.guess(classificationSources);
+    final traits = guideAttributes.text;
+    final name = draftTitle.text.isEmpty
+        ? text(sources.first['title'])
+        : draftTitle.text;
+    final request = categoryCheckRequest(
+      guide,
+      widget.app.categories,
+      kind,
+      classificationSources,
+      name,
+      traits,
+    );
+    if (utf8.encode(jsonEncode(request)).length > (custom ? 200000 : 12000)) {
+      throw ApiFailure(413, '本次分类资料过长，请使用自定义AI或手动选择分类');
+    }
+    await save();
+    Json result;
+    if (custom) {
+      if (keyInput.text.trim().isEmpty) throw ApiFailure(400, '请填写自定义 API Key');
+      final response = await transport.json(
+        aiEndpoint(address.text),
+        token: keyInput.text.trim(),
+        body: {
+          'model': model.text.trim(),
+          'stream': false,
+          'messages': [
+            {'role': 'system', 'content': workbenchSystem},
+            {'role': 'user', 'content': jsonEncode(request)},
+          ],
+        },
+      );
+      final choices = rows(response['choices']);
+      if (choices.isEmpty) throw ApiFailure(502, '模型没有返回分类结果');
+      result = parseWorkbench(
+        object(choices.first['message'])['content'],
+        request,
+      );
+    } else {
+      await verify();
+      if (!current) return;
+      final response = await transport.json(
+        Uri.parse('$serviceOrigin/ai/v3/task'),
+        token: widget.app.token,
+        body: request,
+        builtin: true,
+        timeout: const Duration(seconds: 180),
+      );
+      result = parseWorkbench(response['result'], request);
+    }
+    if (!current) return;
+    if (run != job) return;
+    final selection = parseCategoryCheck(
+      result,
+      request,
+      widget.app.categories,
+      traits,
+    );
+    setState(() {
+      guideKind = kind;
+      manualCategories = selection.ids;
+      guidePath = categorySelectionLabel(widget.app.categories, selection.ids);
+      importCategories = true;
+      categoryReason = selection.reason;
+      status = '分类已选：$guidePath；导入草稿时会一并勾选';
+    });
+  }
+
+  Future<void> chooseFullCategories() async {
+    final selected = await showSubmissionCategories(
+      context,
+      widget.app,
+      proposedCategories,
+    );
+    if (!current || selected == null) return;
+    setState(() {
+      manualCategories = selected;
+      importCategories = selected.isNotEmpty;
+      categoryReason = '已手动确认，导入时一并勾选';
+      final paths = fullCategoryPaths(widget.app.categories);
+      guidePath = paths
+          .where(
+            (p) =>
+                selected.contains(p.id) &&
+                !paths.any(
+                  (child) =>
+                      child.id != p.id &&
+                      child.ids.contains(p.id) &&
+                      selected.contains(child.id),
+                ),
+          )
+          .map((p) => p.label)
+          .join('、');
+    });
+  }
+
+  Future<void> organizeMetadata() async {
+    if (sources.isEmpty) {
+      setState(() => status = '请先提取作品来源');
+      return;
+    }
+    final result = await showSubmissionWorkbench(
+      context,
+      app: widget.app,
+      title: draftTitle.text.isEmpty
+          ? text(sources.first['title'])
+          : draftTitle.text,
+      body: draft?.body ?? '',
+      sources: sources,
+      task: 'metadata',
+    );
+    if (!current || result == null) return;
+    setState(() {
+      if (!guideChosen && guidance != null) {
+        guideKind = guidance!.guess(sources);
+        recommendSourceCategories();
+      }
+      organizedFields = result.metadata;
+      for (final f in organizedFields) {
+        if (['作者', '社团', '开发商'].contains(f['label']) &&
+            guideAuthor.text.isEmpty) {
+          guideAuthor.text = text(f['value']);
+        }
+        if (f['label'] == '发行日期' && guideDate.text.isEmpty) {
+          guideDate.text = text(f['value']);
+        }
+      }
+      status = '已确认 ${organizedFields.length} 项作品资料；生成后可随正文导入';
+    });
+  }
+
+  Future<void> openTools() async {
+    if (widget.openTools != null) {
+      widget.openTools!();
+      return;
+    }
+    final result = await showSubmissionWorkbench(
+      context,
+      app: widget.app,
+      title: draftTitle.text.isEmpty && sources.isNotEmpty
+          ? text(sources.first['title'])
+          : draftTitle.text,
+      body: draft?.body ?? '',
+      sources: sources,
+      categories: proposedCategories,
+      kind: guideKind,
+    );
+    if (!current || result == null) return;
+    if (draft != null) {
+      setState(() {
+        draft = AiDraft({...draft!.data, 'organized_html': result.body});
+        status = '工具箱修改已应用到预览，尚未导入编辑器';
+      });
+    }
+  }
+
   Future<void> showGuideReport() async {
     final guide = guidance, currentDraft = draft;
     if (guide == null || currentDraft == null) return;
@@ -392,9 +867,12 @@ class _AiAssistantDialogState extends State<AiAssistantDialog> {
     draft?.title ?? '',
     rows(draft?.data['sources']).map((s) => text(s['url'])),
   );
+  String get organizedBody => organizedFields.isEmpty
+      ? draft!.body
+      : '<h3>作品资料</h3><ul>${organizedFields.map((f) => '<li>${aiEscape(text(f['label']))}：${aiEscape(text(f['value']))}</li>').join()}</ul>\n${draft!.body}';
   String get previewBody => selfPurchased && proofUrl.isNotEmpty
-      ? placePurchaseProof(draft!.body, proofUrl)
-      : draft!.body;
+      ? placePurchaseProof(organizedBody, proofUrl)
+      : organizedBody;
 
   Future<void> uploadProof() async {
     if (!current || disabled || !selfPurchased) return;
@@ -465,7 +943,7 @@ class _AiAssistantDialogState extends State<AiAssistantDialog> {
         if (proofUrl.isNotEmpty) ...[
           ConstrainedBox(
             constraints: const BoxConstraints(maxHeight: 180),
-            child: Image.network(
+            child: CachedImage(
               proofUrl,
               fit: BoxFit.contain,
               errorBuilder: (_, _, _) =>
@@ -532,11 +1010,9 @@ class _AiAssistantDialogState extends State<AiAssistantDialog> {
               ? null
               : (v) => setState(() {
                   guideChosen = true;
+                  manualCategories = null;
                   guideKind = v!;
-                  guidePath = availablePaths.length == 1
-                      ? availablePaths.single
-                      : '';
-                  importCategories = false;
+                  recommendSourceCategories();
                 }),
         ),
         const SizedBox(height: 14),
@@ -548,23 +1024,52 @@ class _AiAssistantDialogState extends State<AiAssistantDialog> {
           ),
         ),
         const SizedBox(height: 8),
-        DropdownButtonFormField<String>(
-          key: ValueKey('guide.path.$guideKind.$guidePath'),
-          initialValue: guidePath,
-          isExpanded: true,
-          decoration: aiInput(null, icon: Icons.account_tree_outlined),
-          items: [
-            const DropdownMenuItem(value: '', child: Text('请选择实际子分类，不推断汉化或版本')),
-            ...availablePaths.map(
-              (p) => DropdownMenuItem(value: p, child: Text(p)),
-            ),
-          ],
-          onChanged: disabled ? null : (v) => setState(() => guidePath = v!),
+        FilledButton.tonalIcon(
+          key: const Key('ai.categories.auto'),
+          onPressed: disabled ? null : () => action(autoClassify),
+          icon: const Icon(Icons.auto_awesome_rounded, size: 20),
+          label: const Text('AI 自动分类'),
         ),
-        if (availablePaths.isEmpty)
-          const Text(
-            '当前目录未匹配到建议分类；仍可翻译，导入时保留原分类并手动选择。',
-            style: TextStyle(fontSize: 12),
+        Padding(
+          padding: const EdgeInsets.only(top: 6),
+          child: Text(
+            custom ? '直连自定义AI；分类不会修改正文' : 'AI分类与翻译共用每日额度；来源自动推荐不消耗次数',
+            style: const TextStyle(fontSize: 12),
+          ),
+        ),
+        const SizedBox(height: 8),
+        OutlinedButton.icon(
+          key: const Key('ai.categories.full'),
+          onPressed: disabled ? null : chooseFullCategories,
+          icon: const Icon(Icons.account_tree_outlined),
+          label: Text(
+            proposedCategories.isEmpty
+                ? '从官网完整目录选择分类'
+                : '已选 ${proposedCategories.length} 项 · 点击修改',
+          ),
+        ),
+        if (categoryReason.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text(categoryReason, style: const TextStyle(fontSize: 12)),
+          ),
+        if (guidePath.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Text(guidePath, style: const TextStyle(fontSize: 12)),
+          ),
+        TextButton.icon(
+          onPressed: disabled ? null : organizeMetadata,
+          icon: const Icon(Icons.dataset_outlined),
+          label: const Text('自动整理作品资料'),
+        ),
+        for (final field in organizedFields)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 3),
+            child: Text(
+              '${field['label']}：${field['value']}',
+              style: const TextStyle(fontSize: 12),
+            ),
           ),
         for (final tip in guide.profile(guideKind)['tips'] as List)
           Padding(
@@ -639,6 +1144,7 @@ class _AiAssistantDialogState extends State<AiAssistantDialog> {
   void dispose() {
     run++;
     transport.close();
+    panelScroll.dispose();
     for (final c in [
       links,
       material,
@@ -839,7 +1345,7 @@ class _AiAssistantDialogState extends State<AiAssistantDialog> {
                 ),
               ),
               Text(
-                '${rows(sources[i]['blocks']).where((b) => b['kind'] == 'image').length} 张图片',
+                '${rows(sources[i]['blocks']).where((b) => b['kind'] == 'image').length} 张图片 · ${rows(sources[i]['blocks']).where((b) => b['kind'] == 'video').length} 个视频',
                 style: const TextStyle(fontSize: 12, color: violet),
               ),
             ],
@@ -983,22 +1489,14 @@ class _AiAssistantDialogState extends State<AiAssistantDialog> {
             borderRadius: BorderRadius.circular(16),
           ),
           child: draft!.data['blocks'] is List
-              ? HtmlWidget(
-                  previewBody,
-                  textStyle: const TextStyle(fontSize: 14, height: 1.7),
-                  customWidgetBuilder: (element) => element.localName == 'img'
-                      ? ConstrainedBox(
-                          constraints: const BoxConstraints(maxHeight: 320),
-                          child: Image.network(
-                            element.attributes['src'] ?? '',
-                            fit: BoxFit.contain,
-                            errorBuilder: (_, _, _) => const AiNotice(
-                              '图片暂未加载，导入时仍会保留原图链接',
-                              icon: Icons.image_outlined,
-                            ),
-                          ),
-                        )
-                      : null,
+              ? RichContent(
+                  ReaderDocument.parse(
+                    previewBody,
+                    inlineResources: true,
+                  ).content,
+                  fontSize: 14,
+                  maxImageHeight: 320,
+                  maxImageWidth: 760,
                 )
               : SelectableText(text(draft!.data['summary'])),
         ),
@@ -1041,12 +1539,20 @@ class _AiAssistantDialogState extends State<AiAssistantDialog> {
           contentPadding: EdgeInsets.zero,
           controlAffinity: ListTileControlAffinity.leading,
           value: importCategories,
-          onChanged: disabled || proposedCategories.isEmpty
+          onChanged: disabled
               ? null
-              : (v) => setState(() => importCategories = v!),
+              : (v) async {
+                  if (v == true && proposedCategories.isEmpty) {
+                    await action(autoClassify);
+                  } else {
+                    setState(() => importCategories = v!);
+                  }
+                },
           title: const Text('使用已确认分类', style: TextStyle(fontSize: 13)),
           subtitle: Text(
-            guidePath.isEmpty ? '未确认分类，保留原选择' : '$guidePath（含上级分类；将替换原选择）',
+            guidePath.isEmpty
+                ? '点击自动分类，或在投稿资料中手动选择'
+                : '$guidePath（含上级分类；将替换原选择）',
             style: const TextStyle(fontSize: 12),
           ),
         ),
@@ -1095,7 +1601,11 @@ class _AiAssistantDialogState extends State<AiAssistantDialog> {
     Navigator.pop(
       context,
       AiImport(
-        draft!,
+        AiDraft({
+          ...draft!.data,
+          if (organizedFields.isNotEmpty) 'organized_html': organizedBody,
+          'source_materials': sources,
+        }),
         importTitle,
         importBody,
         importTags,
@@ -1114,19 +1624,12 @@ class _AiAssistantDialogState extends State<AiAssistantDialog> {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final compact = MediaQuery.sizeOf(context).width < 640;
-    return Dialog(
-      insetPadding: EdgeInsets.all(compact ? 12 : 24),
-      clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-      backgroundColor: Color.alphaBlend(
-        violet.withValues(alpha: .035),
-        colors.surface,
-      ),
-      child: SizedBox(
-        width: 1120,
-        height: MediaQuery.sizeOf(context).height * .92,
-        child: Column(
-          children: [
+    final panel = SizedBox(
+      width: 1120,
+      height: MediaQuery.sizeOf(context).height * .92,
+      child: Column(
+        children: [
+          if (!widget.embedded)
             Padding(
               padding: EdgeInsets.fromLTRB(compact ? 18 : 26, 20, 14, 16),
               child: Row(
@@ -1177,177 +1680,215 @@ class _AiAssistantDialogState extends State<AiAssistantDialog> {
                 ],
               ),
             ),
-            Expanded(
-              child: !loaded
-                  ? const Center(child: CircularProgressIndicator())
-                  : Scrollbar(
-                      child: SingleChildScrollView(
-                        key: const Key('ai.panel.scroll'),
-                        padding: EdgeInsets.fromLTRB(
-                          compact ? 12 : 24,
-                          0,
-                          compact ? 12 : 24,
-                          22,
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            LayoutBuilder(
-                              builder: (context, size) {
-                                final details = Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.stretch,
+          Expanded(
+            child: !loaded
+                ? const Center(child: CircularProgressIndicator())
+                : Scrollbar(
+                    controller: panelScroll,
+                    child: SingleChildScrollView(
+                      key: const Key('ai.panel.scroll'),
+                      controller: panelScroll,
+                      primary: false,
+                      padding: EdgeInsets.fromLTRB(
+                        compact ? 12 : 24,
+                        0,
+                        compact ? 12 : 24,
+                        22,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          LayoutBuilder(
+                            builder: (context, size) {
+                              final details = Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  AiPanel(
+                                    title: '投稿资料',
+                                    subtitle: '可选填写，未知信息保持留空',
+                                    icon: Icons.tune_rounded,
+                                    step: '02',
+                                    child: guideForm(),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  const AiNotice(
+                                    '原标题不翻译。需要官网标题格式时，在草稿中手动点击“套用投稿格式”。',
+                                    icon: Icons.title_rounded,
+                                  ),
+                                ],
+                              );
+                              return size.maxWidth >= 840
+                                  ? Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Expanded(flex: 6, child: sourcePanel()),
+                                        const SizedBox(width: 18),
+                                        Expanded(
+                                          flex: 5,
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.stretch,
+                                            children: [
+                                              servicePanel(),
+                                              const SizedBox(height: 16),
+                                              details,
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    )
+                                  : Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.stretch,
+                                      children: [
+                                        sourcePanel(),
+                                        const SizedBox(height: 16),
+                                        servicePanel(),
+                                        const SizedBox(height: 16),
+                                        details,
+                                      ],
+                                    );
+                            },
+                          ),
+                          if (!widget.embedded)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 16),
+                              child: AiPanel(
+                                title: '投稿工具箱',
+                                subtitle: '资料、检查与修改，在确认后应用',
+                                icon: Icons.widgets_outlined,
+                                child: Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
                                   children: [
-                                    AiPanel(
-                                      title: '投稿资料',
-                                      subtitle: '可选填写，未知信息保持留空',
-                                      icon: Icons.tune_rounded,
-                                      step: '02',
-                                      child: guideForm(),
+                                    OutlinedButton.icon(
+                                      onPressed: disabled
+                                          ? null
+                                          : organizeMetadata,
+                                      icon: const Icon(Icons.dataset_outlined),
+                                      label: const Text('作品资料'),
                                     ),
-                                    const SizedBox(height: 16),
-                                    const AiNotice(
-                                      '原标题不翻译。需要官网标题格式时，在草稿中手动点击“套用投稿格式”。',
-                                      icon: Icons.title_rounded,
+                                    OutlinedButton.icon(
+                                      onPressed: disabled ? null : openTools,
+                                      icon: const Icon(
+                                        Icons.auto_awesome_rounded,
+                                      ),
+                                      label: const Text('打开完整工具箱'),
                                     ),
                                   ],
-                                );
-                                return size.maxWidth >= 840
-                                    ? Row(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Expanded(
-                                            flex: 6,
-                                            child: sourcePanel(),
-                                          ),
-                                          const SizedBox(width: 18),
-                                          Expanded(
-                                            flex: 5,
-                                            child: Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.stretch,
-                                              children: [
-                                                servicePanel(),
-                                                const SizedBox(height: 16),
-                                                details,
-                                              ],
-                                            ),
-                                          ),
-                                        ],
-                                      )
-                                    : Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.stretch,
-                                        children: [
-                                          sourcePanel(),
-                                          const SizedBox(height: 16),
-                                          servicePanel(),
-                                          const SizedBox(height: 16),
-                                          details,
-                                        ],
-                                      );
-                              },
-                            ),
-                            if (status.isNotEmpty)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 16),
-                                child: Semantics(
-                                  liveRegion: true,
-                                  child: AiNotice(
-                                    status,
-                                    icon: busy
-                                        ? Icons.hourglass_top_rounded
-                                        : Icons.info_outline_rounded,
-                                  ),
                                 ),
                               ),
-                            if (draft != null)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 16),
-                                child: previewPanel(),
+                            ),
+                          if (status.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 16),
+                              child: Semantics(
+                                liveRegion: true,
+                                child: AiNotice(
+                                  status,
+                                  icon: busy
+                                      ? Icons.hourglass_top_rounded
+                                      : Icons.info_outline_rounded,
+                                ),
                               ),
-                          ],
-                        ),
+                            ),
+                          if (draft != null)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 16),
+                              child: previewPanel(),
+                            ),
+                        ],
                       ),
                     ),
-            ),
-            if (disabled) const LinearProgressIndicator(minHeight: 2),
-            Container(
-              padding: EdgeInsets.symmetric(
-                horizontal: compact ? 16 : 24,
-                vertical: 14,
-              ),
-              decoration: BoxDecoration(
-                color: colors.surface,
-                border: Border(
-                  top: BorderSide(
-                    color: colors.outlineVariant.withValues(alpha: .4),
                   ),
+          ),
+          if (disabled) const LinearProgressIndicator(minHeight: 2),
+          Container(
+            padding: EdgeInsets.symmetric(
+              horizontal: compact ? 16 : 24,
+              vertical: 14,
+            ),
+            decoration: BoxDecoration(
+              color: colors.surface,
+              border: Border(
+                top: BorderSide(
+                  color: colors.outlineVariant.withValues(alpha: .4),
                 ),
               ),
-              child: Row(
-                children: [
-                  if (!compact)
-                    Expanded(
-                      child: Text(
-                        disabled ? '正在处理，原标题保持不变…' : '生成后先预览，导入后仍可编辑',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: colors.onSurfaceVariant,
-                        ),
+            ),
+            child: Row(
+              children: [
+                if (!compact)
+                  Expanded(
+                    child: Text(
+                      disabled ? '正在处理，原标题保持不变…' : '生成后先预览，导入后仍可编辑',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: colors.onSurfaceVariant,
                       ),
                     ),
-                  Expanded(
-                    child: Wrap(
-                      alignment: WrapAlignment.end,
-                      spacing: 10,
-                      runSpacing: 8,
-                      children: [
-                        if (busy)
-                          OutlinedButton.icon(
-                            onPressed: cancel,
-                            icon: const Icon(
-                              Icons.stop_circle_outlined,
-                              size: 18,
-                            ),
-                            label: const Text('取消任务'),
-                          ),
-                        if (!disabled &&
-                            previous != null &&
-                            !custom &&
-                            !keepOriginal)
-                          TextButton.icon(
-                            onPressed: () =>
-                                action(() => generate(recover: true)),
-                            icon: const Icon(Icons.restore_rounded, size: 18),
-                            label: const Text('恢复结果'),
-                          ),
-                        FilledButton.tonalIcon(
-                          onPressed: disabled || !loaded
-                              ? null
-                              : () => action(() => generate()),
-                          icon: const Icon(Icons.translate_rounded, size: 18),
-                          label: Text(draft == null ? '生成草稿' : '重新生成'),
-                        ),
-                        if (draft != null)
-                          FilledButton.icon(
-                            onPressed: disabled ? null : importDraft,
-                            icon: const Icon(
-                              Icons.file_download_outlined,
-                              size: 18,
-                            ),
-                            label: const Text('导入草稿'),
-                          ),
-                      ],
-                    ),
                   ),
-                ],
-              ),
+                Expanded(
+                  child: Wrap(
+                    alignment: WrapAlignment.end,
+                    spacing: 10,
+                    runSpacing: 8,
+                    children: [
+                      if (busy)
+                        OutlinedButton.icon(
+                          onPressed: cancel,
+                          icon: const Icon(
+                            Icons.stop_circle_outlined,
+                            size: 18,
+                          ),
+                          label: const Text('取消任务'),
+                        ),
+                      if (!disabled &&
+                          previous != null &&
+                          !custom &&
+                          !keepOriginal)
+                        TextButton.icon(
+                          onPressed: () =>
+                              action(() => generate(recover: true)),
+                          icon: const Icon(Icons.restore_rounded, size: 18),
+                          label: const Text('恢复结果'),
+                        ),
+                      FilledButton.tonalIcon(
+                        onPressed: disabled || !loaded
+                            ? null
+                            : () => action(() => generate()),
+                        icon: const Icon(Icons.translate_rounded, size: 18),
+                        label: Text(draft == null ? '生成草稿' : '重新生成'),
+                      ),
+                      if (draft != null)
+                        FilledButton.icon(
+                          onPressed: disabled ? null : importDraft,
+                          icon: const Icon(
+                            Icons.file_download_outlined,
+                            size: 18,
+                          ),
+                          label: const Text('导入草稿'),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
+    );
+    if (widget.embedded) return panel;
+    return Dialog(
+      insetPadding: EdgeInsets.all(compact ? 12 : 24),
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+      backgroundColor: Color.alphaBlend(
+        violet.withValues(alpha: .035),
+        colors.surface,
+      ),
+      child: panel,
     );
   }
 }

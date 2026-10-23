@@ -1,6 +1,6 @@
 import 'package:flutter/services.dart';
 
-/// User-bound Windows DPAPI, implemented by this application's native runner.
+/// Windows DPAPI / Android Keystore / macOS Keychain, implemented by each runner.
 class SecureVault {
   static const _channel = MethodChannel('moe.cangku.xingyu/secure_storage');
   static Map<String, String>? _testValues;

@@ -1,8 +1,11 @@
 import 'dart:async';
 import 'dart:collection';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
 import '../core/api.dart';
+import '../core/platform.dart';
 import '../core/media.dart';
 import '../core/state.dart';
 import '../ui/shared.dart';
@@ -70,9 +73,7 @@ class _PrivatePageState extends State<PrivatePage> with WidgetsBindingObserver {
   Future<void> start() async {
     if (!mounted || !active || !app!.verified) return;
     poll?.cancel();
-    try {
-      await app!.syncProfile();
-    } catch (_) {}
+    unawaited(app!.syncProfile().catchError((Object _) {}));
     if (widget.route.kind == 'dm') await loadThread(first: initial);
     if (!mounted || !active) return;
     poll = Timer.periodic(const Duration(seconds: 20), (_) {
@@ -339,6 +340,7 @@ class _PrivatePageState extends State<PrivatePage> with WidgetsBindingObserver {
                     : '独立私信',
                 '仅在前台接收消息 · 历史保留7天 · 双方需开通',
                 trailing: IconButton(
+                  tooltip: '刷新会话',
                   onPressed: reload,
                   icon: const Icon(Icons.refresh),
                 ),
@@ -615,10 +617,11 @@ class _PrivatePageState extends State<PrivatePage> with WidgetsBindingObserver {
                                 : Icons.image_outlined,
                           ),
                         ),
-                        const Text(
-                          'Enter 发送 · Shift+Enter 换行',
-                          style: TextStyle(fontSize: 10, color: Colors.grey),
-                        ),
+                        if (!isAndroid)
+                          const Text(
+                            'Enter 发送 · Shift+Enter 换行',
+                            style: TextStyle(fontSize: 10, color: Colors.grey),
+                          ),
                         const Spacer(),
                         const Text(
                           '仅在前台同步',

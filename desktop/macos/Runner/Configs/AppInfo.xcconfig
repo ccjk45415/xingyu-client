@@ -1,0 +1,9 @@
+// macOS independent local test channel; no developer account is embedded.
+PRODUCT_NAME = Xingyu
+PRODUCT_MODULE_NAME = Xingyu
+PRODUCT_BUNDLE_IDENTIFIER = moe.cangku.xingyu.macos
+PRODUCT_COPYRIGHT = Copyright © 2026 Xingyu contributors. MIT.
+ARCHS = arm64
+ONLY_ACTIVE_ARCH = YES
+CODE_SIGN_IDENTITY = -
+DEVELOPMENT_TEAM =

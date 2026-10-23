@@ -48,13 +48,118 @@ String sourceImage(Element element, Uri base) {
   return '';
 }
 
+/// Only preserve public HTTPS media URLs; never execute page JavaScript.
+String sourceMediaUrl(String raw, Uri base) {
+  if (raw.trim().isEmpty) return '';
+  final element = Element.tag('img')..attributes['src'] = raw.trim();
+  return sourceImage(element, base);
+}
+
+Json? sourceVideo(Element element, Uri base) {
+  final tag = element.localName;
+  final candidates = <String>[
+    element.attributes['data-src'] ?? '',
+    element.attributes['src'] ?? '',
+    element.attributes['data-mp4'] ?? '',
+    element.attributes['data-webm'] ?? '',
+    element.attributes['data-hls'] ?? '',
+    for (final child in element.querySelectorAll('source'))
+      child.attributes['src'] ?? child.attributes['data-src'] ?? '',
+    if (tag == 'a') element.attributes['href'] ?? '',
+  ];
+  for (final raw in candidates) {
+    final url = sourceMediaUrl(raw, base);
+    if (url.isEmpty) continue;
+    final host = Uri.parse(url).host;
+    if (tag == 'a' &&
+        !RegExp(
+          r'\.(mp4|webm|m3u8|mpd)(?:[?#]|$)',
+          caseSensitive: false,
+        ).hasMatch(url) &&
+        ![
+          'chobit.cc',
+          'www.youtube.com',
+          'youtu.be',
+          'www.bilibili.com',
+        ].contains(host)) {
+      continue;
+    }
+    return {
+      'kind': 'video',
+      'url': url,
+      'embed': tag == 'iframe',
+      'poster': sourceMediaUrl(
+        element.attributes['poster'] ?? element.attributes['data-poster'] ?? '',
+        base,
+      ),
+      'title': element.attributes['title'] ?? '作品视频',
+      'source_url': base.toString(),
+    };
+  }
+  return null;
+}
+
+/// Steam's appdetails response supplies metadata outside detailed_description.
+Json parseSteamSource(Json data, Uri uri) {
+  final source = parseSourceDocument(text(data['detailed_description']), uri);
+  source['title'] = text(data['name']);
+  source['cover'] = sourceMediaUrl(text(data['header_image']), uri);
+  source['work_type'] = switch (text(data['type'])) {
+    'game' || 'dlc' || 'demo' => 'game',
+    'music' => 'music',
+    'video' || 'episode' || 'series' => 'movie',
+    'advertising' => 'other',
+    'software' => 'software',
+    _ => '',
+  };
+  String names(dynamic values) =>
+      values is List ? values.whereType<String>().join(' / ') : '';
+  final facts = <String>[
+    text(source['facts']),
+    if (names(data['developers']).isNotEmpty)
+      'Developer：${names(data['developers'])}',
+    if (names(data['publishers']).isNotEmpty)
+      'Publisher：${names(data['publishers'])}',
+    if (text(object(data['release_date'])['date']).isNotEmpty)
+      'Release Date：${text(object(data['release_date'])['date'])}',
+  ];
+  source['facts'] = facts.where((v) => v.isNotEmpty).join('\n');
+  final blocks = rows(source['blocks']);
+  for (final movie in rows(data['movies'])) {
+    final options = [
+      object(movie['mp4'])['max'],
+      object(movie['mp4'])['480'],
+      object(movie['webm'])['max'],
+      object(movie['webm'])['480'],
+      movie['hls_h264'],
+      movie['dash_h264'],
+      movie['dash_av1'],
+    ];
+    final url = options
+        .map((v) => sourceMediaUrl(text(v), uri))
+        .firstWhere((v) => v.isNotEmpty, orElse: () => '');
+    if (url.isNotEmpty && !blocks.any((b) => b['url'] == url)) {
+      blocks.add({
+        'kind': 'video',
+        'url': url,
+        'embed': false,
+        'poster': sourceMediaUrl(text(movie['thumbnail']), uri),
+        'title': text(movie['name'], '作品视频'),
+        'source_url': uri.toString(),
+      });
+    }
+  }
+  source['blocks'] = blocks;
+  return source;
+}
+
 List<Json> sourceTextBlocks(String value) => value
     .split(RegExp(r'\n\s*\n'))
     .where((s) => s.trim().isNotEmpty)
     .map((s) => <String, dynamic>{'kind': 'p', 'text': s})
     .toList();
 String sourceBlockText(List<Json> blocks) => blocks
-    .where((b) => b['kind'] != 'image')
+    .where((b) => !['image', 'video'].contains(b['kind']))
     .map((b) => text(b['text']))
     .join('\n\n');
 Json parseSourceDocument(String raw, Uri uri) {
@@ -72,7 +177,64 @@ Json parseSourceDocument(String raw, Uri uri) {
     final fake = Element.tag('img')..attributes['src'] = candidate;
     cover = sourceImage(fake, uri);
   }
+  final facts = <String>[];
+  for (final row in doc.querySelectorAll('tr')) {
+    final cells = row.querySelectorAll('th,td');
+    if (cells.length >= 2) {
+      final label = cells.first.text.replaceAll(RegExp(r'\s+'), ' ').trim();
+      final value = cells
+          .skip(1)
+          .map((c) => c.text.replaceAll(RegExp(r'\s+'), ' ').trim())
+          .join(' / ');
+      if (label.isNotEmpty &&
+          label.length < 60 &&
+          value.isNotEmpty &&
+          value.length < 500) {
+        facts.add('$label：$value');
+      }
+    }
+  }
+  for (final dt in doc.querySelectorAll('dt')) {
+    final dd = dt.nextElementSibling;
+    if (dd?.localName == 'dd' && dt.text.length < 60 && dd!.text.length < 500) {
+      facts.add('${dt.text.trim()}：${dd.text.trim()}');
+    }
+  }
+  for (final row in doc.querySelectorAll('.dev_row,.release_date')) {
+    final label =
+        row
+            .querySelector('.subtitle,b')
+            ?.text
+            .replaceAll(RegExp(r'[:：]'), '')
+            .trim() ??
+        '';
+    final value =
+        row.querySelector('.summary,.date')?.text.trim() ??
+        row.querySelectorAll('a').map((a) => a.text.trim()).join(' / ');
+    if (label.isNotEmpty && value.isNotEmpty && value.length < 500) {
+      facts.add('$label：$value');
+    }
+  }
+  final maker = doc.querySelector('.maker_name')?.text.trim() ?? '';
+  if (maker.isNotEmpty && maker.length < 200) facts.add('サークル名：$maker');
   Element? intro;
+  // Some DLsite descriptions split text and trailers into sibling containers.
+  if (['www.dlsite.com', 'dlsite.com'].contains(uri.host)) {
+    final sections = doc.querySelectorAll('.work_parts_container').where((e) {
+      var parent = e.parent;
+      while (parent != null) {
+        if (parent.classes.contains('work_parts_container')) return false;
+        parent = parent.parent;
+      }
+      return true;
+    }).toList();
+    if (sections.length > 1) {
+      intro = Element.tag('div');
+      for (final section in sections) {
+        intro.append(section.clone(true));
+      }
+    }
+  }
   for (final css in [
     '.work_parts_container[itemprop="description"]',
     '.work_parts_container',
@@ -82,9 +244,11 @@ Json parseSourceDocument(String raw, Uri uri) {
     'article',
     'main',
   ]) {
+    if (intro != null) break;
     final e = doc.querySelector(css);
     if (e != null &&
-        (e.text.trim().isNotEmpty || e.querySelector('img') != null)) {
+        (e.text.trim().isNotEmpty ||
+            e.querySelector('img,video,iframe') != null)) {
       intro = e;
       break;
     }
@@ -103,7 +267,7 @@ Json parseSourceDocument(String raw, Uri uri) {
   intro ??= doc.body;
   if (intro == null) throw ApiFailure(422, '网页没有可读取的介绍');
   for (final e in intro.querySelectorAll(
-    'script,style,nav,header,footer,noscript,iframe,form,button,svg',
+    'script,style,nav,header,footer,noscript,form,button,svg',
   )) {
     e.remove();
   }
@@ -127,6 +291,19 @@ Json parseSourceDocument(String raw, Uri uri) {
     }
     if (node is! Element) return;
     final tag = node.localName ?? '';
+    if (tag == 'video' ||
+        tag == 'iframe' ||
+        tag == 'a' ||
+        node.attributes.containsKey('data-mp4') ||
+        node.attributes.containsKey('data-webm')) {
+      final video = sourceVideo(node, uri);
+      if (video != null) {
+        flush(kind);
+        blocks.add(video);
+        return;
+      }
+      if (tag == 'video' || tag == 'iframe') return;
+    }
     if (tag == 'img') {
       flush(kind);
       final image = sourceImage(node, uri);
@@ -183,6 +360,19 @@ Json parseSourceDocument(String raw, Uri uri) {
   return {
     'url': uri.toString(),
     'title': title.trim(),
+    'facts': facts.toSet().take(100).join('\n'),
+    'work_type_codes': doc
+        .querySelectorAll('#category_type a[href*="work_type/"]')
+        .map(
+          (a) =>
+              RegExp(r'/work_type/([^/]+)')
+                  .firstMatch(a.attributes['href'] ?? '')
+                  ?.group(1) ??
+              '',
+        )
+        .where((v) => v.isNotEmpty)
+        .toSet()
+        .toList(),
     'cover': cover,
     'blocks': blocks,
     'text': sourceBlockText(blocks),

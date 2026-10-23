@@ -1,3 +1,7 @@
+## macOS Apple Silicon 测试构建
+
+此分支仅准备 Mac 测试安装包，不发布正式客户端更新。详情见 [Mac 构建说明](docs/MACOS-BUILD.md)。
+
 # 仓库 · 星屿
 
 cangku.moe 的非官方 Android 与 Flutter Windows 客户端。界面以淡紫色、星光元素、大封面和双列卡片重新设计，支持夜间主题。最低 Android 8.0（API 26），目标 Android 15（API 35）。

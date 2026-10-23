@@ -1,3 +1,4 @@
+import 'cached_image.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -6,6 +7,7 @@ import 'package:image/image.dart' as image;
 import '../core/api.dart';
 import '../core/comment_content.dart';
 import '../core/state.dart';
+import '../core/platform.dart';
 import 'shared.dart';
 
 const commentImageLimit = 1024 * 1024;
@@ -33,14 +35,19 @@ void validateCommentImage(Uint8List bytes) {
 Future<String?> composeComment(BuildContext context, String title) async {
   final app = stateOf(context), owner = stateOf(context).uid;
   final generation = app.generation, session = app.site.generation;
+  final scope = DeskScope.of(context);
   final value = await showDialog<String>(
     context: context,
-    builder: (_) => _CommentComposer(
+    builder: (_) => DeskScope(
       app: app,
-      owner: owner,
-      title: title,
-      generation: generation,
-      session: session,
+      open: scope.open,
+      child: _CommentComposer(
+        app: app,
+        owner: owner,
+        title: title,
+        generation: generation,
+        session: session,
+      ),
     ),
   );
   return context.mounted &&
@@ -156,6 +163,11 @@ class _CommentComposerState extends State<_CommentComposer> {
   }
 
   Future<void> paste() async {
+    if (isAndroid) {
+      final data = await Clipboard.getData(Clipboard.kTextPlain);
+      if (active && data?.text != null) setState(() => insert(data!.text!));
+      return;
+    }
     final consumed = await imageTask(() async {
       try {
         return await _imageClipboard.invokeMethod<Uint8List>('readImage');
@@ -175,6 +187,7 @@ class _CommentComposerState extends State<_CommentComposer> {
         const XTypeGroup(
           label: '评论图片（1 MB 以内）',
           extensions: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
+          mimeTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
         ),
       ],
     );
@@ -214,9 +227,11 @@ class _CommentComposerState extends State<_CommentComposer> {
                   minLines: 4,
                   maxLines: 8,
                   maxLength: 5000,
-                  decoration: const InputDecoration(
-                    hintText: '写下想说的话，可直接粘贴图片（1 MB 以内）',
-                    border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                    hintText: isAndroid
+                        ? '写下想说的话，可上传图片（1 MB 以内）'
+                        : '写下想说的话，可直接粘贴图片（1 MB 以内）',
+                    border: const OutlineInputBorder(),
                   ),
                   contextMenuBuilder: (c, editable) {
                     final items = editable.contextMenuButtonItems
@@ -227,7 +242,7 @@ class _CommentComposerState extends State<_CommentComposer> {
                     items.add(
                       ContextMenuButtonItem(
                         type: ContextMenuButtonType.paste,
-                        label: '粘贴图片或文字',
+                        label: isAndroid ? '粘贴文字' : '粘贴图片或文字',
                         onPressed: () {
                           editable.hideToolbar();
                           paste();
@@ -316,7 +331,7 @@ class _CommentComposerState extends State<_CommentComposer> {
                                   setState(() => insert(selected.token(i + 1))),
                         child: Padding(
                           padding: const EdgeInsets.all(7),
-                          child: Image.network(
+                          child: CachedImage(
                             selected.url(i + 1),
                             headers: const {'Referer': '$siteOrigin/'},
                             fit: BoxFit.contain,

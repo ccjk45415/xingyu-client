@@ -1,9 +1,12 @@
 import 'dart:io';
+
 import 'package:crypto/crypto.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
+
 import '../ui/shared.dart';
 import 'api.dart';
+import 'platform.dart';
 
 void validateWindowsRelease(Json manifest) {
   final url = Uri.tryParse(text(manifest['url'])),
@@ -25,6 +28,14 @@ void validateWindowsRelease(Json manifest) {
 }
 
 Future<void> checkWindowsUpdate(BuildContext context) async {
+  if (isMacOS) {
+    message(context, '当前为 macOS 独立测试版，暂不接入正式更新通道。');
+    return;
+  }
+  if (isAndroid && androidTestChannel) {
+    message(context, '当前为 Flutter 安卓独立测试版，暂不接入正式更新通道。');
+    return;
+  }
   final app = stateOf(context);
   final manifest = await app.service.request('/updates/windows.json');
   if (!context.mounted) return;

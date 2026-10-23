@@ -115,6 +115,16 @@ class PostListPage extends StatelessWidget {
     final app = stateOf(context);
     final authors = route.kind == 'search' && route.filter == 'authors';
     return AsyncPane(
+      cacheKey:
+          const {
+            'home',
+            'posts',
+            'rank',
+            'search',
+            'authorPosts',
+          }.contains(route.kind)
+          ? 'list:${route.key}:${route.kind == 'home' ? app.homeFilterKey : ''}'
+          : null,
       refreshToken: route.kind == 'home'
           ? '${app.homeFilterKey}:${app.categories.length}'
           : null,
@@ -122,6 +132,9 @@ class PostListPage extends StatelessWidget {
       builder: (data, reload) {
         final posts = rows(data['data']);
         return PageBody(
+          key: PageStorageKey(
+            'list:${route.key}:${route.kind == 'home' ? app.homeFilterKey : ''}',
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -210,15 +223,18 @@ class PostGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (c, constraints) {
-      final columns = (constraints.maxWidth / 248).floor().clamp(1, 6);
+      final compact = constraints.maxWidth < 600;
+      final columns = compact && constraints.maxWidth >= 300
+          ? 2
+          : (constraints.maxWidth / 248).floor().clamp(1, 6);
       return GridView.builder(
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
         itemCount: posts.length,
         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: columns,
-          mainAxisSpacing: 22,
-          crossAxisSpacing: 22,
+          mainAxisSpacing: compact ? 12 : 22,
+          crossAxisSpacing: compact ? 12 : 22,
           mainAxisExtent: 280,
         ),
         itemBuilder: (c, index) => PostCard(posts[index], rank: index + 1),
@@ -270,7 +286,7 @@ class _PostCardState extends State<PostCard> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 SizedBox(
-                  height: 156,
+                  height: MediaQuery.sizeOf(context).width < 700 ? 145 : 156,
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
@@ -329,19 +345,22 @@ class _PostCardState extends State<PostCard> {
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
                       ),
-                      const Icon(
-                        Icons.visibility_outlined,
-                        size: 13,
-                        color: Colors.grey,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${number(p['view_count'])}',
-                        style: const TextStyle(
-                          fontSize: 11,
+                      if (MediaQuery.sizeOf(context).width >= 700)
+                        const Icon(
+                          Icons.visibility_outlined,
+                          size: 13,
                           color: Colors.grey,
                         ),
-                      ),
+                      if (MediaQuery.sizeOf(context).width >= 700)
+                        const SizedBox(width: 4),
+                      if (MediaQuery.sizeOf(context).width >= 700)
+                        Text(
+                          '${number(p['view_count'])}',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey,
+                          ),
+                        ),
                     ],
                   ),
                 ),
@@ -360,6 +379,7 @@ class CategoryPage extends StatelessWidget {
   Widget build(BuildContext context) => stateOf(context).categoryTopNavigation
       ? const CategoryTabsPage()
       : AsyncPane(
+          cacheKey: 'category-grid',
           load: () =>
               stateOf(context).get('category/list', {'all': 1, 'type': 'post'}),
           builder: (data, reload) => PageBody(
@@ -370,6 +390,7 @@ class CategoryPage extends StatelessWidget {
                   '按兴趣漫游',
                   '从喜欢的分类出发，寻找下一份心动。',
                   trailing: IconButton(
+                    tooltip: '刷新内容',
                     onPressed: reload,
                     icon: const Icon(Icons.refresh),
                   ),
@@ -863,9 +884,14 @@ class _CategoryTabsPageState extends State<CategoryTabsPage> {
   Widget build(BuildContext context) {
     final app = stateOf(context);
     return AsyncPane(
+      cacheKey: 'category-tabs',
       load: () async {
-        if (app.categories.isEmpty) await app.loadCategories();
-        return {'data': app.categories};
+        final result = await app.get('category/list', {
+          'all': 1,
+          'type': 'post',
+        });
+        app.categories = rows(result['data']);
+        return result;
       },
       builder: (r, reload) {
         final roots = rows(r['data']);

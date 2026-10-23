@@ -1,3 +1,5 @@
+import 'browse_cache.dart';
+
 import 'dart:io';
 import 'dart:convert';
 import 'dart:typed_data';
@@ -92,6 +94,14 @@ String? decodeQr(Uint8List data) {
 }
 
 Future<Uint8List> fetchQrImage(String raw) async {
+  final canCache =
+      Uri.tryParse(raw)?.scheme == 'https' &&
+      !(Uri.tryParse(raw)?.path.startsWith('/media/') ?? true);
+  final epoch = BrowseCache.shared.epoch;
+  if (canCache) {
+    final cached = await BrowseCache.shared.read('image:$raw');
+    if (cached != null && cached.length <= 10 * 1024 * 1024) return cached;
+  }
   final client = HttpClient()..connectionTimeout = const Duration(seconds: 12);
   var url = Uri.tryParse(raw);
   try {
@@ -127,7 +137,11 @@ Future<Uint8List> fetchQrImage(String raw) async {
         if (size > 10 * 1024 * 1024) throw const FormatException('图片超过10MB');
         bytes.add(chunk);
       }
-      return bytes.takeBytes();
+      final data = bytes.takeBytes();
+      if (canCache) {
+        await BrowseCache.shared.write('image:$raw', data, generation: epoch);
+      }
+      return data;
     }
     throw const FormatException('图片重定向过多');
   } finally {

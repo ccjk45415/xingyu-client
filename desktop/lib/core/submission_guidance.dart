@@ -38,14 +38,108 @@ class SubmissionGuidance {
     _ => 'other',
   };
   String guess(List<Json> sources) {
-    final urls = sources.map((s) => text(s['url'])).join('\n').toLowerCase();
-    final corpus = sources
-        .map((s) => '${text(s['title'])}\n${text(s['text'])}')
-        .join('\n')
-        .toLowerCase();
-    if (urls.contains('store.steampowered.com/app/')) return 'game';
-    if (RegExp(r'\basmr\b|音声|音聲').hasMatch(corpus)) return 'asmr';
-    return 'other';
+    for (final s in sources) {
+      final declared = text(s['work_type']);
+      if (declared.isNotEmpty && profiles.any((p) => p['id'] == declared)) {
+        return declared;
+      }
+      final codes = (s['work_type_codes'] as List? ?? [])
+          .map((v) => text(v).toUpperCase())
+          .toSet();
+      if (codes.any(
+        {
+          'ADV',
+          'RPG',
+          'SLG',
+          'SLN',
+          'ACT',
+          'STG',
+          'PZL',
+          'TBL',
+          'QIZ',
+          'ACN',
+        }.contains,
+      )) {
+        return 'game';
+      }
+      if (codes.contains('SOU') || codes.contains('SND')) return 'asmr';
+      if (codes.contains('MNG')) {
+        return text(s['url']).contains('/books/') ? 'comic' : 'doujin';
+      }
+      if (codes.contains('MOV') || codes.contains('ANM')) return 'animation';
+      if (codes.contains('ICG')) return 'pictures';
+      if (codes.contains('NRE') || codes.contains('NOV')) return 'novel';
+      if (codes.contains('MUS')) return 'music';
+      if (codes.contains('TOL')) return 'software';
+    }
+    // Prefer the store's formal format over keywords in a story or title.
+    final formats = sources
+        .map(
+          (s) => text(s['facts'])
+              .split('\n')
+              .where(
+                (v) => RegExp(
+                  r'^(作品形式|作品类型|作品類型|Work (?:type|format))\s*[:：]',
+                  caseSensitive: false,
+                ).hasMatch(v.trim()),
+              )
+              .join('\n'),
+        )
+        .join('\n');
+    String infer(String corpus) {
+      if (RegExp(
+        r'ゲーム|遊戲|游戏|ロールプレイング|アドベンチャー|シミュレーション|\bRPG\b|\bgame\b',
+        caseSensitive: false,
+      ).hasMatch(corpus)) {
+        return 'game';
+      }
+      if (RegExp(r'ASMR|音声|音聲|ボイス', caseSensitive: false).hasMatch(corpus)) {
+        return 'asmr';
+      }
+      if (RegExp(
+        r'アニメ|动画|動畫|動画|\banimation\b',
+        caseSensitive: false,
+      ).hasMatch(corpus)) {
+        return 'animation';
+      }
+      if (RegExp(r'同人誌|同人志|本子').hasMatch(corpus)) return 'doujin';
+      if (RegExp(
+        r'マンガ|漫画|漫畫|コミック|\bcomic\b',
+        caseSensitive: false,
+      ).hasMatch(corpus)) {
+        return 'comic';
+      }
+      if (RegExp(r'小説|小说|小說|\bnovel\b', caseSensitive: false).hasMatch(corpus)) {
+        return 'novel';
+      }
+      if (RegExp(r'CG・イラスト|CG集|イラスト集|画集|圖集|图集').hasMatch(corpus)) {
+        return 'pictures';
+      }
+      if (RegExp(
+        r'音楽|音乐|音樂|サウンドトラック|\bsoundtrack\b',
+        caseSensitive: false,
+      ).hasMatch(corpus)) {
+        return 'music';
+      }
+      if (RegExp(
+        r'ツール|ソフトウェア|软件|軟體|\bsoftware\b',
+        caseSensitive: false,
+      ).hasMatch(corpus)) {
+        return 'software';
+      }
+      return 'other';
+    }
+
+    final formal = infer(formats);
+    if (formal != 'other') return formal;
+    if (sources.any(
+      (s) => Uri.tryParse(text(s['url']))?.host == 'store.steampowered.com',
+    )) {
+      return 'game';
+    }
+    return infer(
+      sources.map((s) => '${text(s['title'])}\n${text(s['text'])}').join('\n'),
+    );
   }
 
   String title(
