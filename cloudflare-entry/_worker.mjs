@@ -46,7 +46,7 @@ export async function releaseResponse(request, env, index = releases) {
 export default {
   async fetch(request,env){
     const url=new URL(request.url),path=url.pathname;
-    if(path.startsWith('/ai/')||path==='/health'||path==='/ws'||path.startsWith('/v1/')||path.startsWith('/dm/')||path.startsWith('/media/')||path==='/announcements'||path.startsWith('/announcements/')||path==='/discovery'||path.startsWith('/discovery/'))return env.CHAT_SERVICE.fetch(request);
+    if(path.startsWith('/checkin/')||path==='/client-config'||path.startsWith('/client-config/')||path.startsWith('/ai/')||path==='/health'||path==='/ws'||path.startsWith('/v1/')||path.startsWith('/dm/')||path.startsWith('/media/')||path==='/announcements'||path.startsWith('/announcements/')||path==='/discovery'||path.startsWith('/discovery/'))return env.CHAT_SERVICE.fetch(request);
     if(path==='/updates/android')return env.ASSETS.fetch(new Request(new URL('/updates/android.json',url),request));
     if(path.startsWith('/releases/')) {
       const release = await releaseResponse(request,env);

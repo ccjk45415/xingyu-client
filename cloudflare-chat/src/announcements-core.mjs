@@ -1,3 +1,4 @@
+import {verifyConfigEnvelope} from './client-config.mjs';
 const encoder=new TextEncoder();
 export const EMPTY_BOARD=Object.freeze({schema:1,revision:0,updated_at:null,items:[]});
 export const DEFAULT_DISCOVERY=Object.freeze({schema:1,revision:0,updated_at:null,title:'今天，也有新的心动。',content:'探索灵感 / 珍藏热爱 / 自在阅读'});
@@ -40,23 +41,35 @@ async function body(req){
   try{return JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(bytes));}catch{fail('公告JSON无效');}
 }
 /** Public, hibernating announcement stream; only the separately held admin secret can publish. */
-export function createAnnouncementHub(Base){return class extends Base{
+export function createAnnouncementHub(Base,{verifyConfiguration=verifyConfigEnvelope}={}){return class extends Base{
   constructor(ctx,env){
     super(ctx,env);this.ctx=ctx;this.env=env;this.sql=ctx.storage.sql;
     this.sql.exec('CREATE TABLE IF NOT EXISTS announcement_board(id INTEGER PRIMARY KEY CHECK(id=1),revision INTEGER NOT NULL,body TEXT NOT NULL)');
     this.sql.exec('INSERT OR IGNORE INTO announcement_board(id,revision,body) VALUES(1,0,?)',JSON.stringify(EMPTY_BOARD));
     this.sql.exec('CREATE TABLE IF NOT EXISTS discovery_board(id INTEGER PRIMARY KEY CHECK(id=1),revision INTEGER NOT NULL,body TEXT NOT NULL)');
+    this.sql.exec('CREATE TABLE IF NOT EXISTS client_config_board(id INTEGER PRIMARY KEY CHECK(id=1),revision INTEGER NOT NULL,body TEXT NOT NULL)');
     this.sql.exec('INSERT OR IGNORE INTO discovery_board(id,revision,body) VALUES(1,0,?)',JSON.stringify(DEFAULT_DISCOVERY));
     this.ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair('ping','pong'));
   }
   board(){return JSON.parse(this.sql.exec('SELECT body FROM announcement_board WHERE id=1').toArray()[0].body);}
   discovery(){return JSON.parse(this.sql.exec('SELECT body FROM discovery_board WHERE id=1').toArray()[0].body);}
-  snapshot(){return {...this.board(),discovery:this.discovery()};}
+  clientConfig(){const row=this.sql.exec('SELECT body FROM client_config_board WHERE id=1').toArray()[0];return row?JSON.parse(row.body):null;}
+  snapshot(){return {...this.board(),discovery:this.discovery(),...(this.clientConfig()?{client_config:this.clientConfig()}: {})};}
   // Additive envelope keeps old clients reading their original items and reuses one socket.
-  event(board=this.board()){return JSON.stringify({type:'announcements',data:{...board,discovery:this.discovery()}});}
+  event(board=this.board()){return JSON.stringify({type:'announcements',data:{...board,discovery:this.discovery(),...(this.clientConfig()?{client_config:this.clientConfig()}: {})}});}
   broadcast(){const event=this.event();for(const peer of this.ctx.getWebSockets()){try{if(peer.readyState===1)peer.send(event);}catch{try{peer.close(1011,'请重新连接');}catch{}}}}
   async fetch(req){try{
     const path=new URL(req.url).pathname;
+    if(path==='/client-config'&&req.method==='GET')return this.clientConfig()?json(this.clientConfig()):json({error:'在线配置尚未发布'},404);
+    if(path==='/client-config/publish'&&req.method==='POST'){
+      await authorized(req,this.env.ANNOUNCEMENTS_ADMIN_KEY);
+      const envelope=await body(req),document=await verifyConfiguration(envelope);
+      this.ctx.storage.transactionSync(()=>{
+        const old=this.sql.exec('SELECT revision FROM client_config_board WHERE id=1').toArray()[0];
+        if(document.revision<=(old?.revision||0))fail('在线配置版本已过期，请使用更高版本',409);
+        this.sql.exec('INSERT INTO client_config_board(id,revision,body) VALUES(1,?,?) ON CONFLICT(id) DO UPDATE SET revision=excluded.revision,body=excluded.body',document.revision,JSON.stringify(envelope));
+      });this.broadcast();return json({ok:true,revision:document.revision});
+    }
     if(path==='/announcements'&&req.method==='GET')return json(this.snapshot());
     if(path==='/discovery'&&req.method==='GET')return json(this.discovery());
     if(path==='/announcements/live'&&req.method==='GET'){

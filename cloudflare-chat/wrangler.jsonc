@@ -19,7 +19,10 @@
       "/media/*",
       "/ai/*",
       "/discovery",
-      "/discovery/*"
+      "/discovery/*",
+      "/client-config",
+      "/client-config/*",
+      "/checkin/*"
     ]
   },
   "durable_objects": {
@@ -43,6 +46,10 @@
       {
         "name": "AI_DRAFTS",
         "class_name": "AiDraftHub"
+      },
+      {
+        "name": "CHECKIN",
+        "class_name": "CheckinHub"
       }
     ]
   },
@@ -75,6 +82,12 @@
       "tag": "v5",
       "new_sqlite_classes": [
         "AiDraftHub"
+      ]
+    },
+    {
+      "tag": "v6",
+      "new_sqlite_classes": [
+        "CheckinHub"
       ]
     }
   ],

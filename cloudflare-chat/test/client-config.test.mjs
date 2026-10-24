@@ -1,0 +1,22 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {DatabaseSync} from 'node:sqlite';
+import {DEFAULT_CLIENT_CONFIG,verifyConfigEnvelope} from '../src/client-config.mjs';
+import {createAnnouncementHub} from '../src/announcements-core.mjs';
+globalThis.WebSocketRequestResponsePair??=class{};
+const enc=new TextEncoder(),b64=v=>Buffer.from(v).toString('base64');
+test('signature, expiry, product and strict schema verified; publisher rejects rollback and broadcasts verified config',async()=>{
+  const pair=await crypto.subtle.generateKey('Ed25519',true,['sign','verify']),publicKey=b64(await crypto.subtle.exportKey('raw',pair.publicKey));
+  const now=Date.now(),doc={schema:1,product:'moe.cangku.xingyu',revision:1,issued_at:new Date(now).toISOString(),expires_at:new Date(now+86400000).toISOString(),config:DEFAULT_CLIENT_CONFIG};
+  const sign=async value=>{const bytes=enc.encode(JSON.stringify(value));return {payload:b64(bytes),signature:b64(await crypto.subtle.sign('Ed25519',pair.privateKey,bytes))};};
+  const envelope=await sign(doc),verify=value=>verifyConfigEnvelope(value,{publicKey,now});
+  assert.equal((await verify(envelope)).revision,1);
+  for(const invalid of [{...envelope,payload:b64(enc.encode(JSON.stringify({...doc,revision:9})))},await sign({...doc,expires_at:new Date(now-1).toISOString()}),await sign({...doc,product:'wrong'}),await sign({...doc,config:{...DEFAULT_CLIENT_CONFIG,script:'arbitrary code'}})])await assert.rejects(verify(invalid));
+  const db=new DatabaseSync(':memory:'),events=[],ctx={storage:{sql:{exec(q,...args){const result=db.prepare(q).all(...args);return {toArray:()=>result};}},transactionSync(fn){return fn();}},setWebSocketAutoResponse(){},getWebSockets:()=>[{readyState:1,send:value=>events.push(JSON.parse(value))}]};
+  const Hub=createAnnouncementHub(class {},{verifyConfiguration:verify}),hub=new Hub(ctx,{ANNOUNCEMENTS_ADMIN_KEY:'a'.repeat(64)});
+  const publish=token=>hub.fetch(new Request('https://test.invalid/client-config/publish',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify(envelope)}));
+  assert.equal((await publish('b'.repeat(64))).status,401);assert.equal(events.length,0);
+  assert.equal((await publish('a'.repeat(64))).status,200);assert.deepEqual(events[0].data.client_config,envelope);
+  assert.equal((await publish('a'.repeat(64))).status,409);assert.equal(events.length,1);
+  assert.deepEqual(new Hub(ctx,{}).clientConfig(),envelope);
+});

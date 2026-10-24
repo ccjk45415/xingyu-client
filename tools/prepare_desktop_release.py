@@ -14,7 +14,9 @@ if os.name=='nt' and not (bundle/'msvcp140.dll').is_file():
     import subprocess
     finder=Path('C:/Program Files (x86)/Microsoft Visual Studio/Installer/vswhere.exe')
     vs=Path(subprocess.check_output([finder,'-latest','-property','installationPath'],text=True).strip())
-    redist=sorted((vs/'VC/Redist/MSVC').glob('14.*'))[-1]/'x64/Microsoft.VC143.CRT'
+    candidates=sorted((vs/'VC/Redist/MSVC').glob('*/x64/Microsoft.VC*.CRT'))
+    redist=next((p for p in reversed(candidates) if (p/'msvcp140.dll').is_file()),None)
+    if redist is None:raise SystemExit('The installed Visual C++ x64 runtime files were not found')
     for dll in redist.glob('*.dll'):shutil.copy2(dll,bundle/dll.name)
 for path in ['Xingyu.exe','flutter_windows.dll','msvcp140.dll','vcruntime140.dll','vcruntime140_1.dll','data/app.so','data/icudtl.dat','data/flutter_assets/NOTICES.Z']:
     if not (bundle/path).is_file():raise SystemExit('Incomplete Windows bundle: '+path)
