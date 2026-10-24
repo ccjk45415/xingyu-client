@@ -83,11 +83,11 @@ def main():
         subprocess.run(['powershell', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File',
             str(TOOL / 'xingyu-shorebird/bin/shorebird.ps1'), 'release', 'android', '--artifact=apk',
             '--target-platform=android-arm64', '--flutter-version=3.47.7', '--build-name=0.13.0',
-            '--build-number=35', '--dart-define=XINGYU_ANDROID_TEST=true', '--dart-define=XINGYU_PATCH_TRACK=staging'],
+            '--build-number=36', '--dart-define=XINGYU_ANDROID_TEST=true', '--dart-define=XINGYU_PATCH_TRACK=staging'],
             cwd=STAGE, env=env, check=True)
     else:
         run(['build', 'apk', '--release', '--target-platform=android-arm64',
-             '--build-name=0.13.0', '--build-number=35', '--dart-define=XINGYU_ANDROID_TEST=true'])
+             '--build-name=0.13.0', '--build-number=36', '--dart-define=XINGYU_ANDROID_TEST=true'])
     output = ROOT / 'output/Cangku-Xingyu-0.13.0-arm64.apk'
     output.parent.mkdir(exist_ok=True)
     shutil.copy2(STAGE / 'build/app/outputs/flutter-apk/app-release.apk', output)

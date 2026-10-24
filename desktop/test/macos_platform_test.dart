@@ -35,7 +35,7 @@ void main() {
 
   test('macOS has independent version, system fonts and Command shortcuts', () {
     expect(clientVersion, '0.3.0');
-    expect(clientBuild, 4);
+    expect(clientBuild, 5);
     expect(uiFont, null);
     expect(monoFont, 'Menlo');
     expect(secureStorageLabel, 'macOS 钥匙串');

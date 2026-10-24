@@ -9,6 +9,7 @@ import 'package:path_provider/path_provider.dart';
 import '../ui/shared.dart';
 import 'api.dart';
 import 'platform.dart';
+import 'state.dart';
 
 String get updatePlatform => isAndroid
     ? 'android'
@@ -108,8 +109,9 @@ Future<void> checkClientUpdate(
   BuildContext context, {
   Json? release,
   bool confirmed = false,
+  AppState? application,
 }) async {
-  final app = stateOf(context), platform = updatePlatform;
+  final app = application ?? stateOf(context), platform = updatePlatform;
   final manifest = release ?? await app.service.request(updateManifestPath);
   if (!context.mounted) return;
   if (manifest['available'] != true) {
@@ -286,8 +288,11 @@ class _DownloadUpdateState extends State<_DownloadUpdate> {
 
 /// A release is offered once per installation, regardless of the active account.
 /// Invalid/offline responses never consume the reminder, and cancellation never installs.
-Future<void> offerStartupUpdate(BuildContext context) async {
-  final app = stateOf(context);
+Future<void> offerStartupUpdate(
+  BuildContext context, {
+  AppState? application,
+}) async {
+  final app = application ?? stateOf(context);
   final manifest = await app.service.request(updateManifestPath);
   if (!context.mounted || manifest['available'] != true) return;
   validateClientRelease(manifest, updatePlatform);
@@ -337,6 +342,11 @@ Future<void> offerStartupUpdate(BuildContext context) async {
     ),
   );
   if (accept == true && context.mounted) {
-    await checkClientUpdate(context, release: manifest, confirmed: true);
+    await checkClientUpdate(
+      context,
+      release: manifest,
+      confirmed: true,
+      application: app,
+    );
   }
 }

@@ -4,9 +4,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:xingyu_desktop/core/api.dart';
 import 'package:xingyu_desktop/core/updates.dart';
 import 'package:xingyu_desktop/core/state.dart';
+import 'package:xingyu_desktop/app.dart';
 import 'package:xingyu_desktop/ui/shared.dart';
 
-import 'widget_test.dart' show FakeSite, FakeService;
+import 'widget_test.dart' show FakeSite, FakeService, OfflineSocket;
 
 class UpdateService extends FakeService {
   int code = 999;
@@ -17,18 +18,20 @@ class UpdateService extends FakeService {
     String? token,
     Json? body,
     String? method,
-  }) async => {
-    'available': true,
-    'platform': 'windows-x64',
-    'versionName': '9.9.9',
-    'versionCode': code,
-    'notes': '新增通知与更新提醒',
-    'size': 123,
-    'sha256': 'a' * 64,
-    'url': invalid
-        ? 'https://invalid.example/update.zip'
-        : '$serviceOrigin/releases/update.zip',
-  };
+  }) async => path.startsWith('/updates/')
+      ? {
+          'available': true,
+          'platform': 'windows-x64',
+          'versionName': '9.9.9',
+          'versionCode': code,
+          'notes': '新增通知与更新提醒',
+          'size': 123,
+          'sha256': 'a' * 64,
+          'url': invalid
+              ? 'https://invalid.example/update.zip'
+              : '$serviceOrigin/releases/update.zip',
+        }
+      : super.request(path, token: token, body: body, method: method);
 }
 
 void main() {
@@ -38,6 +41,28 @@ void main() {
   tearDown(() {
     debugDefaultTargetPlatformOverride = null;
   });
+  testWidgets(
+    'actual app shell offers an update without requiring an ancestor DeskScope',
+    (tester) async {
+      final app =
+          AppState(
+              siteApi: FakeSite(),
+              serviceApi: UpdateService(),
+              socketFactory: OfflineSocket.new,
+            )
+            ..user = {...FakeSite.user}
+            ..starting = false;
+      await tester.pumpWidget(XingyuApp(app: app));
+      await tester.pumpAndSettle();
+      expect(find.text('立即更新'), findsOneWidget);
+      await tester.tap(find.text('暂时不更新'));
+      await tester.pumpAndSettle();
+      expect(app.local['updateOffers'], ['windows-x64:999']);
+      await tester.pumpWidget(const SizedBox());
+      app.dispose();
+      debugDefaultTargetPlatformOverride = null;
+    },
+  );
   testWidgets(
     'startup offers each new release once; decline makes no installation and next version can prompt',
     (tester) async {

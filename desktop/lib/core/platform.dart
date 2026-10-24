@@ -5,7 +5,7 @@ import 'package:flutter/widgets.dart' show SingleActivator;
 import 'package:flutter/foundation.dart';
 
 const androidTestVersion = '0.13.0';
-const androidTestBuild = 35;
+const androidTestBuild = 36;
 const androidTestChannel = bool.fromEnvironment(
   'XINGYU_ANDROID_TEST',
   defaultValue: false,
@@ -14,7 +14,7 @@ const platformChannel = MethodChannel('moe.cangku.xingyu/platform');
 bool get isAndroid => Platform.isAndroid;
 bool get isMacOS => defaultTargetPlatform == TargetPlatform.macOS;
 const macosTestVersion = '0.3.0';
-const macosTestBuild = 4;
+const macosTestBuild = 5;
 String get clientVersion => isAndroid
     ? androidTestVersion
     : isMacOS
@@ -24,7 +24,7 @@ int get clientBuild => isAndroid
     ? androidTestBuild
     : isMacOS
     ? macosTestBuild
-    : 26;
+    : 27;
 String? get uiFont => isAndroid || isMacOS ? null : 'Microsoft YaHei UI';
 String get monoFont => isAndroid
     ? 'monospace'
