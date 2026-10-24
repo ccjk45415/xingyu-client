@@ -15,7 +15,7 @@ parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('platform', choices=['windows', 'macos'])
 parser.add_argument('--dry-run', action='store_true')
 args = parser.parse_args()
-name, build = {'windows': ('0.6.0', '25'), 'macos': ('0.2.0', '3')}[args.platform]
+name, build = {'windows': ('0.7.0', '26'), 'macos': ('0.2.0', '3')}[args.platform]
 if sys.platform == 'win32':
     cli = Path(os.environ['RUNNER_TEMP']) / 'shorebird/bin/shorebird.ps1'
     command = ['powershell', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', str(cli)]
@@ -24,7 +24,7 @@ else:
 command += ['patch', args.platform, f'--release-version={name}+{build}',
             f'--build-name={name}', f'--build-number={build}',
             '--dart-define=XINGYU_PATCH_TRACK=staging',
-            '--dart-define=XINGYU_REQUIRE_CODE_PUSH=true', '--track=staging']
+            '--dart-define=XINGYU_REQUIRE_CODE_PUSH=true', '--dart-define=XINGYU_PATCH_PROBE=1', '--track=staging']
 if args.dry_run:
     command.append('--dry-run')
 subprocess.run(command, cwd=ROOT / 'desktop', check=True)
