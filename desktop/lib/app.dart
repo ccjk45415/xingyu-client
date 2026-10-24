@@ -6,6 +6,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'core/api.dart';
 import 'core/state.dart';
+import 'core/updates.dart';
 import 'core/chat.dart';
 import 'core/platform.dart';
 import 'pages/discovery.dart';
@@ -496,6 +497,9 @@ class _DesktopShellState extends State<DesktopShell>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     widget.app.notices.start();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) unawaited(offerStartupUpdate(context).catchError((_) {}));
+    });
   }
 
   @override
