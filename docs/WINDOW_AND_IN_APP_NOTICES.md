@@ -24,7 +24,9 @@
 - 窗口 API 在独立测试窗口中验证普通位置/尺寸、最大化、最小化忽略和屏幕外恢复；报告 `evidence/window-placement-native.json`。
 - 现有 Windows 正式基座的原生文件和资源全部保留，只替换同版本 Shorebird SDK 编译的 Dart AOT，形成本地免安装测试目录。新 UI 所需 Material 字形已检查均存在于正式安装包的字体中。
 - Android 使用现有 `0.12.0+34` 基座执行 `shorebird patch android --dry-run`。该命令验证但不上传补丁。
-- Windows 官方 `patch --dry-run` 在本机因 Visual Studio 完整工具链检测失败而尚未通过；同版 SDK 的 Dart AOT 编译及真实基座引擎自检通过。Windows 正式补丁仍需完整构建环境校验，不能把 AOT 自检当成已发布补丁。
+- 本机 Windows 因完整 Visual Studio 工具链检测失败，改由 GitHub 官方 Windows runner 构建。Windows 和 macOS 均已通过官方 `patch --dry-run`，随后成功上传第 1 号补丁，没有使用原生或资源差异绕过参数。
 - 不变更 macOS 原生窗口实现；本次窗口记忆功能只适用于 Windows。
 
-后续发布前遵守“先让用户测试”的要求。目前正式基座检查 staging 通道，该通道覆盖正式用户，不能用来隔离测试补丁。
+用户于本轮明确授权发布，三端第 1 号补丁现已发布并读取服务端记录确认：Android 0.12.0+34、Windows 0.6.0+25、macOS 0.2.0+3。发布通道 staging，与当前正式基座的检查通道一致；这不是隔离测试通道。203 项回归测试通过，3 项条件测试跳过。CI 运行：https://github.com/ccjk45415/xingyu-client/actions/runs/40096827221 。短期 CI 授权在构建完成后已移除。
+
+联网打开应用后静默下载补丁，下载完成后完全退出进程、再次打开生效。补丁不会变更安装包版本号，不需要重新下载安装包。后续新改动仍遵守“先让用户测试”的长期偏好，除非用户再次明确要求直接发布。
