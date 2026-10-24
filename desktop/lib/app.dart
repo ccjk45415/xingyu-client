@@ -498,7 +498,14 @@ class _DesktopShellState extends State<DesktopShell>
     WidgetsBinding.instance.addObserver(this);
     widget.app.notices.start();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) unawaited(offerStartupUpdate(context, application: widget.app).catchError((_) {}));
+      if (mounted) {
+        unawaited(
+          offerStartupUpdate(
+            context,
+            application: widget.app,
+          ).catchError((_) {}),
+        );
+      }
     });
   }
 
