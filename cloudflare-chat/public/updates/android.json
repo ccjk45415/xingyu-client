@@ -1,11 +1,11 @@
 {
   "available": true,
-  "versionName": "0.11.0",
-  "versionCode": 33,
-  "notes": "安卓客户端升级为 Flutter 引擎，沿用原版应用名称，支持覆盖安装。Windows 新增更新包自动下载、完整性校验、自动替换与重启，失败时恢复旧版；macOS 接入独立更新通道。完善 AI 投稿助手、作品资料与分类识别、正文图片和视频、评论表情及图片功能，优化首页、分类、排行、动态和聊天室的加载、滚动与页面布局，修复多项已知问题。",
-  "url": "https://xingyu-chat-ccjk45415.pages.dev/releases/Cangku-Xingyu-0.11.0-arm64.apk",
-  "size": 18625685,
-  "sha256": "08baf0e55f2051eb63df724895b867bb160f8b2984b97129301f94abf94e74bb",
+  "versionName": "0.12.0",
+  "versionCode": 34,
+  "notes": "新增签到和自动签到功能",
+  "url": "https://xingyu-chat-ccjk45415.pages.dev/releases/Cangku-Xingyu-0.12.0-arm64.apk",
+  "size": 19905179,
+  "sha256": "cb4366d67cb09158939fe44dac6fb50df58e4ac043acd1a11495aa7e0135dd5c",
   "package": "moe.cangku.reader",
   "minSdk": 26
 }

@@ -39,7 +39,7 @@ def prepare():
         if (pub / folder).exists():
             shutil.copytree(pub / folder, CACHE / folder, dirs_exist_ok=True, copy_function=linked_copy)
     source = ROOT / 'desktop'
-    for name in ['pubspec.yaml', 'pubspec.lock', '.metadata', 'analysis_options.yaml']:
+    for name in ['pubspec.yaml', 'pubspec.lock', '.metadata', 'analysis_options.yaml', 'shorebird.yaml']:
         if (source / name).is_file(): shutil.copy2(source / name, STAGE / name)
     for name in ['lib', 'assets', 'android', 'integration_test']:
         shutil.copytree(source / name, STAGE / name, dirs_exist_ok=True,
@@ -62,6 +62,7 @@ def prepare():
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--device-test', help='Run isolated, synthetic integration tests on this ADB device')
+    parser.add_argument('--shorebird-test', action='store_true', help='Build/register a private Shorebird test base, never publish an installer')
     args = parser.parse_args()
     env = prepare()
     command = [str(FLUTTER / 'bin/cache/dart-sdk/bin/dart.exe'), str(FLUTTER / 'bin/cache/flutter_tools.snapshot')]
@@ -75,9 +76,18 @@ def main():
         return
     # Let Flutter regenerate release registrants without dev-only plugins.
     # --no-pub after a debug/pub-get pass leaves integration_test registered.
-    run(['build', 'apk', '--release', '--target-platform=android-arm64',
-         '--build-name=0.11.0', '--build-number=33', '--dart-define=XINGYU_ANDROID_TEST=false'])
-    output = ROOT / 'output/Cangku-Xingyu-0.11.0-arm64.apk'
+    if args.shorebird_test:
+        env['APPDATA'] = str(ROOT / '.toolchain/shorebird-auth')
+        env.update(GIT_CONFIG_COUNT='1', GIT_CONFIG_KEY_0='core.longpaths', GIT_CONFIG_VALUE_0='true')
+        subprocess.run(['powershell', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File',
+            str(TOOL / 'xingyu-shorebird/bin/shorebird.ps1'), 'release', 'android', '--artifact=apk',
+            '--target-platform=android-arm64', '--flutter-version=3.47.7', '--build-name=0.12.0',
+            '--build-number=34', '--dart-define=XINGYU_ANDROID_TEST=true', '--dart-define=XINGYU_PATCH_TRACK=staging'],
+            cwd=STAGE, env=env, check=True)
+    else:
+        run(['build', 'apk', '--release', '--target-platform=android-arm64',
+             '--build-name=0.12.0', '--build-number=34', '--dart-define=XINGYU_ANDROID_TEST=true'])
+    output = ROOT / 'output/Cangku-Xingyu-0.12.0-test-arm64.apk'
     output.parent.mkdir(exist_ok=True)
     shutil.copy2(STAGE / 'build/app/outputs/flutter-apk/app-release.apk', output)
     if output.stat().st_size > 24 * 1024 * 1024:

@@ -7,11 +7,16 @@ import re
 import subprocess
 import struct
 import zipfile
+import argparse
 
 ROOT = Path(__file__).resolve().parents[1]
 SDK = ROOT / '.toolchain/android-sdk/build-tools/35.0.0'
 JAVA = Path(os.environ.get('JAVA_HOME', 'C:/Program Files/Java/jdk-17')) / 'bin/java.exe'
-APK = ROOT / 'output/Cangku-Xingyu-0.11.0-arm64.apk'
+parser = argparse.ArgumentParser()
+parser.add_argument('--test', action='store_true')
+args = parser.parse_args()
+VERSION, BUILD = ('0.12.0', 34) if args.test else ('0.11.0', 33)
+APK = ROOT / ('output/Cangku-Xingyu-0.12.0-test-arm64.apk' if args.test else 'output/Cangku-Xingyu-0.11.0-arm64.apk')
 
 def output(command):
     return subprocess.check_output([str(v) for v in command], cwd=ROOT).decode('utf-8', errors='replace')
@@ -19,7 +24,7 @@ def output(command):
 badging = output([SDK / 'aapt2.exe', 'dump', 'badging', APK.relative_to(ROOT)])
 assert "name='moe.cangku.reader'" in badging
 assert "application-label:'仓库 · 星屿'" in badging
-assert "versionCode='33'" in badging and "versionName='0.11.0'" in badging
+assert f"versionCode='{BUILD}'" in badging and f"versionName='{VERSION}'" in badging
 assert APK.stat().st_size <= 24 * 1024 * 1024
 assert "minSdkVersion:'26'" in badging and "targetSdkVersion:'36'" in badging
 assert 'application-debuggable' not in badging
@@ -32,6 +37,13 @@ with zipfile.ZipFile(APK) as archive:
     assert not any('.keystore' in n or n.endswith('.jks') for n in names)
     assert not any('lib/armeabi-v7a/' in n or 'lib/x86/' in n or 'lib/x86_64/' in n for n in names)
     assert 'lib/arm64-v8a/libmpv.so' in names
+    if args.test:
+        assert 'android.permission.RECEIVE_BOOT_COMPLETED' in badging
+        assert 'assets/flutter_assets/shorebird.yaml' in names
+        assert b'auto_update: false' in archive.read('assets/flutter_assets/shorebird.yaml')
+        assert b'shorebird' in archive.read('lib/arm64-v8a/libflutter.so')
+        manifest = output([SDK / 'aapt2.exe', 'dump', 'xmltree', APK, '--file', 'AndroidManifest.xml'])
+        assert 'CheckinJobService' in manifest and 'android.permission.BIND_JOB_SERVICE' in manifest
     elf_libraries = []
     for name in sorted(n for n in names if n.endswith('.so')):
         data = archive.read(name)
@@ -54,11 +66,11 @@ subprocess.run([str(SDK / 'zipalign.exe'), '-c', '-P', '16', '4', str(APK)], che
 report = {
     'artifact': APK.name, 'size': APK.stat().st_size, 'sha256': hashlib.sha256(APK.read_bytes()).hexdigest(),
     'engine': 'Flutter Android / Dart AOT', 'min_sdk': 26, 'target_sdk': 36,
-    'package': 'moe.cangku.reader', 'version_name': '0.11.0', 'version_code': 33,
+    'package': 'moe.cangku.reader', 'version_name': VERSION, 'version_code': BUILD,
     'abi': 'arm64-v8a', 'signature_verified': True, 'original_test_signer_preserved': True,
     'alignment_16kb_verified': True, 'all_elf_load_segments_16kb_verified': True, 'native_libraries': elf_libraries, 'debuggable': False,
     'real_device_test': 'not_run_for_this_build', 'android_16_samsung_test': 'pending_user',
     'uploaded': False,
 }
-(ROOT / 'evidence/flutter-android-package.json').write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+(ROOT / ('evidence/checkin-android-test-package.json' if args.test else 'evidence/flutter-android-package.json')).write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
 print(json.dumps(report, ensure_ascii=False))

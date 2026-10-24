@@ -29,5 +29,35 @@ export default {
       "/release-chunks/35cfd9f9574448b4c5334588fa05a32850bb6272737322f227cfde3d6de41632/1.part",
       "/release-chunks/35cfd9f9574448b4c5334588fa05a32850bb6272737322f227cfde3d6de41632/2.part"
     ]
+  },
+  "Xingyu-Windows-0.6.0-x64.zip": {
+    "size": 39194153,
+    "sha256": "c12353ac7481548036d2179b10bcf7a8db1ea8b5647d7882f5817c9ff0b2a413",
+    "type": "application/zip",
+    "chunks": [
+      "/release-chunks/c12353ac7481548036d2179b10bcf7a8db1ea8b5647d7882f5817c9ff0b2a413/0.part",
+      "/release-chunks/c12353ac7481548036d2179b10bcf7a8db1ea8b5647d7882f5817c9ff0b2a413/1.part",
+      "/release-chunks/c12353ac7481548036d2179b10bcf7a8db1ea8b5647d7882f5817c9ff0b2a413/2.part"
+    ]
+  },
+  "Xingyu-macOS-0.2.0-arm64.pkg": {
+    "size": 40873604,
+    "sha256": "54344e77b99da085bd81ec1a2bc6f1af4c3eb5e330e7de1187495050c4d7573a",
+    "type": "application/octet-stream",
+    "chunks": [
+      "/release-chunks/54344e77b99da085bd81ec1a2bc6f1af4c3eb5e330e7de1187495050c4d7573a/0.part",
+      "/release-chunks/54344e77b99da085bd81ec1a2bc6f1af4c3eb5e330e7de1187495050c4d7573a/1.part",
+      "/release-chunks/54344e77b99da085bd81ec1a2bc6f1af4c3eb5e330e7de1187495050c4d7573a/2.part"
+    ]
+  },
+  "Xingyu-macOS-0.2.0-arm64.dmg": {
+    "size": 46529392,
+    "sha256": "5699f934611eb8c925c7dcaf82b70ac50dd9978f782211462003e44263e6acd3",
+    "type": "application/x-apple-diskimage",
+    "chunks": [
+      "/release-chunks/5699f934611eb8c925c7dcaf82b70ac50dd9978f782211462003e44263e6acd3/0.part",
+      "/release-chunks/5699f934611eb8c925c7dcaf82b70ac50dd9978f782211462003e44263e6acd3/1.part",
+      "/release-chunks/5699f934611eb8c925c7dcaf82b70ac50dd9978f782211462003e44263e6acd3/2.part"
+    ]
   }
 };
