@@ -139,7 +139,7 @@ void main() {
         'title': '缓存发现',
       };
       await mountHome(tester, app);
-      expect(find.text('星屿公告栏').hitTestable(), findsOneWidget);
+      expect(find.text('公告').hitTestable(), findsOneWidget);
       expect(find.text('缓存公告').hitTestable(), findsOneWidget);
       expect(liveConnector.requested, endsWith('/announcements/live'));
       final remote = {

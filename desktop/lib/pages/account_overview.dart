@@ -6,6 +6,7 @@ import '../core/api.dart';
 import '../core/media.dart';
 import '../ui/shared.dart';
 import 'diagnostics.dart';
+import 'checkin.dart';
 
 const _rose = Color(0xffec7198);
 
@@ -243,6 +244,8 @@ class AccountOverview extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             profile(context),
+            const SizedBox(height: 12),
+            const CheckinCard(),
             const SizedBox(height: 12),
             shortcuts(context),
           ],

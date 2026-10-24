@@ -114,6 +114,7 @@ public class MainActivity extends FlutterActivity {
         final SharedPreferences prefs = getSharedPreferences("flutter_secure_vault", MODE_PRIVATE);
         new MethodChannel(engine.getDartExecutor().getBinaryMessenger(), "moe.cangku.xingyu/secure_storage")
             .setMethodCallHandler((call, result) -> {
+              synchronized (CheckinJobService.LOCK) {
                 try {
                     String key = call.argument("key");
                     if (key == null || !key.matches("[A-Za-z0-9_.-]{1,160}")) throw new IllegalArgumentException();
@@ -144,10 +145,19 @@ public class MainActivity extends FlutterActivity {
                     // Never expose stored values, tokens, or provider keys to logs/errors.
                     result.error("secure_storage", "无法读取或保存本机加密资料", null);
                 }
+              }
             });
         new MethodChannel(engine.getDartExecutor().getBinaryMessenger(), "moe.cangku.xingyu/platform")
             .setMethodCallHandler((call, result) -> {
-                if (call.method.equals("proxy")) {
+                if (call.method.equals("configureCheckinBackground")) {
+                    try {
+                        Integer uid = call.argument("uid");
+                        CheckinJobService.configure(this, Boolean.TRUE.equals(call.argument("enabled")), uid == null ? 0 : uid);
+                        result.success(null);
+                    } catch(Exception error) { result.error("checkin", "系统暂时无法安排后台签到", null); }
+                } else if (call.method.equals("checkinBackgroundStatus")) {
+                    result.success(CheckinJobService.status(this));
+                } else if (call.method.equals("proxy")) {
                     ConnectivityManager cm = (ConnectivityManager)getSystemService(CONNECTIVITY_SERVICE);
                     ProxyInfo proxy = cm == null ? null : cm.getDefaultProxy();
                     Map<String, Object> value = new HashMap<>();

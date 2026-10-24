@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 
 import '../core/api.dart';
 import '../core/reader.dart';
+import '../core/pinned_content.dart';
+import '../ui/pin_badge.dart';
 import '../core/comment_content.dart';
 import '../ui/comment_composer.dart';
 import '../ui/shared.dart';
@@ -241,7 +243,11 @@ class ArticlePage extends StatelessWidget {
                 ),
                 const SizedBox(height: 30),
                 if (!ownerOnly)
-                  CommentsPane(id, locked: post['is_locked'] == true),
+                  CommentsPane(
+                    id,
+                    locked: post['is_locked'] == true,
+                    authorId: number(author['id']),
+                  ),
                 const SizedBox(height: 35),
                 if (!ownerOnly) _HistoryMarker(post),
               ],
@@ -441,13 +447,14 @@ Future<void> showDiscussionReplies(
 }
 
 class CommentsPane extends StatefulWidget {
-  final int post, root;
+  final int post, root, authorId;
   final bool locked, showHeading;
   final VoidCallback? onChanged;
   const CommentsPane(
     this.post, {
     super.key,
     this.root = 0,
+    this.authorId = 0,
     this.locked = false,
     this.showHeading = true,
     this.onChanged,
@@ -472,6 +479,7 @@ class _CommentsPaneState extends State<CommentsPane> {
           : 'user,replyToUser',
       'with[0]': 'user',
       if (widget.root == 0) 'with[1]': 'children',
+      if (widget.root == 0) 'sticky': '1',
     });
     final comments = rows(response['data']),
         ids = [
@@ -502,8 +510,11 @@ class _CommentsPaneState extends State<CommentsPane> {
     key: ValueKey('$page:$reload'),
     load: load,
     builder: (result, _) {
-      final likes = (result['_likes'] as List? ?? []).map(number).toSet(),
-          comments = rows(result['data']);
+      final app = stateOf(context),
+          likes = (result['_likes'] as List? ?? []).map(number).toSet(),
+          comments = widget.root == 0
+              ? pinnedFirst(rows(result['data']))
+              : rows(result['data']);
       final content = Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -520,6 +531,11 @@ class _CommentsPaneState extends State<CommentsPane> {
               locked: widget.locked,
               child: widget.root != 0,
               liked: likes,
+              canPin:
+                  widget.root == 0 &&
+                  (widget.authorId == app.uid ||
+                      rows(app.user?['permissions'])
+                          .any((p) => p['name'] == 'edit_others_comments')),
               onChange: refresh,
             ),
           Pagination(result, page, (p) => setState(() => page = p)),
@@ -568,7 +584,7 @@ class CommentTile extends StatelessWidget {
   final Json comment;
   final int post;
   final Set<int> liked;
-  final bool locked, child;
+  final bool locked, child, canPin;
   final VoidCallback onChange;
   const CommentTile(
     this.comment,
@@ -578,6 +594,7 @@ class CommentTile extends StatelessWidget {
     required this.onChange,
     this.locked = false,
     this.child = false,
+    this.canPin = false,
   });
   @override
   Widget build(BuildContext context) {
@@ -590,7 +607,9 @@ class CommentTile extends StatelessWidget {
       padding: EdgeInsets.only(bottom: 16, left: child ? 24 : 0),
       child: Surface(
         padding: const EdgeInsets.all(20),
-        color: child ? violet.withValues(alpha: .04) : null,
+        color: isPinned(comment) || child
+            ? violet.withValues(alpha: .04)
+            : null,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -615,6 +634,10 @@ class CommentTile extends StatelessWidget {
                   dateText(comment['created_at']),
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
+                if (isPinned(comment)) ...[
+                  const SizedBox(width: 8),
+                  const PinBadge(),
+                ],
               ],
             ),
             const SizedBox(height: 12),
@@ -689,6 +712,34 @@ class CommentTile extends StatelessWidget {
                     },
                     icon: const Icon(Icons.delete_outline_rounded, size: 17),
                     label: const Text('删除'),
+                  ),
+                if (canPin && !child)
+                  TextButton.icon(
+                    onPressed: () async {
+                      final pinned = isPinned(comment);
+                      if (await confirm(
+                            context,
+                            pinned ? '取消置顶？' : '置顶这条评论？',
+                            '将同步修改这篇作品的评论排序。',
+                          ) &&
+                          context.mounted) {
+                        await action(context, () async {
+                          await app.post('comment/updateState', {
+                            'id': comment['id'],
+                            'state_key': 'is_sticky',
+                            'state_value': !pinned,
+                          });
+                          onChange();
+                        });
+                      }
+                    },
+                    icon: Icon(
+                      isPinned(comment)
+                          ? Icons.push_pin
+                          : Icons.push_pin_outlined,
+                      size: 16,
+                    ),
+                    label: Text(isPinned(comment) ? '取消置顶' : '置顶'),
                   ),
               ],
             ),

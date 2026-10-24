@@ -109,7 +109,10 @@ class SubmissionGuidance {
       ).hasMatch(corpus)) {
         return 'comic';
       }
-      if (RegExp(r'小説|小说|小說|\bnovel\b', caseSensitive: false).hasMatch(corpus)) {
+      if (RegExp(
+        r'小説|小说|小說|\bnovel\b',
+        caseSensitive: false,
+      ).hasMatch(corpus)) {
         return 'novel';
       }
       if (RegExp(r'CG・イラスト|CG集|イラスト集|画集|圖集|图集').hasMatch(corpus)) {

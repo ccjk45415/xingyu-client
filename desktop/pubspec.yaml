@@ -1,7 +1,7 @@
 name: xingyu_desktop
 description: 仓库 · 星屿 Android、Windows 与 macOS Flutter 客户端
 publish_to: none
-version: 0.5.0+24
+version: 0.6.0+25
 environment:
   sdk: ">=3.13.0 <4.0.0"
   flutter: ">=3.47.0"
@@ -22,6 +22,8 @@ dependencies:
   media_kit_video: ^2.0.1
   media_kit_libs_video: ^1.0.7
   crypto: ^3.0.7
+  cryptography: ^2.9.0
+  shorebird_code_push: ^2.0.7
   zxing2: ^0.2.4
 dev_dependencies:
   flutter_test:
@@ -35,3 +37,4 @@ flutter:
     - assets/submission-guidance.json
     - assets/native-media-notices.txt
     - assets/windows-update.ps1
+    - shorebird.yaml

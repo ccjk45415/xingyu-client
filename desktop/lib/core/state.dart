@@ -8,6 +8,9 @@ import 'package:path_provider/path_provider.dart';
 import 'api.dart';
 import 'browse_cache.dart';
 import 'following_feed.dart';
+import 'client_config.dart';
+import 'checkin.dart';
+import 'patch_updates.dart';
 
 class AppState extends ChangeNotifier {
   final SiteApi site;
@@ -22,6 +25,9 @@ class AppState extends ChangeNotifier {
   Directory? directory;
   int generation = 0, socialRevision = 0;
   final Map<int, Json> authorCache = {};
+  late final ClientConfigStore clientConfig = ClientConfigStore(this);
+  late final CheckinController checkin = CheckinController(this);
+  late final PatchUpdates patches = PatchUpdates();
   late final FollowingFeedStore followingFeed = FollowingFeedStore(
     get: get,
     social: (path) => social(path),
@@ -36,7 +42,11 @@ class AppState extends ChangeNotifier {
     SocketConnector Function()? socketFactory,
   }) : site = siteApi ?? SiteApi(),
        service = serviceApi ?? ServiceApi(),
-       socketFactory = socketFactory ?? SocketConnector.new;
+       socketFactory = socketFactory ?? SocketConnector.new {
+    clientConfig.addListener(notifyListeners);
+    checkin.addListener(notifyListeners);
+    patches.addListener(notifyListeners);
+  }
   int get uid => number(user?['id']);
   String get token => text(identity?['token']);
   bool get verified =>
@@ -84,6 +94,9 @@ class AppState extends ChangeNotifier {
     }
     starting = false;
     notifyListeners();
+    unawaited(clientConfig.initialize());
+    unawaited(patches.check());
+    unawaited(checkin.automatic());
     if (user != null) unawaited(loadCategories());
   }
 
@@ -96,6 +109,7 @@ class AppState extends ChangeNotifier {
     startupError = null;
     notifyListeners();
     unawaited(loadCategories());
+    unawaited(checkin.automatic(force: true));
   }
 
   Future<void> loadIdentity() async {
@@ -318,6 +332,7 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> logout() async {
+    await checkin.stopForLogout();
     followingFeed.clear();
     onLogout?.call();
     final owner = uid, secret = token;
@@ -451,6 +466,12 @@ class AppState extends ChangeNotifier {
 
   @override
   void dispose() {
+    patches.removeListener(notifyListeners);
+    patches.dispose();
+    checkin.removeListener(notifyListeners);
+    checkin.dispose();
+    clientConfig.removeListener(notifyListeners);
+    clientConfig.dispose();
     site.close();
     service.close();
     super.dispose();

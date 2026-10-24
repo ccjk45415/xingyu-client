@@ -42,7 +42,11 @@ def main():
     parser.add_argument('--check-only', action='store_true')
     parser.add_argument('--skip-tests', action='store_true')
     parser.add_argument('--native-check', action='store_true')
+    parser.add_argument('--shorebird-test', action='store_true')
     args = parser.parse_args()
+    global VERSION, BUILD
+    if args.shorebird_test:
+        VERSION, BUILD = '0.2.0', '3'
     check_source()
     if args.check_only:
         return
@@ -60,7 +64,11 @@ def main():
     run([flutter, 'analyze', 'lib', 'test/macos_platform_test.dart', 'test/updates_test.dart'])
     if not args.skip_tests:
         run([flutter, 'test', '--no-pub', 'test/macos_platform_test.dart', 'test/core_test.dart', 'test/updates_test.dart'])
-    run([flutter, 'build', 'macos', '--release', f'--build-name={VERSION}', f'--build-number={BUILD}'])
+    if args.shorebird_test:
+        run(['shorebird', 'release', 'macos', '--flutter-version=3.47.7', f'--build-name={VERSION}', f'--build-number={BUILD}',
+             '--dart-define=XINGYU_PATCH_TRACK=staging', '--dart-define=XINGYU_REQUIRE_CODE_PUSH=true'])
+    else:
+        run([flutter, 'build', 'macos', '--release', f'--build-name={VERSION}', f'--build-number={BUILD}'])
     bundle = APP / 'build/macos/Build/Products/Release/Xingyu.app'
     binary = bundle / 'Contents/MacOS/Xingyu'
     if not binary.is_file():
@@ -86,13 +94,16 @@ def main():
         native = next((json.loads(line) for line in result.stdout.splitlines()
                        if line.startswith('{') and 'macos_native_engine' in line), None)
         assert native and native['macos_native_engine'] == 'pass' and native['keychain_round_trip'] == 'pass'
+        if args.shorebird_test:
+            assert native['code_push_engine'] == 'available'
         report['native_self_check'] = native
     out = ROOT / 'output'
     out.mkdir(exist_ok=True)
-    package = out / f'Xingyu-macOS-{VERSION}-arm64.pkg'
+    suffix = '-test' if args.shorebird_test else ''
+    package = out / f'Xingyu-macOS-{VERSION}{suffix}-arm64.pkg'
     run(['pkgbuild', '--component', bundle, '--identifier', 'moe.cangku.xingyu.macos.installer',
          '--version', VERSION, '--install-location', '/Applications', '--ownership', 'recommended', package])
-    image = out / f'Xingyu-macOS-{VERSION}-arm64.dmg'
+    image = out / f'Xingyu-macOS-{VERSION}{suffix}-arm64.dmg'
     with tempfile.TemporaryDirectory(prefix='xingyu-macos-package-') as folder:
         stage = Path(folder)
         run(['ditto', bundle, stage / 'Xingyu.app'])

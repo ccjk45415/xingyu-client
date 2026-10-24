@@ -7,8 +7,14 @@ import 'package:path_provider/path_provider.dart';
 
 import 'api.dart';
 
+import 'package:shorebird_code_push/shorebird_code_push.dart';
+
 /// Explicit command-line diagnostics; touches only a random temporary key/file and public health.
 Future<void> runSelfCheck({bool offline = false}) async {
+  final codePush = ShorebirdUpdater().isAvailable;
+  if (const bool.fromEnvironment('XINGYU_REQUIRE_CODE_PUSH') && !codePush) {
+    throw StateError('Required patch engine is unavailable');
+  }
   final key = 'xingyu.selfcheck.${nonce()}', value = '星屿 · ${nonce()} ✦';
   const storage = SecureVault();
   File? file;
@@ -57,6 +63,7 @@ Future<void> runSelfCheck({bool offline = false}) async {
     stdout.writeln(
       jsonEncode({
         if (Platform.isWindows) 'windows_native_engine': 'pass',
+        'code_push_engine': codePush ? 'available' : 'unavailable',
         if (Platform.isMacOS) 'macos_native_engine': 'pass',
         if (Platform.isMacOS) 'keychain_round_trip': 'pass',
         'secure_storage': 'pass',

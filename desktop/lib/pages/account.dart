@@ -14,6 +14,8 @@ import '../ui/shared.dart';
 import 'discovery.dart';
 import 'account_overview.dart';
 import 'diagnostics.dart';
+import 'checkin.dart';
+import 'patch_updates.dart';
 
 class AccountPage extends StatelessWidget {
   final DeskRoute route;
@@ -21,6 +23,7 @@ class AccountPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final app = stateOf(context);
+    if (route.kind == 'checkin') return const CheckinPage();
     if (route.kind == 'settings' ||
         ['profile', 'security', 'appearance', 'updates'].contains(route.kind)) {
       return SettingsPage(route.kind == 'settings' ? '' : route.kind);
@@ -418,6 +421,8 @@ class SettingsPage extends StatelessWidget {
                   ? '仓库 · 星屿 macOS 客户端'
                   : '仓库 · 星屿 Windows 客户端',
             ),
+            const PatchUpdatesCard(),
+            const SizedBox(height: 16),
             Surface(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -467,6 +472,12 @@ class SettingsPage extends StatelessWidget {
                 for (final e in [
                   ('编辑个人资料', '昵称、简介、头像与背景', Icons.badge_outlined, 'profile'),
                   ('账号安全', '修改密码、更改绑定邮箱', Icons.shield_outlined, 'security'),
+                  (
+                    '签到设置',
+                    '打开应用、后台与云端签到',
+                    Icons.event_available_rounded,
+                    'checkin',
+                  ),
                   (
                     '阅读与外观',
                     '主题、正文字号与分类页排版',

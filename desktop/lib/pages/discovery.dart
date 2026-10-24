@@ -10,6 +10,8 @@ import '../core/category_preferences.dart';
 import '../ui/category_filter.dart';
 import '../core/home_content.dart';
 import '../core/reader.dart';
+import '../core/pinned_content.dart';
+import '../ui/pin_badge.dart';
 import '../core/state.dart';
 import '../ui/shared.dart';
 
@@ -31,6 +33,7 @@ class PostListPage extends StatelessWidget {
       'include': 'user,categories:simple',
       'with[0]': 'user',
       'with[1]': 'categories',
+      if (route.kind == 'home' && route.page == 1) 'sticky': '1',
     };
     String endpoint = 'post/list';
     if (route.kind == 'search') {
@@ -130,7 +133,9 @@ class PostListPage extends StatelessWidget {
           : null,
       load: () => _load(app),
       builder: (data, reload) {
-        final posts = rows(data['data']);
+        final posts = route.kind == 'home'
+            ? pinnedFirst(rows(data['data']))
+            : rows(data['data']);
         return PageBody(
           key: PageStorageKey(
             'list:${route.key}:${route.kind == 'home' ? app.homeFilterKey : ''}',
@@ -286,11 +291,22 @@ class _PostCardState extends State<PostCard> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 SizedBox(
-                  height: MediaQuery.sizeOf(context).width < 700 ? 145 : 156,
+                  height: stateOf(context).clientConfig.compactCards
+                      ? 128
+                      : MediaQuery.sizeOf(context).width < 700
+                      ? 145
+                      : 156,
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
                       Cover(text(p['thumb'])),
+                      if (isPinned(p) &&
+                          stateOf(context).clientConfig.enabled('pinned'))
+                        const Positioned(
+                          left: 10,
+                          top: 10,
+                          child: PinBadge(onCover: true),
+                        ),
                       Positioned(
                         left: 12,
                         bottom: 12,
@@ -524,6 +540,9 @@ class _HomeBannerState extends State<HomeBanner> with WidgetsBindingObserver {
     });
     final app = stateOf(context);
     app.local['announcements'] = board;
+    if (data['client_config'] != null) {
+      unawaited(app.clientConfig.accept(data['client_config']));
+    }
     app.local['discovery'] = discovery;
     unawaited(app.persist().catchError((_) {}));
   }
@@ -624,148 +643,135 @@ class _HomeBannerState extends State<HomeBanner> with WidgetsBindingObserver {
     ),
   );
 
-  Widget announcementCard() => Container(
-    decoration: BoxDecoration(
-      gradient: LinearGradient(
-        colors: Theme.of(context).brightness == Brightness.dark
-            ? [const Color(0xff3c3456), const Color(0xff53405d)]
-            : [const Color(0xffede5ff), const Color(0xffffeaf2)],
-      ),
-    ),
-    padding: const EdgeInsets.all(34),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            const Icon(Icons.campaign_outlined, color: violet),
-            const SizedBox(width: 10),
-            Text('星屿公告栏', style: Theme.of(context).textTheme.titleLarge),
-            const Spacer(),
-            Text(
-              online ? '实时公告' : '上次公告 · 等待连接',
-              style: const TextStyle(fontSize: 11, color: violet),
-            ),
-          ],
-        ),
-        const SizedBox(height: 20),
-        Expanded(
-          child: notices.isEmpty
-              ? const Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    '暂时没有新公告。\n愿你今天也收获一份好心情。',
-                    style: TextStyle(fontSize: 20, height: 1.8),
-                  ),
-                )
-              : SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      for (final notice in notices)
-                        ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          title: Text(
-                            text(notice['title']),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontWeight: FontWeight.w700),
-                          ),
-                          subtitle: Text(
-                            text(notice['content']),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          trailing: const Icon(Icons.north_east, size: 18),
-                          onTap: () => details(
-                            text(notice['title']),
-                            text(notice['content']),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-        ),
-      ],
-    ),
-  );
-
-  Widget discoveryCard() => Material(
+  Widget compactBanner({
+    required String label,
+    required IconData icon,
+    required String title,
+    required String content,
+    required VoidCallback onTap,
+    bool discoveryStyle = false,
+  }) => Material(
+    color: Colors.transparent,
     child: InkWell(
-      onTap: () =>
-          details(text(discovery['title']), text(discovery['content'])),
+      onTap: onTap,
       child: Ink(
-        decoration: const BoxDecoration(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+        decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color(0xffb4a1ed), Color(0xffded0f0), Color(0xffedd9e9)],
+            colors: Theme.of(context).brightness == Brightness.dark
+                ? [const Color(0xff352e49), const Color(0xff493952)]
+                : discoveryStyle
+                ? [const Color(0xffe5dcfb), const Color(0xfff7e7f1)]
+                : [const Color(0xffede7fb), const Color(0xfff8f2fc)],
           ),
         ),
-        child: Stack(
+        child: Row(
           children: [
-            const Positioned.fill(
-              child: CustomPaint(painter: UniversePainter()),
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: violet.withValues(alpha: .12),
+                borderRadius: BorderRadius.circular(13),
+              ),
+              child: Icon(icon, size: 23, color: violet),
             ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 38, vertical: 28),
+            const SizedBox(width: 14),
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text(
-                    'YOUR LITTLE UNIVERSE',
-                    style: TextStyle(
-                      color: Colors.white,
-                      letterSpacing: 2,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                    ),
+                  Row(
+                    children: [
+                      Text(
+                        label,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: violet,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      if (!discoveryStyle)
+                        Flexible(
+                          child: Text(
+                            online ? '已同步' : '上次内容',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 10,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 4),
                   Text(
-                    text(discovery['title']),
-                    maxLines: 2,
+                    title,
+                    maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 30,
-                      height: 1.25,
+                      fontSize: 16,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
-                  const SizedBox(height: 10),
-                  Flexible(
-                    child: Text(
-                      text(discovery['content']),
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        height: 1.4,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    '你的每一种喜欢，都值得被收藏  ›',
-                    style: TextStyle(color: Colors.white70, fontSize: 12),
+                  const SizedBox(height: 3),
+                  Text(
+                    content,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 12, height: 1.4),
                   ),
                 ],
               ),
             ),
+            const SizedBox(width: 6),
+            const Icon(Icons.chevron_right_rounded, size: 20, color: violet),
           ],
         ),
       ),
     ),
+  );
+
+  Widget announcementCard() => compactBanner(
+    label: stateOf(context).clientConfig.label('announcement', '公告'),
+    icon: Icons.campaign_rounded,
+    title: notices.isEmpty ? '暂时没有新公告' : text(notices.first['title']),
+    content: notices.isEmpty ? '愿你今天也收获一份好心情。' : text(notices.first['content']),
+    onTap: () => details(
+      '公告',
+      notices.isEmpty
+          ? '暂时没有新公告。'
+          : notices
+                .map(
+                  (item) => '${text(item['title'])}\n${text(item['content'])}',
+                )
+                .join('\n\n'),
+    ),
+  );
+
+  Widget discoveryCard() => compactBanner(
+    label: stateOf(context).clientConfig.label('discovery', '发现'),
+    icon: Icons.auto_awesome_rounded,
+    discoveryStyle: true,
+    title: text(discovery['title']),
+    content: text(discovery['content']),
+    onTap: () => details(text(discovery['title']), text(discovery['content'])),
   );
 
   @override
   Widget build(BuildContext context) => Column(
     children: [
       SizedBox(
-        height: 268,
+        key: const Key('home.compact-banner'),
+        height:
+            stateOf(context).clientConfig
+                .bannerHeight(MediaQuery.sizeOf(context).width < 700) +
+            (MediaQuery.textScalerOf(context).scale(14) - 14).clamp(0, 50),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(28),
+          borderRadius: BorderRadius.circular(18),
           child: NotificationListener<ScrollNotification>(
             onNotification: (n) {
               if (n is ScrollStartNotification && n.dragDetails != null) {
@@ -776,7 +782,10 @@ class _HomeBannerState extends State<HomeBanner> with WidgetsBindingObserver {
             child: PageView(
               controller: controller,
               onPageChanged: (p) => setState(() => page = p),
-              children: [announcementCard(), discoveryCard()],
+              children: [
+                for (final type in stateOf(context).clientConfig.bannerOrder)
+                  type == 'announcement' ? announcementCard() : discoveryCard(),
+              ],
             ),
           ),
         ),

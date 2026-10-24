@@ -500,6 +500,9 @@ class _DesktopShellState extends State<DesktopShell>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       unawaited(refreshSystemProxy());
+      unawaited(widget.app.checkin.automatic());
+      unawaited(widget.app.clientConfig.refresh());
+      unawaited(widget.app.patches.check());
     }
   }
 

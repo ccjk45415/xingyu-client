@@ -2,11 +2,20 @@
 import argparse,hashlib,json,os,shutil,struct,zipfile
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1];OUT=ROOT/'output';OUT.mkdir(exist_ok=True)
-parser=argparse.ArgumentParser();parser.add_argument('--test-only',action='store_true',help='Package locally without staging a public update');args=parser.parse_args()
-version='0.5.0';code=24
+parser=argparse.ArgumentParser();parser.add_argument('--test-only',action='store_true',help='Package locally without staging a public update')
+parser.add_argument('--version',default='0.5.0');parser.add_argument('--build',type=int,default=24);parser.add_argument('--bundle',type=Path)
+args=parser.parse_args()
+version=args.version;code=args.build
+if (version!='0.5.0' or code!=24) and not args.test_only:raise SystemExit('Custom versions are restricted to local test packaging')
 bundles=[ROOT/'desktop/build/windows/native-x64/runner',ROOT/'desktop/build/windows/x64/runner/Release']
-bundle=next((p for p in bundles if (p/'Xingyu.exe').is_file()),None)
+bundle=args.bundle or next((p for p in bundles if (p/'Xingyu.exe').is_file()),None)
 if bundle is None:raise SystemExit('Build the Windows release first')
+if os.name=='nt' and not (bundle/'msvcp140.dll').is_file():
+    import subprocess
+    finder=Path('C:/Program Files (x86)/Microsoft Visual Studio/Installer/vswhere.exe')
+    vs=Path(subprocess.check_output([finder,'-latest','-property','installationPath'],text=True).strip())
+    redist=sorted((vs/'VC/Redist/MSVC').glob('14.*'))[-1]/'x64/Microsoft.VC143.CRT'
+    for dll in redist.glob('*.dll'):shutil.copy2(dll,bundle/dll.name)
 for path in ['Xingyu.exe','flutter_windows.dll','msvcp140.dll','vcruntime140.dll','vcruntime140_1.dll','data/app.so','data/icudtl.dat','data/flutter_assets/NOTICES.Z']:
     if not (bundle/path).is_file():raise SystemExit('Incomplete Windows bundle: '+path)
 exe=(bundle/'Xingyu.exe').read_bytes();offset=struct.unpack_from('<I',exe,0x3c)[0]
@@ -29,6 +38,7 @@ Ctrl+K 搜索；Alt+← 返回；聊天 Enter 发送 / Shift+Enter 换行；编�
 程序没有内置任何账号、密码、官网 Cookie、Cloudflare 管理凭据或发布密钥。
 Flutter与依赖的许可信息在 data/flutter_assets/NOTICES.Z，Flutter引擎许可另见 LICENSE.flutter.txt。
 '''
+usage=usage.replace('Windows 0.5.0',f'Windows {version}')
 with zipfile.ZipFile(archive,'w',zipfile.ZIP_DEFLATED,compresslevel=9) as z:
     for p in sorted(files):z.write(p,prefix/p.relative_to(bundle))
     z.writestr((prefix/'使用说明.txt').as_posix(),usage)

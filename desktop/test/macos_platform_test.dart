@@ -34,8 +34,8 @@ void main() {
   });
 
   test('macOS has independent version, system fonts and Command shortcuts', () {
-    expect(clientVersion, '0.1.1');
-    expect(clientBuild, 2);
+    expect(clientVersion, '0.2.0-test');
+    expect(clientBuild, 3);
     expect(uiFont, null);
     expect(monoFont, 'Menlo');
     expect(secureStorageLabel, 'macOS 钥匙串');
@@ -106,7 +106,8 @@ void main() {
       ),
     );
     expect(find.text('仓库 · 星屿 macOS 客户端'), findsOneWidget);
-    expect(find.text('星屿 0.1.1'), findsOneWidget);
+    expect(find.text('星屿 0.2.0-test'), findsOneWidget);
+    await tester.ensureVisible(find.text('检查新版本'));
     await tester.tap(find.text('检查新版本'));
     await tester.pump();
     await tester.pump();
