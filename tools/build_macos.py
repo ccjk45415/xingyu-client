@@ -43,10 +43,11 @@ def main():
     parser.add_argument('--skip-tests', action='store_true')
     parser.add_argument('--native-check', action='store_true')
     parser.add_argument('--shorebird-test', action='store_true')
+    parser.add_argument('--formal', action='store_true', help='Use production installer filenames; does not publish')
     args = parser.parse_args()
     global VERSION, BUILD
     if args.shorebird_test:
-        VERSION, BUILD = '0.2.0', '3'
+        VERSION, BUILD = '0.3.0', '4'
     check_source()
     if args.check_only:
         return
@@ -99,7 +100,7 @@ def main():
         report['native_self_check'] = native
     out = ROOT / 'output'
     out.mkdir(exist_ok=True)
-    suffix = '-test' if args.shorebird_test else ''
+    suffix = '-test' if args.shorebird_test and not args.formal else ''
     package = out / f'Xingyu-macOS-{VERSION}{suffix}-arm64.pkg'
     run(['pkgbuild', '--component', bundle, '--identifier', 'moe.cangku.xingyu.macos.installer',
          '--version', VERSION, '--install-location', '/Applications', '--ownership', 'recommended', package])

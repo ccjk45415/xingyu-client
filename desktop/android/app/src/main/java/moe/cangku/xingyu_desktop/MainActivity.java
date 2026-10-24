@@ -23,6 +23,9 @@ import javax.crypto.spec.GCMParameterSpec;
 
 public class MainActivity extends FlutterActivity {
     private static final String ALIAS = "xingyu.flutter.vault.v1";
+    private MethodChannel.Result pendingNotification;
+    private MethodChannel notificationChannel;
+    private String pendingNotice;
     private MethodChannel.Result pendingExport;
     private byte[] exportBytes;
     private MethodChannel.Result pendingInstall;
@@ -147,6 +150,35 @@ public class MainActivity extends FlutterActivity {
                 }
               }
             });
+        pendingNotice=getIntent().getStringExtra(NoticeBridge.EXTRA);
+        notificationChannel=new MethodChannel(engine.getDartExecutor().getBinaryMessenger(), "moe.cangku.xingyu/notifications");
+        notificationChannel.setMethodCallHandler((call,result)->{
+            try {
+                if(call.method.equals("status")) result.success(NoticeBridge.status(this));
+                else if(call.method.equals("request")) {
+                    NoticeBridge.channels(this);
+                    if(android.os.Build.VERSION.SDK_INT>=33 && checkSelfPermission("android.permission.POST_NOTIFICATIONS")!=android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                        if(pendingNotification!=null) {result.success(false);return;}
+                        pendingNotification=result;
+                        requestPermissions(new String[]{"android.permission.POST_NOTIFICATIONS"},NoticeBridge.PERMISSION);
+                    } else result.success(NoticeBridge.granted(this));
+                } else if(call.method.equals("settings")) {NoticeBridge.settings(this);result.success(null);}
+                else if(call.method.equals("configure")) {
+                    Integer uid=call.argument("uid"); String origin=call.argument("origin");
+                    java.util.Map<?,?> preferences=call.argument("preferences");
+                    NoticeBridge.configure(this,uid==null?0:uid,Boolean.TRUE.equals(call.argument("enabled")),origin==null?"":origin,new org.json.JSONObject(preferences==null?new HashMap<>():preferences));
+                    synchronized(NoticeBridge.LOCK) {
+                        java.util.Map<?,?> cursors=call.argument("cursors");
+                        if(cursors!=null && !NoticeBridge.prefs(this).contains("cursors")) NoticeBridge.prefs(this).edit().putString("cursors",new org.json.JSONObject(cursors).toString()).commit();
+                    }
+                    result.success(null);
+                } else if(call.method.equals("show")) {NoticeBridge.show(this,new org.json.JSONObject((java.util.Map<?,?>)call.arguments));result.success(null);}
+                else if(call.method.equals("takeOpen")) {
+                    result.success(pendingNotice==null?null:noticeMap(new org.json.JSONObject(pendingNotice)));
+                    pendingNotice=null;getIntent().removeExtra(NoticeBridge.EXTRA);
+                } else result.notImplemented();
+            } catch(Exception e) {result.error("notification","系统通知暂不可用，请检查权限与后台设置",null);}
+        });
         new MethodChannel(engine.getDartExecutor().getBinaryMessenger(), "moe.cangku.xingyu/platform")
             .setMethodCallHandler((call, result) -> {
                 if (call.method.equals("configureCheckinBackground")) {
@@ -201,4 +233,19 @@ public class MainActivity extends FlutterActivity {
             stream.write(bytes); stream.flush(); result.success(true);
         } catch (Exception error) { result.error("export", "文件保存失败，请更换保存位置", null); }
     }
+    private static Map<String,Object> noticeMap(org.json.JSONObject obj) throws org.json.JSONException {
+        Map<String,Object> result=new HashMap<>();java.util.Iterator<String> keys=obj.keys();
+        while(keys.hasNext()){String key=keys.next();result.put(key,obj.get(key));}return result;
+    }
+    @Override public void onRequestPermissionsResult(int request,String[] permissions,int[] results) {
+        super.onRequestPermissionsResult(request,permissions,results);
+        if(request==NoticeBridge.PERMISSION && pendingNotification!=null) {
+            MethodChannel.Result result=pendingNotification;pendingNotification=null;result.success(NoticeBridge.granted(this));
+        }
+    }
+    @Override protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);setIntent(intent);pendingNotice=intent.getStringExtra(NoticeBridge.EXTRA);
+        if(pendingNotice!=null && notificationChannel!=null) notificationChannel.invokeMethod("opened",null);
+    }
+
 }

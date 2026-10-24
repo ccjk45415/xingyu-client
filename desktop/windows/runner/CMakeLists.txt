@@ -9,6 +9,8 @@ project(runner LANGUAGES CXX)
 add_executable(${BINARY_NAME} WIN32
   "flutter_window.cpp"
   "main.cpp"
+  "patch_bootstrap.cpp"
+  "system_notifications.cpp"
   "secure_storage.cpp"
   "image_clipboard.cpp"
   "editor_ime.cpp"

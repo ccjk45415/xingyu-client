@@ -71,6 +71,7 @@ def main():
         subprocess.run(command + arguments, cwd=STAGE, env=env, check=True)
     run(['pub', 'get', '--offline'])
     if args.device_test:
+        env['XINGYU_ISOLATED_SMOKE'] = '1'
         run(['test', '--no-pub', 'integration_test/android_client_test.dart', '-d', args.device_test,
              '--dart-define=XINGYU_ANDROID_TEST=true', '--reporter=expanded'])
         return
@@ -81,13 +82,13 @@ def main():
         env.update(GIT_CONFIG_COUNT='1', GIT_CONFIG_KEY_0='core.longpaths', GIT_CONFIG_VALUE_0='true')
         subprocess.run(['powershell', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File',
             str(TOOL / 'xingyu-shorebird/bin/shorebird.ps1'), 'release', 'android', '--artifact=apk',
-            '--target-platform=android-arm64', '--flutter-version=3.47.7', '--build-name=0.12.0',
-            '--build-number=34', '--dart-define=XINGYU_ANDROID_TEST=true', '--dart-define=XINGYU_PATCH_TRACK=staging'],
+            '--target-platform=android-arm64', '--flutter-version=3.47.7', '--build-name=0.13.0',
+            '--build-number=35', '--dart-define=XINGYU_ANDROID_TEST=true', '--dart-define=XINGYU_PATCH_TRACK=staging'],
             cwd=STAGE, env=env, check=True)
     else:
         run(['build', 'apk', '--release', '--target-platform=android-arm64',
-             '--build-name=0.12.0', '--build-number=34', '--dart-define=XINGYU_ANDROID_TEST=true'])
-    output = ROOT / 'output/Cangku-Xingyu-0.12.0-test-arm64.apk'
+             '--build-name=0.13.0', '--build-number=35', '--dart-define=XINGYU_ANDROID_TEST=true'])
+    output = ROOT / 'output/Cangku-Xingyu-0.13.0-arm64.apk'
     output.parent.mkdir(exist_ok=True)
     shutil.copy2(STAGE / 'build/app/outputs/flutter-apk/app-release.apk', output)
     if output.stat().st_size > 24 * 1024 * 1024:

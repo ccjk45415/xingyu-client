@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:xingyu_desktop/app.dart';
@@ -80,6 +81,39 @@ void main() {
       } finally {
         await vault.delete(key: key);
       }
+
+      const notices = MethodChannel('moe.cangku.xingyu/notifications');
+      final initial = object(await notices.invokeMethod('status'));
+      expect(initial['supported'], true);
+      try {
+        await notices.invokeMethod('configure', {
+          'uid': 47,
+          'enabled': true,
+          'origin': serviceOrigin,
+          'preferences': {},
+          'cursors': {},
+        });
+        expect(object(await notices.invokeMethod('status'))['scheduled'], true);
+        // A denied notification permission must be harmless, and no website credentials exist in this isolated package.
+        if (initial['granted'] != true) {
+          await notices.invokeMethod('show', {
+            'uid': 47,
+            'key': 'smoke:denied',
+            'kind': 'dm',
+            'target': 77,
+            'title': '星屿通知测试',
+            'body': '无真实消息',
+          });
+        }
+      } finally {
+        await notices.invokeMethod('configure', {
+          'uid': 0,
+          'enabled': false,
+          'origin': serviceOrigin,
+          'preferences': {},
+        });
+      }
+      expect(object(await notices.invokeMethod('status'))['scheduled'], false);
 
       final app =
           AppState(

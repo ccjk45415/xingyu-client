@@ -33,7 +33,12 @@ void main(List<String> args) {
         return;
       }
       if (args.contains('--self-check')) {
-        unawaited(runSelfCheck(offline: args.contains('--offline')));
+        unawaited(
+          runSelfCheck(
+            offline: args.contains('--offline'),
+            downloadPatch: args.contains('--download-patch'),
+          ),
+        );
         return;
       }
       FlutterError.onError = (details) {

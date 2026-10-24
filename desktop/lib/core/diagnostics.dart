@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'native_storage.dart';
+import 'system_notices.dart';
+import 'patch_updates.dart';
 
 import 'package:path_provider/path_provider.dart';
 
@@ -10,8 +12,22 @@ import 'api.dart';
 import 'package:shorebird_code_push/shorebird_code_push.dart';
 
 /// Explicit command-line diagnostics; touches only a random temporary key/file and public health.
-Future<void> runSelfCheck({bool offline = false}) async {
-  final codePush = ShorebirdUpdater().isAvailable;
+Future<void> runSelfCheck({
+  bool offline = false,
+  bool downloadPatch = false,
+}) async {
+  if (downloadPatch) {
+    final patches = PatchUpdates();
+    await patches.check(force: true);
+    if (patches.message.contains('重试') || patches.message.contains('未就绪')) {
+      throw StateError('Patch check failed');
+    }
+    patches.dispose();
+  }
+  final symbols = ShorebirdUpdater().isAvailable;
+  final native = await SystemNotices().status();
+  final codePush =
+      symbols && (!Platform.isWindows || native['patchReady'] == true);
   if (const bool.fromEnvironment('XINGYU_REQUIRE_CODE_PUSH') && !codePush) {
     throw StateError('Required patch engine is unavailable');
   }
@@ -64,6 +80,18 @@ Future<void> runSelfCheck({bool offline = false}) async {
       jsonEncode({
         if (Platform.isWindows) 'windows_native_engine': 'pass',
         'code_push_engine': codePush ? 'available' : 'unavailable',
+        'code_push_initialized': codePush,
+        'patch_probe': const int.fromEnvironment(
+          'XINGYU_PATCH_PROBE',
+          defaultValue: 0,
+        ),
+        'current_patch': symbols
+            ? (await ShorebirdUpdater().readCurrentPatch())?.number ?? 0
+            : 0,
+        'next_patch': symbols
+            ? (await ShorebirdUpdater().readNextPatch())?.number ?? 0
+            : 0,
+        'system_notifications_native': native['supported'] == true,
         if (Platform.isMacOS) 'macos_native_engine': 'pass',
         if (Platform.isMacOS) 'keychain_round_trip': 'pass',
         'secure_storage': 'pass',

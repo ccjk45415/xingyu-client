@@ -4,6 +4,7 @@
 
 #include "flutter_window.h"
 #include "utils.h"
+#include "patch_bootstrap.h"
 
 int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
                       _In_ wchar_t *command_line, _In_ int show_command) {
@@ -17,7 +18,13 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   // plugins.
   ::CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
 
-  flutter::DartProject project(L"data");
+  wchar_t executable[32768];
+  DWORD length = GetModuleFileNameW(nullptr, executable, 32768);
+  if (!length || length >= 32768) return EXIT_FAILURE;
+  const auto root = std::filesystem::path(executable).parent_path();
+  const auto aot = PreparePatch(root);
+  flutter::DartProject project((root / L"data" / L"flutter_assets").wstring(),
+                              (root / L"data" / L"icudtl.dat").wstring(), aot);
 
   std::vector<std::string> command_line_arguments =
       GetCommandLineArguments();

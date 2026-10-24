@@ -60,13 +60,13 @@ class NotificationSettingsPage extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          '只在应用内提醒',
+                          '消息不漏看，提醒由你决定',
                           style: Theme.of(context).textTheme.titleMedium,
                         ),
                         const SizedBox(height: 5),
-                        const Text(
-                          '应用打开并处于前台时检查新消息，切到后台或关闭后暂停。不会发送锁屏通知，也不需要系统通知权限。',
-                          style: TextStyle(fontSize: 12, height: 1.7),
+                        Text(
+                          notices.system.explanation,
+                          style: const TextStyle(fontSize: 12, height: 1.7),
                         ),
                       ],
                     ),
@@ -86,6 +86,66 @@ class NotificationSettingsPage extends StatelessWidget {
                   context,
                   () => notices.setPreference('enabled', value),
                 ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Surface(
+              child: Column(
+                children: [
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    secondary: const IconBadge(
+                      Icons.notifications_active_outlined,
+                    ),
+                    title: const Text('应用外通知'),
+                    subtitle: Text(
+                      notices.systemStatus['granted'] == true
+                          ? '系统通知已允许 · 后台提醒新消息'
+                          : '首次开启时申请系统通知权限',
+                    ),
+                    value: notices.systemEnabled,
+                    onChanged: notices.enabledAll
+                        ? (value) => action(
+                            context,
+                            () => notices.setPreference('system', value),
+                          )
+                        : null,
+                  ),
+                  const Divider(height: 18),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          notices.systemStatus['channelBlocked'] == true
+                              ? '消息通知渠道已关闭，请在系统设置中开启'
+                              : '通知权限、声音和锁屏显示可在系统中调整',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      ),
+                      TextButton.icon(
+                        onPressed: () =>
+                            action(context, notices.system.settings),
+                        icon: const Icon(Icons.settings_outlined, size: 16),
+                        label: const Text('系统设置'),
+                      ),
+                    ],
+                  ),
+                  if (notices.systemEnabled)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        notices.systemStatus['scheduled'] == true
+                            ? '后台检查已安排 · 受系统省电调度限制'
+                            : notices.systemStatus['supported'] == false
+                            ? '当前安装包需要更新，才能使用系统通知'
+                            : '电脑端需保持程序运行',
+                        style: const TextStyle(fontSize: 12, color: violet),
+                      ),
+                    ),
+                ],
               ),
             ),
             const SizedBox(height: 22),
@@ -315,6 +375,13 @@ class _NoticeOverlayState extends State<NoticeOverlay> {
   }
 
   void _changed() {
+    final opened = widget.notices.opened;
+    if (opened != null) {
+      widget.notices.opened = null;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) openNotice(context, opened);
+      });
+    }
     if (!mounted) return;
     final next = widget.notices.banner;
     if (!identical(_shown, next)) {

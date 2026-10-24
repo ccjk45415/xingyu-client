@@ -104,9 +104,13 @@ Future<File> downloadVerifiedRelease(
   }
 }
 
-Future<void> checkClientUpdate(BuildContext context) async {
+Future<void> checkClientUpdate(
+  BuildContext context, {
+  Json? release,
+  bool confirmed = false,
+}) async {
   final app = stateOf(context), platform = updatePlatform;
-  final manifest = await app.service.request(updateManifestPath);
+  final manifest = release ?? await app.service.request(updateManifestPath);
   if (!context.mounted) return;
   if (manifest['available'] != true) {
     message(context, '当前没有可用的新版本');
@@ -120,12 +124,13 @@ Future<void> checkClientUpdate(BuildContext context) async {
   final instructions = platform == 'windows-x64'
       ? '下载并校验后自动替换程序、重新启动。请先保存正在编辑的投稿。'
       : '下载并校验后自动打开系统安装程序，请按系统提示确认安装。';
-  if (!await confirm(
-        context,
-        '发现新版本 ${text(manifest['versionName'])}',
-        '${text(manifest['notes'])}\n\n$instructions',
-        action: '下载并更新',
-      ) ||
+  if ((!confirmed &&
+          !await confirm(
+            context,
+            '发现新版本 ${text(manifest['versionName'])}',
+            '${text(manifest['notes'])}\n\n$instructions',
+            action: '下载并更新',
+          )) ||
       !context.mounted) {
     return;
   }
@@ -277,4 +282,61 @@ class _DownloadUpdateState extends State<_DownloadUpdate> {
             ],
     ),
   );
+}
+
+/// A release is offered once per installation, regardless of the active account.
+/// Invalid/offline responses never consume the reminder, and cancellation never installs.
+Future<void> offerStartupUpdate(BuildContext context) async {
+  final app = stateOf(context);
+  final manifest = await app.service.request(updateManifestPath);
+  if (!context.mounted || manifest['available'] != true) return;
+  validateClientRelease(manifest, updatePlatform);
+  final code = number(manifest['versionCode']);
+  if (code <= clientBuild) return;
+  final key = '$updatePlatform:$code';
+  final offered =
+      (app.local['updateOffers'] is List
+              ? app.local['updateOffers'] as List
+              : [])
+          .whereType<String>()
+          .toSet();
+  if (offered.contains(key)) return;
+  offered.add(key);
+  app.local['updateOffers'] = offered
+      .toList()
+      .reversed
+      .take(20)
+      .toList()
+      .reversed
+      .toList();
+  await app.persist();
+  if (!context.mounted) return;
+  final accept = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      icon: const Icon(
+        Icons.system_update_alt_rounded,
+        color: violet,
+        size: 34,
+      ),
+      title: Text('发现新版本 ${text(manifest['versionName'])}'),
+      content: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 420),
+        child: SingleChildScrollView(child: Text(text(manifest['notes']))),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('暂时不更新'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, true),
+          child: const Text('立即更新'),
+        ),
+      ],
+    ),
+  );
+  if (accept == true && context.mounted) {
+    await checkClientUpdate(context, release: manifest, confirmed: true);
+  }
 }

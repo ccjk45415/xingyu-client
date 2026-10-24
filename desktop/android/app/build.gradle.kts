@@ -18,6 +18,7 @@ android {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         // Preserve the original Android identity for an in-place engine migration.
         applicationId = "moe.cangku.reader"
+        if (System.getenv("XINGYU_ISOLATED_SMOKE") == "1") applicationIdSuffix = ".notification_smoke"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = 26

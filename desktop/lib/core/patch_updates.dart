@@ -1,7 +1,12 @@
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
+
+import 'system_notices.dart';
+
 import 'package:shorebird_code_push/shorebird_code_push.dart';
 
-/// Test bases are isolated from stable patches. No installer or consent dialog.
+/// Silent Dart patches are tied to the exact native base and update track.
 class PatchUpdates extends ChangeNotifier {
   ShorebirdUpdater? _updater;
   ShorebirdUpdater get updater => _updater ??= ShorebirdUpdater();
@@ -10,6 +15,7 @@ class PatchUpdates extends ChangeNotifier {
     // Keep the injectable public parameter separate from the lazy private field.
     // ignore: prefer_initializing_formals
     : _updater = updater,
+      _provided = updater != null,
       track =
           track ??
           const UpdateTrack(
@@ -18,6 +24,8 @@ class PatchUpdates extends ChangeNotifier {
               defaultValue: 'staging',
             ),
           );
+  bool get _injected => _provided;
+  final bool _provided;
   bool busy = false, _disposed = false;
   int current = 0, next = 0;
   String message = '等待检查';
@@ -44,10 +52,18 @@ class PatchUpdates extends ChangeNotifier {
     message = '后台检查中';
     changed();
     try {
+      if (Platform.isWindows &&
+          !_injected &&
+          (await SystemNotices().status())['patchReady'] != true) {
+        message = '补丁引擎尚未就绪，请安装最新完整版本';
+        return;
+      }
       current = (await updater.readCurrentPatch())?.number ?? 0;
       final status = await updater.checkForUpdate(track: track);
-      if (status == UpdateStatus.outdated) {
-        message = '正在后台下载补丁';
+      if (status == UpdateStatus.outdated || status == UpdateStatus.upToDate) {
+        // The SDK's boolean check also returns false on native/network errors.
+        // The result-bearing update call distinguishes "no update" from failure.
+        message = status == UpdateStatus.outdated ? '正在后台下载补丁' : '正在确认补丁状态';
         changed();
         await updater.update(track: track);
       }

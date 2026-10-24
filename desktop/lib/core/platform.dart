@@ -4,8 +4,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart' show SingleActivator;
 import 'package:flutter/foundation.dart';
 
-const androidTestVersion = '0.12.0-test';
-const androidTestBuild = 34;
+const androidTestVersion = '0.13.0';
+const androidTestBuild = 35;
 const androidTestChannel = bool.fromEnvironment(
   'XINGYU_ANDROID_TEST',
   defaultValue: false,
@@ -13,18 +13,18 @@ const androidTestChannel = bool.fromEnvironment(
 const platformChannel = MethodChannel('moe.cangku.xingyu/platform');
 bool get isAndroid => Platform.isAndroid;
 bool get isMacOS => defaultTargetPlatform == TargetPlatform.macOS;
-const macosTestVersion = '0.2.0-test';
-const macosTestBuild = 3;
+const macosTestVersion = '0.3.0';
+const macosTestBuild = 4;
 String get clientVersion => isAndroid
     ? androidTestVersion
     : isMacOS
     ? macosTestVersion
-    : '0.6.0-test';
+    : '0.7.0';
 int get clientBuild => isAndroid
     ? androidTestBuild
     : isMacOS
     ? macosTestBuild
-    : 25;
+    : 26;
 String? get uiFont => isAndroid || isMacOS ? null : 'Microsoft YaHei UI';
 String get monoFont => isAndroid
     ? 'monospace'

@@ -3,6 +3,7 @@ import CFNetwork
 import FlutterMacOS
 import ImageIO
 import Security
+import UserNotifications
 
 class MainFlutterWindow: NSWindow {
   private var nativeBridge: XingyuNativeBridge?
@@ -78,8 +79,10 @@ final class XingyuNativeBridge {
   private let storage: FlutterMethodChannel
   private let clipboard: FlutterMethodChannel
   private let platform: FlutterMethodChannel
+  private let notifications: XingyuNotifications
 
   init(messenger: FlutterBinaryMessenger) {
+    notifications = XingyuNotifications(messenger: messenger)
     storage = FlutterMethodChannel(name: "moe.cangku.xingyu/secure_storage", binaryMessenger: messenger)
     clipboard = FlutterMethodChannel(name: "moe.cangku.xingyu/image_clipboard", binaryMessenger: messenger)
     platform = FlutterMethodChannel(name: "moe.cangku.xingyu/platform", binaryMessenger: messenger)
@@ -158,5 +161,68 @@ final class XingyuNativeBridge {
       }
     }
     return ["host": "", "port": 0]
+  }
+}
+
+
+/// Uses macOS notification permission and the system Notification Center.
+final class XingyuNotifications: NSObject, UNUserNotificationCenterDelegate {
+  private let channel: FlutterMethodChannel
+  private var owner = 0, enabled = false
+  private var pending: [String: Any] = [:]
+  init(messenger: FlutterBinaryMessenger) {
+    channel = FlutterMethodChannel(name: "moe.cangku.xingyu/notifications", binaryMessenger: messenger)
+    super.init()
+    UNUserNotificationCenter.current().delegate = self
+    channel.setMethodCallHandler { [weak self] call, result in
+      guard let self = self else { result(nil); return }
+      let center = UNUserNotificationCenter.current()
+      switch call.method {
+      case "status":
+        center.getNotificationSettings { settings in
+          DispatchQueue.main.async { result(["supported": true, "granted": settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional]) }
+        }
+      case "request":
+        center.requestAuthorization(options: [.alert, .badge, .sound]) { granted, _ in DispatchQueue.main.async { result(granted) } }
+      case "settings":
+        if let url = URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension") { NSWorkspace.shared.open(url) }
+        result(nil)
+      case "takeOpen": result(self.pending); self.pending = [:]
+      case "configure":
+        let args = call.arguments as? [String: Any] ?? [:]
+        let nextOwner = args["uid"] as? Int ?? 0
+        let nextEnabled = args["enabled"] as? Bool == true && nextOwner > 0
+        if nextOwner != self.owner || !nextEnabled {
+          self.pending = [:]; center.removeAllPendingNotificationRequests(); center.removeAllDeliveredNotifications()
+        }
+        self.owner = nextOwner; self.enabled = nextEnabled; result(nil)
+      case "show":
+        guard let args = call.arguments as? [String: Any], self.enabled,
+              args["uid"] as? Int == self.owner, let key = args["key"] as? String else { result(nil); return }
+        let content = UNMutableNotificationContent()
+        content.title = args["title"] as? String ?? "星屿 · 新消息"
+        content.body = args["body"] as? String ?? "点击查看新消息"
+        content.sound = .default
+        content.userInfo = args.filter { ["uid", "key", "kind", "target", "channel"].contains($0.key) }
+        center.add(UNNotificationRequest(identifier: key, content: content, trigger: nil)) { error in
+          DispatchQueue.main.async {
+            if error != nil { result(FlutterError(code: "notification", message: "系统通知暂不可用，请检查权限", details: nil)) } else { result(nil) }
+          }
+        }
+      default: result(FlutterMethodNotImplemented)
+      }
+    }
+  }
+  func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
+    let info = response.notification.request.content.userInfo
+    DispatchQueue.main.async {
+      if info["uid"] as? Int == self.owner && self.enabled {
+        self.pending = Dictionary(uniqueKeysWithValues: info.compactMap { key, value in (key as? String).map { ($0, value) } })
+        NSApp.activate(ignoringOtherApps: true)
+        NSApp.windows.first?.makeKeyAndOrderFront(nil)
+        self.channel.invokeMethod("opened", arguments: nil)
+      }
+      completionHandler()
+    }
   }
 }

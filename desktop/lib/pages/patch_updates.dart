@@ -25,7 +25,7 @@ class PatchUpdatesCard extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            '当前补丁 ${patches.current} · 测试通道 ${patches.track.name}\n在线配置 ${config.revision == 0 ? '内置默认' : '第 ${config.revision} 版'}',
+            '当前补丁 ${patches.current} · 更新通道 ${patches.track.name}\n在线配置 ${config.revision == 0 ? '内置默认' : '第 ${config.revision} 版'}',
             style: const TextStyle(
               fontSize: 12,
               height: 1.7,

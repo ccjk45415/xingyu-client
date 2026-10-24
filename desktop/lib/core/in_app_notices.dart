@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:html/parser.dart' show parseFragment;
 
 import 'api.dart';
+import 'platform.dart';
+import 'system_notices.dart';
 import 'state.dart';
 
 class AppNotice {
@@ -25,7 +27,12 @@ class AppNotice {
 /// service, website read-state mutation, or message body persisted to disk.
 class InAppNotices extends ChangeNotifier {
   final AppState app;
-  InAppNotices(this.app);
+  final system = SystemNotices();
+  Json systemStatus = {};
+  AppNotice? opened;
+  InAppNotices(this.app) {
+    system.onOpen = () => unawaited(syncSystem());
+  }
   final List<AppNotice> entries = [];
   final Set<String> _failed = {};
   final Map<String, ({int after, int before, int newest})> _chatBacklogs = {};
@@ -41,12 +48,16 @@ class InAppNotices extends ChangeNotifier {
       object(object(app.local['inAppNoticePrefs'])['${app.uid}']);
   bool enabled(String key) => preferences[key] != false;
   bool get enabledAll => enabled('enabled');
+  bool get systemEnabled => preferences['system'] == true && enabledAll;
+  bool get _canPoll => _foreground || systemEnabled && !isAndroid;
   bool get showPreview => preferences['preview'] == true;
   int get unread => entries.where((entry) => !entry.read).length;
   String get status => !enabledAll
       ? '应用内提醒已关闭'
       : !_foreground
-      ? '应用在后台时暂停检查'
+      ? systemEnabled
+            ? (isAndroid ? '由系统安排后台检查' : '正在后台接收新消息')
+            : '应用在后台时暂停检查'
       : _failed.isNotEmpty
       ? '部分提醒暂未同步，将在联网后重试'
       : checkedAt == null
@@ -60,6 +71,7 @@ class InAppNotices extends ChangeNotifier {
   void start() {
     if (_disposed) return;
     _foreground = true;
+    unawaited(syncSystem());
     _timer?.cancel();
     // Keep notification requests away from the first page's startup requests.
     _timer = Timer(const Duration(seconds: 2), () {
@@ -74,7 +86,7 @@ class InAppNotices extends ChangeNotifier {
   void pause({bool notify = true}) {
     _foreground = false;
     _epoch++;
-    _timer?.cancel();
+    if (!systemEnabled || isAndroid) _timer?.cancel();
     banner = null;
     if (notify) changed();
   }
@@ -85,6 +97,7 @@ class InAppNotices extends ChangeNotifier {
     _failed.clear();
     _chatBacklogs.clear();
     banner = null;
+    opened = null;
     checkedAt = null;
     changed();
   }
@@ -98,8 +111,15 @@ class InAppNotices extends ChangeNotifier {
       'commentReply',
       'like',
       'preview',
+      'system',
     }.contains(key)) {
       return;
+    }
+    if (key == 'system' && value) {
+      if (isAndroid && !app.site.remember) {
+        throw ApiFailure(400, '后台通知需要在登录时勾选保持登录');
+      }
+      if (!await system.request()) throw ApiFailure(400, '系统通知未授权，可在系统设置中开启');
     }
     final all = object(app.local['inAppNoticePrefs']);
     all['${app.uid}'] = {...preferences, key: value};
@@ -122,7 +142,37 @@ class InAppNotices extends ChangeNotifier {
     }
     changed();
     await app.persist();
+    await syncSystem();
   }
+
+  Future<void> syncSystem() async {
+    try {
+      await system.configure(
+        app.uid,
+        systemEnabled && (!isAndroid || app.site.remember),
+        preferences,
+        _state(),
+      );
+      systemStatus = await system.status();
+      final payload = await system.takeOpen();
+      if (number(payload['uid']) == app.uid && app.uid > 0) {
+        opened = AppNotice(
+          key: text(payload['key']),
+          kind: text(payload['kind']),
+          title: '消息提醒',
+          preview: '',
+          target: number(payload['target']),
+          channel: text(payload['channel']),
+        );
+      }
+      changed();
+    } catch (_) {
+      systemStatus = {'supported': false, 'granted': false};
+      changed();
+    }
+  }
+
+  Future<void> stopSystem() => system.configure(0, false, {});
 
   List<String> _sourcesFor(String key) => switch (key) {
     'chatMention' => ['chat:1', 'chat:2'],
@@ -140,7 +190,7 @@ class InAppNotices extends ChangeNotifier {
 
   bool _valid(int owner, int generation, int epoch) =>
       !_disposed &&
-      _foreground &&
+      _canPoll &&
       enabledAll &&
       app.uid == owner &&
       owner > 0 &&
@@ -159,10 +209,25 @@ class InAppNotices extends ChangeNotifier {
         entries.any((n) => n.key == notice.key)) {
       return;
     }
-    if (_visible(notice)) notice.read = true;
+    if (_foreground && _visible(notice)) notice.read = true;
     entries.insert(0, notice);
     if (entries.length > 60) entries.removeRange(60, entries.length);
-    if (!notice.read) banner = notice;
+    if (!notice.read && _foreground) banner = notice;
+    if (!notice.read && !_foreground && systemEnabled) {
+      unawaited(
+        system
+            .show({
+              'uid': app.uid,
+              'key': notice.key,
+              'kind': notice.kind,
+              'title': showPreview ? notice.title : '星屿 · 新消息',
+              'body': showPreview ? notice.preview : '你有一条新的消息，点击查看',
+              'target': notice.target,
+              'channel': notice.channel,
+            })
+            .catchError((_) {}),
+      );
+    }
   }
 
   static String preview(String value) {
@@ -176,7 +241,7 @@ class InAppNotices extends ChangeNotifier {
   /// poll. Other rooms and private messages use bounded foreground checks.
   void acceptChat(Json message, String selected) {
     if (_disposed ||
-        !_foreground ||
+        !_canPoll ||
         !enabledAll ||
         !enabled('chatMention') ||
         !app.verified) {
@@ -254,7 +319,7 @@ class InAppNotices extends ChangeNotifier {
 
   Future<void> refresh() async {
     if (_disposed ||
-        !_foreground ||
+        !_canPoll ||
         !enabledAll ||
         app.uid <= 0 ||
         _flight == _epoch) {
@@ -444,6 +509,7 @@ class InAppNotices extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    system.onOpen = null;
     _epoch++;
     _timer?.cancel();
     super.dispose();

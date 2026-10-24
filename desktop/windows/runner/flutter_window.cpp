@@ -27,6 +27,7 @@ bool FlutterWindow::OnCreate() {
   RegisterPlugins(flutter_controller_->engine());
   storage_channel_ = RegisterSecureStorage(flutter_controller_->engine()->messenger());
   image_clipboard_channel_ = RegisterImageClipboard(flutter_controller_->engine()->messenger());
+  notifications_ = std::make_unique<SystemNotifications>(flutter_controller_->engine()->messenger(), GetHandle());
   SetChildContent(flutter_controller_->view()->GetNativeWindow());
   editor_ime_ = std::make_unique<EditorIme>(flutter_controller_->engine()->messenger(), flutter_controller_->view()->GetNativeWindow());
 
@@ -43,6 +44,7 @@ bool FlutterWindow::OnCreate() {
 }
 
 void FlutterWindow::OnDestroy() {
+  notifications_.reset();
   editor_ime_.reset();
   image_clipboard_channel_.reset();
   storage_channel_.reset();
@@ -57,6 +59,7 @@ LRESULT
 FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
                               WPARAM const wparam,
                               LPARAM const lparam) noexcept {
+  if (notifications_ && notifications_->Handle(message, lparam)) return 0;
   // Give Flutter, including plugins, an opportunity to handle window messages.
   if (flutter_controller_) {
     std::optional<LRESULT> result =

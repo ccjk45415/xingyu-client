@@ -297,6 +297,7 @@ void main() {
       'xingyu-state-cache-',
     );
     addTearDown(() async {
+      await BrowseCache.shared.size(); // Drain queued writes before removing the test directory.
       BrowseCache.shared.directory = null;
       await directory.delete(recursive: true);
     });
@@ -323,6 +324,7 @@ void main() {
       'xingyu-cache-account-',
     );
     addTearDown(() async {
+      await BrowseCache.shared.size(); // Drain queued writes before removing the test directory.
       BrowseCache.shared.directory = null;
       await directory.delete(recursive: true);
     });

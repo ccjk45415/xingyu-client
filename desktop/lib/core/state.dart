@@ -94,6 +94,7 @@ class AppState extends ChangeNotifier {
     } catch (e) {
       startupError = '本机资料暂时无法读取：$e';
     }
+    if (user == null) await notices.stopSystem();
     starting = false;
     notifyListeners();
     unawaited(clientConfig.initialize());
@@ -104,6 +105,7 @@ class AppState extends ChangeNotifier {
 
   Future<void> login(String account, String password, bool keep) async {
     final result = await site.login(account.trim(), password, keep);
+    await notices.stopSystem();
     notices.clear();
     followingFeed.clear();
     user = result;
@@ -335,6 +337,7 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> logout() async {
+    await notices.stopSystem();
     notices.pause();
     notices.clear();
     await checkin.stopForLogout();
