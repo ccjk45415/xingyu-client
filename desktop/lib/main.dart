@@ -10,6 +10,7 @@ import 'core/image_diagnostics.dart';
 import 'core/media.dart';
 import 'core/error_diagnostics.dart';
 import 'core/platform.dart';
+import 'core/window_memory.dart';
 
 import 'dart:ui';
 
@@ -61,6 +62,7 @@ void main(List<String> args) {
         clearPrivateDrafts();
       };
       runApp(XingyuApp(app: app));
+      unawaited(startWindowMemory());
       unawaited(app.initialize());
     },
     (error, stack) {

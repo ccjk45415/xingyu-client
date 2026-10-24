@@ -17,6 +17,7 @@ import 'pages/private.dart';
 import 'pages/authoring.dart';
 import 'ui/shared.dart';
 import 'pages/diagnostics.dart';
+import 'pages/notification_settings.dart';
 
 class XingyuApp extends StatelessWidget {
   final AppState app;
@@ -494,6 +495,7 @@ class _DesktopShellState extends State<DesktopShell>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    widget.app.notices.start();
   }
 
   @override
@@ -503,10 +505,18 @@ class _DesktopShellState extends State<DesktopShell>
       unawaited(widget.app.checkin.automatic());
       unawaited(widget.app.clientConfig.refresh());
       unawaited(widget.app.patches.check());
+      widget.app.notices.start();
+    } else if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.detached) {
+      widget.app.notices.pause();
     }
   }
 
   void open(DeskRoute next) {
+    if (next.kind == 'chat' && ['1', '2'].contains(next.filter)) {
+      unawaited(sharedChat.choose(next.filter));
+    }
     if (next.key == route.key) return;
     FocusManager.instance.primaryFocus?.unfocus();
     setState(() {
@@ -530,6 +540,7 @@ class _DesktopShellState extends State<DesktopShell>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    widget.app.notices.pause(notify: false);
     sharedChat.dispose();
     search.dispose();
     searchFocus.dispose();
@@ -628,12 +639,10 @@ class _DesktopShellState extends State<DesktopShell>
                       onPressed: mobileSearch,
                       icon: const Icon(Icons.search_rounded),
                     ),
-                  IconButton(
-                    tooltip: '通知',
-                    onPressed: () => open(
-                      const DeskRoute('notifications', '通知', filter: 'reply'),
-                    ),
-                    icon: const Icon(Icons.notifications_none_rounded),
+                  NoticeBell(
+                    notices: widget.app.notices,
+                    onPressed: () =>
+                        open(const DeskRoute('noticeCenter', '消息提醒')),
                   ),
                 ],
               ),
@@ -725,6 +734,8 @@ class _DesktopShellState extends State<DesktopShell>
       'followingFeed' => FollowingFeedPage(route, key: ValueKey(route.key)),
       'followPeople' => FollowPeoplePage(route, key: ValueKey(route.key)),
       'categories' => CategoryPage(key: ValueKey(route.key)),
+      'noticeSettings' => const NotificationSettingsPage(),
+      'noticeCenter' => const NoticeCenterPage(),
       'article' => ArticlePage(
         route.id,
         ownerOnly: route.filter == 'private-preview',
@@ -746,404 +757,423 @@ class _DesktopShellState extends State<DesktopShell>
     },
   );
   @override
-  Widget build(BuildContext context) => DeskScope(
-    app: widget.app,
-    open: open,
-    child: CallbackShortcuts(
-      bindings: {
-        primaryShortcut(LogicalKeyboardKey.keyK): () =>
-            searchFocus.requestFocus(),
-        if (isMacOS)
-          primaryShortcut(LogicalKeyboardKey.bracketLeft): back
-        else
-          const SingleActivator(LogicalKeyboardKey.arrowLeft, alt: true): back,
-      },
-      child: Focus(
-        autofocus: true,
-        child: Scaffold(
-          body: LayoutBuilder(
-            builder: (c, constraints) {
-              final full = constraints.maxWidth >= 1120;
-              final short = constraints.maxHeight < 760;
-              if (constraints.maxWidth < 700 ||
-                  isAndroid && constraints.maxWidth < 1000) {
-                return mobile(c);
-              }
-              final selected =
-                  [
-                    'article',
-                    'posts',
-                    'author',
-                    'authorPosts',
-                    'search',
-                  ].contains(route.kind)
-                  ? 'home'
-                  : [
-                      'followPeople',
-                      'inbox',
-                      'dm',
-                      'dmPeople',
-                      'dmBlocks',
-                      'settings',
-                      'profile',
-                      'security',
-                      'appearance',
-                      'updates',
-                      'favorites',
-                      'notifications',
-                      'myComments',
-                      'history',
-                      'manage',
-                      'editor',
-                      'drafts',
-                      'logs',
-                    ].contains(route.kind)
-                  ? 'mine'
-                  : route.kind;
-              return Row(
-                children: [
-                  Container(
-                    width: full ? 222 : 86,
-                    decoration: BoxDecoration(
-                      color: Theme.of(c).colorScheme.surface,
-                      border: Border(
-                        right: BorderSide(color: Theme.of(c).dividerColor),
-                      ),
-                    ),
-                    child: Column(
-                      children: [
-                        Padding(
-                          padding: EdgeInsets.fromLTRB(
-                            full ? 27 : 16,
-                            short ? 18 : 35,
-                            16,
-                            short ? 20 : 40,
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(
-                                Icons.auto_awesome_rounded,
-                                size: 31,
-                                color: violet,
-                              ),
-                              if (full) ...[
-                                const SizedBox(width: 14),
-                                const Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      '星屿',
-                                      style: TextStyle(
-                                        fontSize: 25,
-                                        fontWeight: FontWeight.w800,
-                                      ),
-                                    ),
-                                    Text(
-                                      'YOUR LITTLE UNIVERSE',
-                                      style: TextStyle(
-                                        fontSize: 7,
-                                        letterSpacing: 1,
-                                        color: violet,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ],
+  Widget build(BuildContext context) {
+    widget.app.notices.route = route.kind;
+    widget.app.notices.routeId = route.id;
+    widget.app.notices.channel = sharedChat.channel;
+    return DeskScope(
+      app: widget.app,
+      open: open,
+      child: CallbackShortcuts(
+        bindings: {
+          primaryShortcut(LogicalKeyboardKey.keyK): () =>
+              searchFocus.requestFocus(),
+          if (isMacOS)
+            primaryShortcut(LogicalKeyboardKey.bracketLeft): back
+          else
+            const SingleActivator(LogicalKeyboardKey.arrowLeft, alt: true):
+                back,
+        },
+        child: Focus(
+          autofocus: true,
+          child: Scaffold(
+            body: NoticeOverlay(
+              notices: widget.app.notices,
+              child: LayoutBuilder(
+                builder: (c, constraints) {
+                  final full = constraints.maxWidth >= 1120;
+                  final short = constraints.maxHeight < 760;
+                  if (constraints.maxWidth < 700 ||
+                      isAndroid && constraints.maxWidth < 1000) {
+                    return mobile(c);
+                  }
+                  final selected =
+                      [
+                        'article',
+                        'posts',
+                        'author',
+                        'authorPosts',
+                        'search',
+                      ].contains(route.kind)
+                      ? 'home'
+                      : [
+                          'followPeople',
+                          'inbox',
+                          'dm',
+                          'dmPeople',
+                          'dmBlocks',
+                          'settings',
+                          'profile',
+                          'security',
+                          'appearance',
+                          'updates',
+                          'favorites',
+                          'notifications',
+                          'noticeCenter',
+                          'noticeSettings',
+                          'myComments',
+                          'history',
+                          'manage',
+                          'editor',
+                          'drafts',
+                          'logs',
+                        ].contains(route.kind)
+                      ? 'mine'
+                      : route.kind;
+                  return Row(
+                    children: [
+                      Container(
+                        width: full ? 222 : 86,
+                        decoration: BoxDecoration(
+                          color: Theme.of(c).colorScheme.surface,
+                          border: Border(
+                            right: BorderSide(color: Theme.of(c).dividerColor),
                           ),
                         ),
-                        if (full)
-                          const Align(
-                            alignment: Alignment.centerLeft,
-                            child: Padding(
-                              padding: EdgeInsets.fromLTRB(29, 0, 0, 13),
-                              child: Text(
-                                '探索你的喜欢',
-                                style: TextStyle(
-                                  color: Colors.grey,
-                                  fontSize: 10,
-                                  letterSpacing: 1,
-                                ),
+                        child: Column(
+                          children: [
+                            Padding(
+                              padding: EdgeInsets.fromLTRB(
+                                full ? 27 : 16,
+                                short ? 18 : 35,
+                                16,
+                                short ? 20 : 40,
                               ),
-                            ),
-                          ),
-                        for (final nav in [
-                          (Icons.grid_view_rounded, '发现', 'home'),
-                          (Icons.interests_outlined, '分类', 'categories'),
-                          (Icons.local_fire_department_outlined, '排行', 'rank'),
-                          (Icons.forum_outlined, '聊天室', 'chat'),
-                          (Icons.rss_feed_rounded, '动态', 'followingFeed'),
-                          (Icons.person_outline_rounded, '我的', 'mine'),
-                        ])
-                          Padding(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: full ? 17 : 12,
-                              vertical: 5,
-                            ),
-                            child: Tooltip(
-                              message: nav.$2,
-                              child: Material(
-                                color: selected == nav.$3
-                                    ? violet.withValues(alpha: .12)
-                                    : Colors.transparent,
-                                borderRadius: BorderRadius.circular(14),
-                                child: InkWell(
-                                  borderRadius: BorderRadius.circular(14),
-                                  onTap: () => tab(DeskRoute(nav.$3, nav.$2)),
-                                  child: Padding(
-                                    padding: EdgeInsets.symmetric(
-                                      horizontal: full ? 16 : 14,
-                                      vertical: 12,
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        SizedBox(
-                                          width: 30,
-                                          height: 30,
-                                          child: selected == nav.$3
-                                              ? IconBadge(nav.$1, size: 30)
-                                              : Icon(
-                                                  nav.$1,
-                                                  size: 22,
-                                                  color: Theme.of(c)
-                                                      .colorScheme
-                                                      .onSurfaceVariant,
-                                                ),
-                                        ),
-                                        if (full) ...[
-                                          const SizedBox(width: 15),
-                                          Text(
-                                            nav.$2,
-                                            style: TextStyle(
-                                              fontSize: 14,
-                                              fontWeight: selected == nav.$3
-                                                  ? FontWeight.w700
-                                                  : FontWeight.w500,
-                                              color: selected == nav.$3
-                                                  ? violet
-                                                  : null,
-                                            ),
-                                          ),
-                                          const Spacer(),
-                                          if (selected == nav.$3)
-                                            const Icon(
-                                              Icons.circle,
-                                              size: 5,
-                                              color: violet,
-                                            ),
-                                        ],
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        const Spacer(),
-                        if (full && !short)
-                          Padding(
-                            padding: const EdgeInsets.all(18),
-                            child: Surface(
-                              padding: const EdgeInsets.all(15),
-                              color: violet.withValues(alpha: .065),
-                              child: const Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                              child: Row(
                                 children: [
-                                  Icon(
-                                    Icons.nightlight_round,
+                                  const Icon(
+                                    Icons.auto_awesome_rounded,
+                                    size: 31,
                                     color: violet,
-                                    size: 19,
                                   ),
-                                  SizedBox(height: 10),
-                                  Text(
-                                    '留一点时间给热爱',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                  SizedBox(height: 7),
-                                  Text(
-                                    '慢慢探索，自在阅读。',
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      color: Colors.grey,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        const Divider(height: 1),
-                        Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: InkWell(
-                            onTap: () => tab(const DeskRoute('mine', '我的星屿')),
-                            borderRadius: BorderRadius.circular(12),
-                            child: Row(
-                              children: [
-                                Avatar(widget.app.user ?? {}, radius: 19),
-                                if (full) ...[
-                                  const SizedBox(width: 11),
-                                  Expanded(
-                                    child: Column(
+                                  if (full) ...[
+                                    const SizedBox(width: 14),
+                                    const Column(
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          text(widget.app.user?['nickname']),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w700,
+                                          '星屿',
+                                          style: TextStyle(
+                                            fontSize: 25,
+                                            fontWeight: FontWeight.w800,
                                           ),
                                         ),
                                         Text(
-                                          'UID ${widget.app.uid}',
-                                          style: const TextStyle(
-                                            fontSize: 10,
-                                            color: Colors.grey,
+                                          'YOUR LITTLE UNIVERSE',
+                                          style: TextStyle(
+                                            fontSize: 7,
+                                            letterSpacing: 1,
+                                            color: violet,
                                           ),
                                         ),
                                       ],
                                     ),
-                                  ),
-                                  const Icon(
-                                    Icons.unfold_more,
-                                    size: 16,
-                                    color: Colors.grey,
-                                  ),
+                                  ],
                                 ],
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Expanded(
-                    child: Column(
-                      children: [
-                        Container(
-                          height: 83,
-                          padding: const EdgeInsets.symmetric(horizontal: 26),
-                          decoration: BoxDecoration(
-                            border: Border(
-                              bottom: BorderSide(
-                                color: Theme.of(c).dividerColor,
                               ),
                             ),
-                          ),
-                          child: Row(
-                            children: [
-                              if (history.isNotEmpty)
-                                IconButton(
-                                  onPressed: back,
-                                  tooltip: '返回 $backShortcutLabel',
-                                  icon: const Icon(Icons.arrow_back, size: 20),
-                                ),
-                              if (constraints.maxWidth > 1000)
-                                Padding(
-                                  padding: const EdgeInsets.only(right: 24),
+                            if (full)
+                              const Align(
+                                alignment: Alignment.centerLeft,
+                                child: Padding(
+                                  padding: EdgeInsets.fromLTRB(29, 0, 0, 13),
                                   child: Text(
-                                    route.title,
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w700,
+                                    '探索你的喜欢',
+                                    style: TextStyle(
+                                      color: Colors.grey,
+                                      fontSize: 10,
+                                      letterSpacing: 1,
                                     ),
                                   ),
                                 ),
-                              Expanded(
-                                child: ConstrainedBox(
-                                  constraints: const BoxConstraints(
-                                    maxWidth: 490,
+                              ),
+                            for (final nav in [
+                              (Icons.grid_view_rounded, '发现', 'home'),
+                              (Icons.interests_outlined, '分类', 'categories'),
+                              (
+                                Icons.local_fire_department_outlined,
+                                '排行',
+                                'rank',
+                              ),
+                              (Icons.forum_outlined, '聊天室', 'chat'),
+                              (Icons.rss_feed_rounded, '动态', 'followingFeed'),
+                              (Icons.person_outline_rounded, '我的', 'mine'),
+                            ])
+                              Padding(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: full ? 17 : 12,
+                                  vertical: 5,
+                                ),
+                                child: Tooltip(
+                                  message: nav.$2,
+                                  child: Material(
+                                    color: selected == nav.$3
+                                        ? violet.withValues(alpha: .12)
+                                        : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(14),
+                                    child: InkWell(
+                                      borderRadius: BorderRadius.circular(14),
+                                      onTap: () =>
+                                          tab(DeskRoute(nav.$3, nav.$2)),
+                                      child: Padding(
+                                        padding: EdgeInsets.symmetric(
+                                          horizontal: full ? 16 : 14,
+                                          vertical: 12,
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            SizedBox(
+                                              width: 30,
+                                              height: 30,
+                                              child: selected == nav.$3
+                                                  ? IconBadge(nav.$1, size: 30)
+                                                  : Icon(
+                                                      nav.$1,
+                                                      size: 22,
+                                                      color: Theme.of(c)
+                                                          .colorScheme
+                                                          .onSurfaceVariant,
+                                                    ),
+                                            ),
+                                            if (full) ...[
+                                              const SizedBox(width: 15),
+                                              Text(
+                                                nav.$2,
+                                                style: TextStyle(
+                                                  fontSize: 14,
+                                                  fontWeight: selected == nav.$3
+                                                      ? FontWeight.w700
+                                                      : FontWeight.w500,
+                                                  color: selected == nav.$3
+                                                      ? violet
+                                                      : null,
+                                                ),
+                                              ),
+                                              const Spacer(),
+                                              if (selected == nav.$3)
+                                                const Icon(
+                                                  Icons.circle,
+                                                  size: 5,
+                                                  color: violet,
+                                                ),
+                                            ],
+                                          ],
+                                        ),
+                                      ),
+                                    ),
                                   ),
-                                  child: TextField(
-                                    controller: search,
-                                    focusNode: searchFocus,
-                                    onSubmitted: (v) {
-                                      if (v.trim().isNotEmpty) {
-                                        open(
-                                          DeskRoute(
-                                            'search',
-                                            '搜索',
-                                            query: v.trim(),
-                                          ),
-                                        );
-                                      }
-                                    },
-                                    decoration: InputDecoration(
-                                      hintText: '搜索作品、关键词…',
-                                      prefixIcon: Icon(
-                                        Icons.search_rounded,
+                                ),
+                              ),
+                            const Spacer(),
+                            if (full && !short)
+                              Padding(
+                                padding: const EdgeInsets.all(18),
+                                child: Surface(
+                                  padding: const EdgeInsets.all(15),
+                                  color: violet.withValues(alpha: .065),
+                                  child: const Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Icon(
+                                        Icons.nightlight_round,
+                                        color: violet,
+                                        size: 19,
+                                      ),
+                                      SizedBox(height: 10),
+                                      Text(
+                                        '留一点时间给热爱',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                      SizedBox(height: 7),
+                                      Text(
+                                        '慢慢探索，自在阅读。',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: Colors.grey,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            const Divider(height: 1),
+                            Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: InkWell(
+                                onTap: () =>
+                                    tab(const DeskRoute('mine', '我的星屿')),
+                                borderRadius: BorderRadius.circular(12),
+                                child: Row(
+                                  children: [
+                                    Avatar(widget.app.user ?? {}, radius: 19),
+                                    if (full) ...[
+                                      const SizedBox(width: 11),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              text(
+                                                widget.app.user?['nickname'],
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: const TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            ),
+                                            Text(
+                                              'UID ${widget.app.uid}',
+                                              style: const TextStyle(
+                                                fontSize: 10,
+                                                color: Colors.grey,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      const Icon(
+                                        Icons.unfold_more,
+                                        size: 16,
+                                        color: Colors.grey,
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Expanded(
+                        child: Column(
+                          children: [
+                            Container(
+                              height: 83,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 26,
+                              ),
+                              decoration: BoxDecoration(
+                                border: Border(
+                                  bottom: BorderSide(
+                                    color: Theme.of(c).dividerColor,
+                                  ),
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  if (history.isNotEmpty)
+                                    IconButton(
+                                      onPressed: back,
+                                      tooltip: '返回 $backShortcutLabel',
+                                      icon: const Icon(
+                                        Icons.arrow_back,
                                         size: 20,
                                       ),
-                                      suffixIcon: Padding(
-                                        padding: EdgeInsets.only(top: 16),
-                                        child: Text(
-                                          '$primaryModifierLabel K',
-                                          style: TextStyle(
-                                            fontSize: 10,
-                                            color: Colors.grey,
+                                    ),
+                                  if (constraints.maxWidth > 1000)
+                                    Padding(
+                                      padding: const EdgeInsets.only(right: 24),
+                                      child: Text(
+                                        route.title,
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ),
+                                  Expanded(
+                                    child: ConstrainedBox(
+                                      constraints: const BoxConstraints(
+                                        maxWidth: 490,
+                                      ),
+                                      child: TextField(
+                                        controller: search,
+                                        focusNode: searchFocus,
+                                        onSubmitted: (v) {
+                                          if (v.trim().isNotEmpty) {
+                                            open(
+                                              DeskRoute(
+                                                'search',
+                                                '搜索',
+                                                query: v.trim(),
+                                              ),
+                                            );
+                                          }
+                                        },
+                                        decoration: InputDecoration(
+                                          hintText: '搜索作品、关键词…',
+                                          prefixIcon: Icon(
+                                            Icons.search_rounded,
+                                            size: 20,
+                                          ),
+                                          suffixIcon: Padding(
+                                            padding: EdgeInsets.only(top: 16),
+                                            child: Text(
+                                              '$primaryModifierLabel K',
+                                              style: TextStyle(
+                                                fontSize: 10,
+                                                color: Colors.grey,
+                                              ),
+                                            ),
+                                          ),
+                                          isDense: true,
+                                          contentPadding: EdgeInsets.symmetric(
+                                            horizontal: 15,
+                                            vertical: 15,
                                           ),
                                         ),
                                       ),
-                                      isDense: true,
-                                      contentPadding: EdgeInsets.symmetric(
-                                        horizontal: 15,
-                                        vertical: 15,
-                                      ),
                                     ),
                                   ),
-                                ),
-                              ),
-                              const SizedBox(width: 18),
-                              IconButton(
-                                onPressed: () => open(
-                                  const DeskRoute(
-                                    'notifications',
-                                    '通知',
-                                    filter: 'reply',
+                                  const SizedBox(width: 18),
+                                  NoticeBell(
+                                    notices: widget.app.notices,
+                                    onPressed: () => open(
+                                      const DeskRoute('noticeCenter', '消息提醒'),
+                                    ),
                                   ),
-                                ),
-                                tooltip: '通知',
-                                icon: const Icon(
-                                  Icons.notifications_none_rounded,
-                                ),
+                                  IconButton(
+                                    onPressed: () =>
+                                        widget.app.setDark(!widget.app.dark),
+                                    tooltip: widget.app.dark ? '切换浅色' : '切换深色',
+                                    icon: Icon(
+                                      widget.app.dark
+                                          ? Icons.light_mode_outlined
+                                          : Icons.dark_mode_outlined,
+                                    ),
+                                  ),
+                                  IconButton(
+                                    onPressed: () =>
+                                        open(const DeskRoute('settings', '设置')),
+                                    tooltip: '设置',
+                                    icon: const Icon(
+                                      Icons.settings_outlined,
+                                      size: 21,
+                                    ),
+                                  ),
+                                ],
                               ),
-                              IconButton(
-                                onPressed: () =>
-                                    widget.app.setDark(!widget.app.dark),
-                                tooltip: widget.app.dark ? '切换浅色' : '切换深色',
-                                icon: Icon(
-                                  widget.app.dark
-                                      ? Icons.light_mode_outlined
-                                      : Icons.dark_mode_outlined,
-                                ),
-                              ),
-                              IconButton(
-                                onPressed: () =>
-                                    open(const DeskRoute('settings', '设置')),
-                                tooltip: '设置',
-                                icon: const Icon(
-                                  Icons.settings_outlined,
-                                  size: 21,
-                                ),
-                              ),
-                            ],
-                          ),
+                            ),
+                            Expanded(child: page()),
+                          ],
                         ),
-                        Expanded(child: page()),
-                      ],
-                    ),
-                  ),
-                ],
-              );
-            },
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
           ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }

@@ -1,15 +1,62 @@
 import 'api.dart';
+import 'pinned_content.dart';
 
 typedef FeedGet = Future<Json> Function(String, [Map<String, dynamic>?]);
 typedef FollowGet = Future<Json> Function(String);
 
-/// Keep the current prefix in place and append unique, still-followed posts.
+/// A home-page sticky announcement may be injected into the latest page even
+/// though its publication belongs much further back in history. Keep it out of
+/// the scanned date window, and reveal it once pagination reaches its own date.
+Json chronologicalFollowingWindow(Json window, List<Json> candidates) {
+  final floor = DateTime.tryParse(text(window['scan_floor']));
+  final more = window['has_more'] == true;
+  final enforce = window['chronology'] == 1;
+  final posts = <Json>[], deferred = <Json>[];
+  for (final post in candidates) {
+    final published = DateTime.tryParse(text(post['created_at']));
+    final injected =
+        enforce &&
+        more &&
+        isPinned(post) &&
+        (floor == null || published == null || published.isBefore(floor));
+    (injected ? deferred : posts).add(post);
+  }
+  sortFollowingPosts(posts);
+  return {...window, 'posts': posts, 'deferred_posts': deferred};
+}
+
+/// Use the same publication field shown on each card. Server page boundaries
+/// can contain old sticky posts; sorting each page separately is insufficient.
+void sortFollowingPosts(List<Json> posts) {
+  final positions = {
+    for (var i = 0; i < posts.length; i++) number(posts[i]['id']): i,
+  };
+  DateTime? publication(Json post) =>
+      DateTime.tryParse(text(post['created_at']));
+  posts.sort((a, b) {
+    final left = publication(a), right = publication(b);
+    if (left == null || right == null) {
+      if (left != null) return -1;
+      if (right != null) return 1;
+      return positions[number(a['id'])]!.compareTo(positions[number(b['id'])]!);
+    }
+    final byTime = right.compareTo(left);
+    return byTime != 0 ? byTime : number(b['id']).compareTo(number(a['id']));
+  });
+}
+
+/// Merge unique, still-followed posts and sort the entire accumulated timeline.
 Json appendFollowingWindow(Json current, Json next) {
   final allowed = (next['ids'] as List? ?? []).map(number).toSet();
   final selected = number(next['selected']);
   final seen = <int>{};
   final posts = <Json>[];
-  for (final post in [...rows(current['posts']), ...rows(next['posts'])]) {
+  for (final post in [
+    ...rows(current['posts']),
+    ...rows(current['deferred_posts']),
+    ...rows(next['posts']),
+    ...rows(next['deferred_posts']),
+  ]) {
     final author = number(post['user_id']) > 0
         ? number(post['user_id'])
         : number(object(post['user'])['id']);
@@ -21,7 +68,7 @@ Json appendFollowingWindow(Json current, Json next) {
       posts.add(post);
     }
   }
-  return {...next, 'posts': posts};
+  return chronologicalFollowingWindow(next, posts);
 }
 
 class _CachedFeed {
@@ -163,13 +210,23 @@ class FollowingFeedStore {
       'with[1]': 'categories',
       'order_by': 'created_at',
       'order': 'desc',
+      'sticky': '0',
       if (selected > 0) 'user_id': selected,
     });
     final pages = <int, Json>{};
     Json snapshot(int end) {
       final posts = <Json>[], seen = <int>{};
+      DateTime? floor;
       for (var p = page; p <= end; p++) {
         for (final post in rows(pages[p]?['data'])) {
+          // Compute the page's date floor before filtering followed authors.
+          // An old pinned author must not become their own "latest" window.
+          final published = DateTime.tryParse(text(post['created_at']));
+          if (!isPinned(post) &&
+              published != null &&
+              (floor == null || published.isBefore(floor))) {
+            floor = published;
+          }
           final id = number(post['user_id']) > 0
               ? number(post['user_id'])
               : number(object(post['user'])['id']);
@@ -181,19 +238,17 @@ class FollowingFeedStore {
           }
         }
       }
-      posts.sort(
-        (a, b) => text(b['created_at']).compareTo(text(a['created_at'])),
-      );
       final total = number(
         object(object(pages[page]?['meta'])['pagination'])['total_pages'],
       );
-      return {
+      return chronologicalFollowingWindow({
         ...r,
-        'posts': posts,
+        'chronology': 1,
+        'scan_floor': floor?.toUtc().toIso8601String(),
         'next_page': end + 1,
         'has_more': end < total,
         'selected': selected,
-      };
+      }, posts);
     }
 
     pages[page] = await fetch(page);

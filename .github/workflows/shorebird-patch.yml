@@ -1,0 +1,77 @@
+name: Publish authorized Dart patches
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  desktop-patch:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            platform: windows
+            version: '0.6.0+25'
+            name: '0.6.0'
+            build: '25'
+          - os: macos-15
+            platform: macos
+            version: '0.2.0+3'
+            name: '0.2.0'
+            build: '3'
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    env:
+      CI: 'true'
+      FLUTTER_SUPPRESS_ANALYTICS: 'true'
+      GIT_CONFIG_COUNT: '1'
+      GIT_CONFIG_KEY_0: core.longpaths
+      GIT_CONFIG_VALUE_0: 'true'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          flutter-version: '3.47.7'
+          channel: stable
+          cache: false
+      - name: Install pinned official Shorebird CLI
+        shell: bash
+        run: |
+          git init "$RUNNER_TEMP/shorebird"
+          git -C "$RUNNER_TEMP/shorebird" remote add origin https://github.com/shorebirdtech/shorebird.git
+          git -C "$RUNNER_TEMP/shorebird" fetch --depth 1 origin 07c191c9448f0b67c5f96253d8832356ba213b06
+          git -C "$RUNNER_TEMP/shorebird" checkout --detach FETCH_HEAD
+          echo "$RUNNER_TEMP/shorebird/bin" >> "$GITHUB_PATH"
+      - name: Restore short-lived official authorization
+        shell: python
+        env:
+          XINGYU_PATCH_LOGIN: ${{ secrets.SHOREBIRD_PATCH_LOGIN }}
+        run: |
+          import os,json,pathlib,sys
+          value=json.loads(os.environ['XINGYU_PATCH_LOGIN'])
+          assert not value.get('refreshToken') and not value.get('idToken')
+          base=pathlib.Path(os.environ['APPDATA'])/'shorebird' if sys.platform=='win32' else pathlib.Path.home()/'Library/Application Support/shorebird'
+          base.mkdir(parents=True,exist_ok=True)
+          target=base/'credentials-v2.json'
+          target.write_text(json.dumps(value))
+          target.chmod(0o600)
+      - name: Validate Dart changes
+        shell: bash
+        working-directory: desktop
+        run: |
+          flutter pub get
+          flutter analyze --no-pub
+          flutter test --no-pub test/following_feed_performance_test.dart test/core_test.dart test/checkin_patch_test.dart test/macos_platform_test.dart test/updates_test.dart test/window_memory_test.dart
+      - name: Validate patch against the installed base
+        run: python tools/run_desktop_patch.py ${{ matrix.platform }} --dry-run
+      - name: Publish authorized patch
+        run: python tools/run_desktop_patch.py ${{ matrix.platform }}
+      - name: Remove temporary authorization
+        if: always()
+        shell: python
+        run: |
+          import os,pathlib,sys
+          base=pathlib.Path(os.environ['APPDATA'])/'shorebird' if sys.platform=='win32' else pathlib.Path.home()/'Library/Application Support/shorebird'
+          (base/'credentials-v2.json').unlink(missing_ok=True)

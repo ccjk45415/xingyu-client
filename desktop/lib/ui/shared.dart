@@ -209,12 +209,19 @@ String dateText(dynamic raw) {
 class Avatar extends StatelessWidget {
   final Json user;
   final double radius;
-  final VoidCallback? onTap;
-  const Avatar(this.user, {super.key, this.radius = 21, this.onTap});
+  final VoidCallback? onTap, onLongPress;
+  const Avatar(
+    this.user, {
+    super.key,
+    this.radius = 21,
+    this.onTap,
+    this.onLongPress,
+  });
   @override
   Widget build(BuildContext context) => InkWell(
     borderRadius: BorderRadius.circular(radius),
     onTap: onTap,
+    onLongPress: onLongPress,
     child: ClipOval(
       child: SizedBox(
         width: radius * 2,

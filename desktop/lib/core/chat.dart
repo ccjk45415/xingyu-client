@@ -69,6 +69,7 @@ class ChatController extends ChangeNotifier {
     if (next == channel || !rooms.containsKey(next)) return;
     _detach();
     channel = next;
+    app.notices.channel = next;
     update();
     if (active) await _connect();
   }
@@ -120,6 +121,10 @@ class ChatController extends ChangeNotifier {
                 profiles[number(user['id'])] = user;
               case 'message':
                 _merge(rooms[selected]!, event);
+                for (final message in rows(event['messages'])) {
+                  app.notices.channel = selected;
+                  app.notices.acceptChat(message, selected);
+                }
               case 'error':
                 final target = rooms[selected]!;
                 target.sending = false;

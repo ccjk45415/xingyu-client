@@ -473,6 +473,12 @@ class SettingsPage extends StatelessWidget {
                   ('编辑个人资料', '昵称、简介、头像与背景', Icons.badge_outlined, 'profile'),
                   ('账号安全', '修改密码、更改绑定邮箱', Icons.shield_outlined, 'security'),
                   (
+                    '通知设置',
+                    '私信、艾特与回复的应用内提醒',
+                    Icons.notifications_none_rounded,
+                    'noticeSettings',
+                  ),
+                  (
                     '签到设置',
                     '打开应用、后台与云端签到',
                     Icons.event_available_rounded,

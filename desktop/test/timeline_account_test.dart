@@ -82,32 +82,35 @@ void main() {
   });
   setUp(() => SecureVault.setMockInitialValues({}));
 
-  test('append keeps prefix, removes duplicate/invalid/unfollowed posts and advances cursor', () {
-    final old = <Json>[
-      {'id': 1, 'user_id': 77},
-      {'id': 2, 'user_id': 88},
-    ];
-    final merged = appendFollowingWindow(
-      {'posts': old},
-      {
-        'ids': [77],
-        'selected': 0,
-        'next_page': 7,
-        'has_more': true,
-        'posts': [
-          {'id': 1, 'user_id': 77},
-          {
-            'id': 3,
-            'user': {'id': 77},
-          },
-          {'id': 0, 'user_id': 77},
-        ],
-      },
-    );
-    expect(rows(merged['posts']).map((p) => p['id']), [1, 3]);
-    expect(merged['next_page'], 7);
-    expect(old.length, 2);
-  });
+  test(
+    'merge removes duplicate/invalid/unfollowed posts and advances cursor',
+    () {
+      final old = <Json>[
+        {'id': 1, 'user_id': 77},
+        {'id': 2, 'user_id': 88},
+      ];
+      final merged = appendFollowingWindow(
+        {'posts': old},
+        {
+          'ids': [77],
+          'selected': 0,
+          'next_page': 7,
+          'has_more': true,
+          'posts': [
+            {'id': 1, 'user_id': 77},
+            {
+              'id': 3,
+              'user': {'id': 77},
+            },
+            {'id': 0, 'user_id': 77},
+          ],
+        },
+      );
+      expect(rows(merged['posts']).map((p) => p['id']), [1, 3]);
+      expect(merged['next_page'], 7);
+      expect(old.length, 2);
+    },
+  );
   test('timeline cache preserves cursor/offset and is cleared by follow/account invalidation', () {
     final store = FollowingFeedStore(
       get: (_, [p]) async => {},

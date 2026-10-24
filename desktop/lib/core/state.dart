@@ -11,6 +11,7 @@ import 'following_feed.dart';
 import 'client_config.dart';
 import 'checkin.dart';
 import 'patch_updates.dart';
+import 'in_app_notices.dart';
 
 class AppState extends ChangeNotifier {
   final SiteApi site;
@@ -28,6 +29,7 @@ class AppState extends ChangeNotifier {
   late final ClientConfigStore clientConfig = ClientConfigStore(this);
   late final CheckinController checkin = CheckinController(this);
   late final PatchUpdates patches = PatchUpdates();
+  late final InAppNotices notices = InAppNotices(this);
   late final FollowingFeedStore followingFeed = FollowingFeedStore(
     get: get,
     social: (path) => social(path),
@@ -102,6 +104,7 @@ class AppState extends ChangeNotifier {
 
   Future<void> login(String account, String password, bool keep) async {
     final result = await site.login(account.trim(), password, keep);
+    notices.clear();
     followingFeed.clear();
     user = result;
     generation++;
@@ -332,6 +335,8 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> logout() async {
+    notices.pause();
+    notices.clear();
     await checkin.stopForLogout();
     followingFeed.clear();
     onLogout?.call();
@@ -466,6 +471,7 @@ class AppState extends ChangeNotifier {
 
   @override
   void dispose() {
+    notices.dispose();
     patches.removeListener(notifyListeners);
     patches.dispose();
     checkin.removeListener(notifyListeners);

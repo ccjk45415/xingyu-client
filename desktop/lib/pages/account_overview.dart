@@ -181,7 +181,7 @@ class AccountOverview extends StatelessWidget {
     child: Column(
       children: [
         for (final item in [
-          ('通知', Icons.notifications_none_rounded, 'notifications'),
+          ('通知', Icons.notifications_none_rounded, 'noticeCenter'),
           ('关注动态', Icons.rss_feed_rounded, 'followingFeed'),
           ('设置', Icons.settings_outlined, 'settings'),
         ])

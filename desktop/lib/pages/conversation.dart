@@ -143,7 +143,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
 
   void mention(Json original) {
     final c = chat!, user = c.profile(original), id = number(user['id']);
-    if (c.room.sending) return;
+    if (c.room.sending || id <= 0) return;
     c.room.mentions.removeWhere(
       (uid, _) => !c.room.draft.contains('(UID:$uid)'),
     );
@@ -431,7 +431,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                                     room.historyFailed
                                         ? '可以重试加载，不会影响已经输入的内容。'
                                         : room.historyLoaded
-                                        ? '点击头像或名字艾特，点击回复引用消息。'
+                                        ? '点击头像查看作者主页，长按头像或点击名字艾特，点击回复引用消息。'
                                         : '消息正在同步，可以先写下想说的话。',
                                     textAlign: TextAlign.center,
                                     style: const TextStyle(
@@ -465,7 +465,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                                             Icons.alternate_email_rounded,
                                             size: 15,
                                           ),
-                                          label: Text('点击头像艾特'),
+                                          label: Text('长按头像艾特'),
                                         ),
                                       ],
                                     ),
@@ -490,6 +490,15 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                                   ) ==
                                   app.uid,
                           onName: () => mention(object(m['sender'])),
+                          onAvatar: () {
+                            final id = number(object(m['sender'])['id']);
+                            if (id <= 0) return;
+                            openRoute(
+                              context,
+                              DeskRoute('author', '作者主页', id: id),
+                            );
+                          },
+                          onMention: () => mention(object(m['sender'])),
                           onReply: () {
                             room.reply = m;
                             c.update();
@@ -662,7 +671,7 @@ class _QuoteBar extends StatelessWidget {
 class MessageBubble extends StatelessWidget {
   final Json messageData, user;
   final bool mine, tagged;
-  final VoidCallback? onName, onReply;
+  final VoidCallback? onName, onReply, onAvatar, onMention;
   final Json Function(Json)? profile;
   const MessageBubble({
     super.key,
@@ -672,6 +681,8 @@ class MessageBubble extends StatelessWidget {
     this.tagged = false,
     this.onName,
     this.onReply,
+    this.onAvatar,
+    this.onMention,
     this.profile,
   });
   @override
@@ -679,6 +690,18 @@ class MessageBubble extends StatelessWidget {
     final reply = object(messageData['reply_to']),
         original = object(reply['sender']),
         quote = profile?.call(original) ?? original;
+    final avatar = Tooltip(
+      message: onMention == null ? '查看作者主页' : '点击查看作者主页 · 长按艾特',
+      // Leave the long-press gesture to mention; mouse hover still shows help.
+      triggerMode: TooltipTriggerMode.manual,
+      child: Avatar(
+        user,
+        key: ValueKey('chat-avatar:${messageData['id']}'),
+        radius: 18,
+        onTap: onAvatar ?? onName,
+        onLongPress: onMention,
+      ),
+    );
     final details = Column(
       crossAxisAlignment: mine
           ? CrossAxisAlignment.end
@@ -768,20 +791,14 @@ class MessageBubble extends StatelessWidget {
               : MainAxisAlignment.start,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (!mine) ...[
-              Avatar(user, radius: 18, onTap: onName),
-              const SizedBox(width: 12),
-            ],
+            if (!mine) ...[avatar, const SizedBox(width: 12)],
             ConstrainedBox(
               constraints: BoxConstraints(
                 maxWidth: (box.maxWidth - 80).clamp(100, 650),
               ),
               child: details,
             ),
-            if (mine) ...[
-              const SizedBox(width: 12),
-              Avatar(user, radius: 18, onTap: onName),
-            ],
+            if (mine) ...[const SizedBox(width: 12), avatar],
           ],
         ),
       ),
