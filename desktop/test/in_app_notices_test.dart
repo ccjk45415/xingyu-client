@@ -290,6 +290,16 @@ void main() {
         Platform.environment['FLUTTER_ROOT'] ?? 'C:/codex-tools/flutter';
     for (final (family, path) in [
       ('Microsoft YaHei UI', 'C:/Windows/Fonts/msyh.ttc'),
+      // flutter_tester does not load the host's system fonts. Register real
+      // Latin metrics instead of Ahem's square glyphs for macOS's UI family.
+      (
+        '.AppleSystemUIFont',
+        '$flutterRoot/bin/cache/artifacts/material_fonts/roboto-regular.ttf',
+      ),
+      (
+        'Roboto',
+        '$flutterRoot/bin/cache/artifacts/material_fonts/roboto-regular.ttf',
+      ),
       (
         'MaterialIcons',
         '$flutterRoot/bin/cache/artifacts/material_fonts/materialicons-regular.otf',
