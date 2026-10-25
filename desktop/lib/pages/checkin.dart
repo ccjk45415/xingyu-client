@@ -158,7 +158,9 @@ class _CheckinPageState extends State<CheckinPage> {
                   const Divider(height: 28),
                   SwitchListTile.adaptive(
                     contentPadding: EdgeInsets.zero,
-                    secondary: const IconBadge(Icons.schedule_rounded),
+                    secondary: isAndroid
+                        ? const IconBadge(Icons.schedule_rounded)
+                        : const IconBadge(Icons.history_rounded),
                     title: const Text('后台自动签到'),
                     subtitle: Text(
                       isWindows
