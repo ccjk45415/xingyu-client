@@ -690,14 +690,19 @@ class _PostEditorState extends State<PostEditor> {
       ContextMenuButtonType type,
       String name,
       IconData icon,
-    ) => EditorMenuAction(name, icon, busy ? null : native[type]?.onPressed);
+    ) => EditorMenuAction(
+      name,
+      icon,
+      busy ? null : native[type]?.onPressed,
+      scissors: type == ContextMenuButtonType.cut,
+    );
     final hasSelection = selected.isValid && !selected.isCollapsed;
     return EditorContextMenu(
       anchors: editable.contextMenuAnchors,
       onDismiss: editable.hideToolbar,
       clipboard: [
-        clipboard(ContextMenuButtonType.cut, '剪切', Icons.content_cut),
-        clipboard(ContextMenuButtonType.copy, '复制', Icons.copy_rounded),
+        clipboard(ContextMenuButtonType.cut, '剪切', Icons.edit_outlined),
+        clipboard(ContextMenuButtonType.copy, '复制', Icons.copy),
         clipboard(
           ContextMenuButtonType.paste,
           '粘贴',
@@ -2082,7 +2087,7 @@ class _PostEditorState extends State<PostEditor> {
           ('preview', '查看原图', Icons.visibility_rounded),
           ('replace', '替换图片', Icons.image_outlined),
           ('link', '编辑图片链接', Icons.link_rounded),
-          ('size', '调整图片尺寸', Icons.photo_size_select_large_outlined),
+          ('size', '调整图片尺寸', Icons.fullscreen_rounded),
           ('alt', '修改图片说明', Icons.notes_rounded),
           ('blur', blurred ? '取消正文模糊' : '正文模糊显示', Icons.image_outlined),
           ('settings', '全部图片设置', Icons.tune_rounded),

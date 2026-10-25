@@ -6,7 +6,13 @@ class EditorMenuAction {
   final String label;
   final IconData icon;
   final VoidCallback? onPressed;
-  const EditorMenuAction(this.label, this.icon, this.onPressed);
+  final bool scissors;
+  const EditorMenuAction(
+    this.label,
+    this.icon,
+    this.onPressed, {
+    this.scissors = false,
+  });
 }
 
 /// One bounded, scrollable menu for mouse secondary clicks and touch selection.
@@ -58,11 +64,19 @@ class _EditorContextMenuState extends State<EditorContextMenu> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            action.icon,
-            size: 19,
-            color: action.onPressed == null ? colors.outline : colors.primary,
-          ),
+          if (action.scissors)
+            CustomPaint(
+              size: const Size(19, 19),
+              painter: _ScissorsPainter(
+                action.onPressed == null ? colors.outline : colors.primary,
+              ),
+            )
+          else
+            Icon(
+              action.icon,
+              size: 19,
+              color: action.onPressed == null ? colors.outline : colors.primary,
+            ),
           const SizedBox(height: 5),
           Text(
             action.label,
@@ -189,4 +203,27 @@ class _EditorContextMenuState extends State<EditorContextMenu> {
       ),
     );
   }
+}
+
+/// Draw the small scissors in Dart so existing installations need no new font.
+class _ScissorsPainter extends CustomPainter {
+  final Color color;
+  const _ScissorsPainter(this.color);
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.scale(size.width / 20, size.height / 20);
+    final pen = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.6
+      ..strokeCap = StrokeCap.round;
+    canvas.drawCircle(const Offset(4.5, 5), 2.6, pen);
+    canvas.drawCircle(const Offset(4.5, 15), 2.6, pen);
+    canvas.drawLine(const Offset(6.5, 6.5), const Offset(17.5, 17.5), pen);
+    canvas.drawLine(const Offset(6.5, 13.5), const Offset(17.5, 2.5), pen);
+  }
+
+  @override
+  bool shouldRepaint(covariant _ScissorsPainter oldDelegate) =>
+      oldDelegate.color != color;
 }
