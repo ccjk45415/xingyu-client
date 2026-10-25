@@ -1,0 +1,12 @@
+{
+  "source": "35998a30958f967aebbbe6f1e89e1c00ae8a8dd9",
+  "desktop_ci_run": 40185307245,
+  "official_dry_run": {
+    "android": "passed",
+    "windows": "passed",
+    "macos": "passed"
+  },
+  "native_asset_differences_bypassed": false,
+  "font_strategy": "existing glyphs plus Dart scissors painter",
+  "editor_regression_tests_passed": 13
+}
