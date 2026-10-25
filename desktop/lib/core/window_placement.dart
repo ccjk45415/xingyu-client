@@ -62,6 +62,7 @@ abstract interface class WindowPlacementPort {
 /// No new native plugin or executable: binds only to Windows' installed DLLs.
 /// This lets the Windows release receive this behavior as a Dart-only patch.
 class WindowsPlacement implements WindowPlacementPort {
+  int get windowHandle => _findWindow();
   final String windowClass;
   int _window = 0;
   WindowsPlacement({this.windowClass = 'FLUTTER_RUNNER_WIN32_WINDOW'});

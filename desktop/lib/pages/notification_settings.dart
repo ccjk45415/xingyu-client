@@ -205,7 +205,7 @@ class NotificationSettingsPage extends StatelessWidget {
             ),
             const SizedBox(height: 14),
             Text(
-              '${notices.status}。首次启用不会补弹历史消息；聊天室和私信需要先认证仓库账号。设置按当前账号保存在本机。',
+              '${notices.status}。同一账号在任一端确认已读后，其余端会在下次同步时清除标记。首次启用不会补弹历史消息；聊天室和私信需要先认证仓库账号。设置按当前账号保存在本机。',
               style: const TextStyle(
                 color: Colors.grey,
                 fontSize: 12,

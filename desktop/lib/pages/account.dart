@@ -384,6 +384,39 @@ class SettingsPage extends StatelessWidget {
                     ],
                   ),
                   const Divider(height: 32),
+                  if (isWindows) ...[
+                    const ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(
+                        Icons.desktop_windows_rounded,
+                        color: violet,
+                      ),
+                      title: Text('窗口关闭方式'),
+                      subtitle: Text('点击右上角 × 时的行为'),
+                    ),
+                    DropdownButtonFormField<String>(
+                      initialValue: app.windowsCloseAction,
+                      items: const [
+                        DropdownMenuItem(value: 'ask', child: Text('每次询问')),
+                        DropdownMenuItem(
+                          value: 'tray',
+                          child: Text('最小化到系统托盘'),
+                        ),
+                        DropdownMenuItem(value: 'exit', child: Text('退出程序')),
+                      ],
+                      onChanged: (value) {
+                        if (value != null) {
+                          unawaited(app.setWindowsCloseAction(value));
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 10),
+                    const Text(
+                      '托盘内可打开窗口、立即签到或退出。后台签到需在“签到设置”中开启。',
+                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                    const Divider(height: 32),
+                  ],
                   Text(
                     '正文字号  ${app.fontSize.round()} px',
                     style: Theme.of(context).textTheme.titleMedium,

@@ -7,6 +7,7 @@ import 'api.dart';
 import 'platform.dart';
 import 'system_notices.dart';
 import 'state.dart';
+import 'notice_read_sync.dart';
 
 class AppNotice {
   final String key, kind, title, preview, channel;
@@ -23,11 +24,12 @@ class AppNotice {
   }) : time = DateTime.now();
 }
 
-/// Foreground-only reminders. No native notification permission, background
-/// service, website read-state mutation, or message body persisted to disk.
+/// Reminders with account-scoped read receipts. Only identifiers and preferences
+/// are persisted; message content remains in memory.
 class InAppNotices extends ChangeNotifier {
   final AppState app;
   final system = SystemNotices();
+  late final readSync = NoticeReadSync(app, _applyReads);
   Json systemStatus = {};
   AppNotice? opened;
   InAppNotices(this.app) {
@@ -200,8 +202,54 @@ class InAppNotices extends ChangeNotifier {
   bool _visible(AppNotice notice) => switch (notice.kind) {
     'dm' => route == 'dm' && routeId == notice.target,
     'chatMention' => route == 'chat' && channel == notice.channel,
-    _ => route == 'notifications' || route == 'noticeCenter',
+    _ => false,
   };
+
+  void _applyReads(Set<String> keys) {
+    for (final notice in entries) {
+      if (keys.contains(notice.key)) notice.read = true;
+    }
+    if (banner != null && keys.contains(banner!.key)) banner = null;
+    changed();
+  }
+
+  Future<void> _sendReads() async {
+    final owner = app.uid, generation = app.generation;
+    try {
+      // Commit the outbox before network I/O so closing while offline cannot
+      // discard a confirmation that other devices still need to receive.
+      await app.persist();
+      if (_disposed || app.uid != owner || app.generation != generation) return;
+      await readSync.sync();
+      if (!_disposed && app.uid == owner && app.generation == generation) {
+        _failed.remove('readSync');
+      }
+    } catch (_) {
+      if (!_disposed && app.uid == owner && app.generation == generation) {
+        _failed.add('readSync');
+      }
+    }
+    if (!_disposed && app.uid == owner && app.generation == generation) {
+      changed();
+      await app.persist();
+    }
+  }
+
+  void confirmSiteRead(
+    String source, {
+    List<String> ids = const [],
+    bool all = false,
+  }) {
+    if (!['reply', 'vote'].contains(source)) return;
+    final keys = all
+        ? entries
+              .where((n) => n.key.startsWith('$source:'))
+              .map((n) => n.key)
+              .toList()
+        : ids.map((id) => '$source:$id').toList();
+    readSync.confirm(keys, website: false);
+    unawaited(_sendReads());
+  }
 
   void _add(AppNotice notice) {
     if (!enabledAll ||
@@ -209,7 +257,12 @@ class InAppNotices extends ChangeNotifier {
         entries.any((n) => n.key == notice.key)) {
       return;
     }
-    if (_foreground && _visible(notice)) notice.read = true;
+    if (readSync.contains(notice.key)) notice.read = true;
+    if (_foreground && _visible(notice)) {
+      notice.read = true;
+      readSync.confirm([notice.key]);
+      unawaited(_sendReads());
+    }
     entries.insert(0, notice);
     if (entries.length > 60) entries.removeRange(60, entries.length);
     if (!notice.read && _foreground) banner = notice;
@@ -345,6 +398,9 @@ class InAppNotices extends ChangeNotifier {
     }
 
     try {
+      // Fetch shared confirmations before considering a new banner or badge.
+      await _sendReads();
+      if (!_valid(owner, generation, epoch)) return;
       await Future.wait([
         if (enabled('postReply') || enabled('commentReply'))
           source(
@@ -385,6 +441,16 @@ class InAppNotices extends ChangeNotifier {
               final peer = object(row['peer']),
                   message = object(row['last_message']);
               final id = number(message['id']), peerId = number(peer['id']);
+              final through = number(row['read_through']);
+              for (final notice in entries) {
+                if (notice.kind == 'dm' &&
+                    notice.target == peerId &&
+                    (number(row['unread']) == 0 ||
+                        number(notice.key.substring(3)) <= through)) {
+                  notice.read = true;
+                }
+              }
+              if (banner?.kind == 'dm' && banner!.read) banner = null;
               if (!first &&
                   id > number(previous['$peerId']) &&
                   number(row['unread']) > 0 &&
@@ -458,6 +524,7 @@ class InAppNotices extends ChangeNotifier {
     for (final row in rows(result['data']).reversed) {
       final id = text(row['id']);
       if (id.isEmpty) continue;
+      if (row['read_at'] != null) _applyReads({'$source:$id'});
       if (!first && !seen.contains(id) && row['read_at'] == null) {
         final subject = object(row['subject']), actor = object(row['user']);
         final isPost = row['subject_type'] == 'post';
@@ -489,16 +556,20 @@ class InAppNotices extends ChangeNotifier {
 
   void read(AppNotice notice) {
     notice.read = true;
+    readSync.confirm([notice.key]);
     if (identical(banner, notice)) banner = null;
     changed();
+    unawaited(_sendReads());
   }
 
   void readAll() {
+    readSync.confirm(entries.where((n) => !n.read).map((n) => n.key).toList());
     for (final notice in entries) {
       notice.read = true;
     }
     banner = null;
     changed();
+    unawaited(_sendReads());
   }
 
   void dismiss() {

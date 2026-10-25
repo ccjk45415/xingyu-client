@@ -1,19 +1,58 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 
 import 'api.dart';
 import 'platform.dart';
 import 'state.dart';
+import 'error_diagnostics.dart';
 
 /// Only a fresh account response can establish whether today's check-in exists.
 class CheckinController extends ChangeNotifier {
   final AppState app;
-  CheckinController(this.app);
+  final bool windows;
+  final DateTime Function() now;
+  CheckinController(this.app, {bool? windows, DateTime Function()? now})
+    : windows = windows ?? Platform.isWindows,
+      now = now ?? DateTime.now;
   bool busy = false, _disposed = false;
   String message = '';
   DateTime _automaticCheck = DateTime(2000);
+  Timer? _windowsTimer;
+  bool _windowVisible = true, _stopping = false, _automaticPending = false;
+  int _failures = 0;
+  String _monitorAccount = '', _loginRequiredFor = '';
+  bool get _monitorEnabled =>
+      windows &&
+      app.uid > 0 &&
+      !_stopping &&
+      !_disposed &&
+      app.clientConfig.enabled('checkin') &&
+      (backgroundEnabled || _windowVisible && openEnabled) &&
+      _loginRequiredFor != '${app.uid}:${app.generation}';
+  void setWindowVisible(bool visible) {
+    _windowVisible = visible;
+    if (!_monitorEnabled) {
+      _windowsTimer?.cancel();
+      _windowsTimer = null;
+    }
+  }
+
+  void _scheduleWindows() {
+    _windowsTimer?.cancel();
+    _windowsTimer = null;
+    if (!_monitorEnabled) return;
+    final seconds = _failures == 0
+        ? 30
+        : (15 * (1 << (_failures - 1).clamp(0, 5))).clamp(15, 300);
+    _windowsTimer = Timer(
+      Duration(seconds: seconds),
+      () => unawaited(automatic(force: true)),
+    );
+  }
+
   Json cloud = {}, background = {};
   Json get preferences =>
       object(object(app.local['checkinPreferences'])['${app.uid}']);
@@ -31,7 +70,10 @@ class CheckinController extends ChangeNotifier {
 
   Future<void> setPreference(String key, bool enabled) async {
     if (app.uid <= 0) throw ApiFailure(401, '请先登录');
-    if (key == 'background' && enabled && (!isAndroid || !app.site.remember)) {
+    if (key == 'background' &&
+        enabled &&
+        !windows &&
+        (!isAndroid || !app.site.remember)) {
       throw ApiFailure(400, '后台签到需要在登录时勾选保持登录');
     }
     final uid = app.uid, generation = app.generation;
@@ -47,17 +89,40 @@ class CheckinController extends ChangeNotifier {
     app.local['checkinPreferences'] = all;
     changed();
     await app.persist();
-    if (key == 'on_open' && enabled) unawaited(automatic(force: true));
+    if (key == 'on_open' || key == 'background') {
+      if (enabled) _loginRequiredFor = '';
+      unawaited(automatic(force: true));
+    }
   }
 
-  Future<void> automatic({bool force = false}) async {
+  Future<void> automatic({bool force = false, Json? freshUser}) async {
     if (_disposed || app.uid <= 0) return;
-    if (!force &&
-        DateTime.now().difference(_automaticCheck) <
-            const Duration(minutes: 10)) {
+    final owner = '${app.uid}:${app.generation}';
+    if (_monitorAccount != owner) {
+      _monitorAccount = owner;
+      _failures = 0;
+      _stopping = false;
+      _loginRequiredFor = '';
+      _automaticCheck = DateTime(2000);
+    }
+    if (_stopping) return;
+    if (windows && !_monitorEnabled) {
+      _scheduleWindows();
       return;
     }
-    _automaticCheck = DateTime.now();
+    if (busy) {
+      _automaticPending = true;
+      return;
+    }
+    if (!force &&
+        now().difference(_automaticCheck) <
+            (windows
+                ? const Duration(seconds: 30)
+                : const Duration(minutes: 10))) {
+      _scheduleWindows();
+      return;
+    }
+    _automaticCheck = now();
     if (isAndroid) {
       try {
         background = object(
@@ -70,13 +135,29 @@ class CheckinController extends ChangeNotifier {
         });
       } catch (_) {}
     }
-    if (openEnabled && app.clientConfig.enabled('checkin')) {
+    if ((windows ? _monitorEnabled : openEnabled) &&
+        app.clientConfig.enabled('checkin')) {
       try {
-        await run(source: 'open');
-      } catch (_) {
-        /* Show status in the card, no launch-time dialog. */
+        await run(
+          source: windows && !_windowVisible ? 'background' : 'open',
+          freshUser: freshUser,
+        );
+        if (owner == '${app.uid}:${app.generation}') _failures = 0;
+      } catch (error, stack) {
+        if (owner == '${app.uid}:${app.generation}') {
+          _failures++;
+          if (error is ApiFailure &&
+              [301, 302, 303, 307, 308, 401, 403, 419].contains(error.status)) {
+            _loginRequiredFor = owner;
+            message = '登录已失效，重新登录后继续自动签到';
+          }
+          if (_failures == 1) {
+            unawaited(appDiagnostics.record(error, stack, 'automatic-checkin'));
+          }
+        }
       }
     }
+    _scheduleWindows();
     changed();
   }
 
@@ -86,7 +167,7 @@ class CheckinController extends ChangeNotifier {
     return data;
   }
 
-  Future<void> run({String source = 'manual'}) async {
+  Future<void> run({String source = 'manual', Json? freshUser}) async {
     if (busy) return;
     final uid = app.uid, generation = app.generation;
     if (uid <= 0) throw ApiFailure(401, '请先登录');
@@ -94,8 +175,14 @@ class CheckinController extends ChangeNotifier {
     message = '正在确认今日签到';
     changed();
     try {
-      var user = await account(uid);
+      var user =
+          freshUser != null &&
+              number(freshUser['id']) == uid &&
+              [true, false, 0, 1].contains(freshUser['is_signed'])
+          ? Map<String, dynamic>.of(freshUser)
+          : await account(uid);
       if (!current(uid, generation)) return;
+      final wasUnsigned = user['is_signed'] != true && user['is_signed'] != 1;
       Json reward = {};
       if (user['is_signed'] != true && user['is_signed'] != 1) {
         try {
@@ -113,23 +200,29 @@ class CheckinController extends ChangeNotifier {
         throw ApiFailure(502, '暂未确认签到成功，请稍后重试');
       }
       app.user = user;
-      final all = object(app.local['checkinLatest']);
-      all['$uid'] = {
-        'time': DateTime.now().toUtc().toIso8601String(),
-        'source': source,
-        'status': 'signed',
-        for (final key in ['continuous_signin', 'exp', 'point'])
-          if (reward[key] is num) key: reward[key],
-      };
-      app.local['checkinLatest'] = all;
+      if (wasUnsigned || latest['status'] != 'signed') {
+        final all = object(app.local['checkinLatest']);
+        all['$uid'] = {
+          'time': DateTime.now().toUtc().toIso8601String(),
+          'source': source,
+          'status': 'signed',
+          for (final key in ['continuous_signin', 'exp', 'point'])
+            if (reward[key] is num) key: reward[key],
+        };
+        app.local['checkinLatest'] = all;
+        await app.persist();
+      }
       message = '今日已签到';
-      await app.persist();
     } catch (_) {
       if (current(uid, generation)) message = '暂时未能完成签到，请检查网络与登录状态';
       rethrow;
     } finally {
       busy = false;
       changed();
+      if (_automaticPending && !_disposed && !_stopping) {
+        _automaticPending = false;
+        unawaited(automatic(force: true));
+      }
     }
   }
 
@@ -231,6 +324,10 @@ class CheckinController extends ChangeNotifier {
   }
 
   Future<void> stopForLogout() async {
+    _stopping = true;
+    _windowsTimer?.cancel();
+    _windowsTimer = null;
+    _automaticPending = false;
     if (isAndroid) {
       try {
         await platformChannel.invokeMethod('configureCheckinBackground', {
@@ -253,6 +350,7 @@ class CheckinController extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    _windowsTimer?.cancel();
     super.dispose();
   }
 }

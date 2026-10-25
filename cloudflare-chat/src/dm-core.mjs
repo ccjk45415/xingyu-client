@@ -1,4 +1,5 @@
 import {initFollows,serveFollows} from './follows.mjs';
+import {initNoticeReads,serveNoticeReads,cleanNoticeReads} from './notice-reads.mjs';
 import {initMedia,serveMedia,claimMedia,cleanMedia,mediaId} from './media.mjs';
 // Independent private messages. No website password, cookie, or response body is persisted.
 export const DM_LIMITS=Object.freeze({days:7,session_days:7,characters:500,gap_ms:3000,minute:15,user_day:100,global_day:2000,contacts_day:10,verification_ip_day:20,verification_user_day:20,verification_global_day:1000,users:10000,sessions:20000});
@@ -59,7 +60,7 @@ export function createDmHub(Base,{verify=verifySiteIdentity,clock=()=>Date.now()
         'CREATE TABLE IF NOT EXISTS dm_contacts(sender INTEGER NOT NULL,recipient INTEGER NOT NULL,day INTEGER NOT NULL,PRIMARY KEY(sender,recipient,day))',
         'CREATE TABLE IF NOT EXISTS dm_attempts(ip TEXT PRIMARY KEY,day INTEGER NOT NULL,n INTEGER NOT NULL)'
       ])this.sql.exec(q);
-      initMedia(this.sql);initFollows(this.sql);
+      initMedia(this.sql);initFollows(this.sql);initNoticeReads(this.sql);
       if(!this.rows('PRAGMA table_info(dm_messages)').some(c=>c.name==='image_id'))this.sql.exec('ALTER TABLE dm_messages ADD COLUMN image_id TEXT');
     }
     rows(q,...args){return this.sql.exec(q,...args).toArray();}
@@ -101,6 +102,7 @@ export function createDmHub(Base,{verify=verifySiteIdentity,clock=()=>Date.now()
         const image=claimMedia(this,user,b.image_id,'chat',b.channel,b.client_id);return json({image});
       }
       const u=await this.user(req);this.budget(u.id,now);
+      if(path==='/dm/v1/notice-reads')return await serveNoticeReads(this,req,u,body);
       if(path==='/dm/v1/follows'||path.startsWith('/dm/v1/follows/'))return await serveFollows(this,req,url,u,body);
       if(path==='/dm/v1/profile/sync'&&req.method==='POST'){
         const b=await body(req);keys(b,['site_cookie']);
@@ -125,7 +127,7 @@ export function createDmHub(Base,{verify=verifySiteIdentity,clock=()=>Date.now()
       if(path==='/dm/v1/conversations'&&req.method==='GET'){
         const before=integer(url.searchParams.get('before'),Number.MAX_SAFE_INTEGER);
         let rows=this.rows(`SELECT p.*,m.id,m.sender,m.recipient,m.text,m.client_id,m.created,m.image_id,u.id AS peer_id,u.nickname,u.avatar,(SELECT COUNT(*) FROM dm_messages n WHERE n.sender=u.id AND n.recipient=? AND n.id>CASE WHEN p.a=? THEN p.read_a ELSE p.read_b END AND n.created>=?) AS unread FROM dm_pairs p JOIN dm_messages m ON m.id=p.last_id JOIN dm_users u ON u.id=CASE WHEN p.a=? THEN p.b ELSE p.a END WHERE (p.a=? OR p.b=?) AND m.id<? AND m.created>=? ORDER BY m.id DESC LIMIT 31`,u.id,u.id,cutoff,u.id,u.id,u.id,before,cutoff);
-        const more=rows.length>30;rows=rows.slice(0,30);return json({conversations:rows.map(r=>({peer:{id:r.peer_id,nickname:r.nickname,avatar:r.avatar},last_message:message(r),unread:r.unread})),has_more:more});
+        const more=rows.length>30;rows=rows.slice(0,30);return json({conversations:rows.map(r=>({peer:{id:r.peer_id,nickname:r.nickname,avatar:r.avatar},last_message:message(r),unread:r.unread,read_through:u.id===r.a?r.read_a:r.read_b})),has_more:more});
       }
       if(path==='/dm/v1/messages'&&req.method==='GET'){
         const id=uid(integer(url.searchParams.get('peer'))),p=this.first('SELECT * FROM dm_users WHERE id=?',id);if(!p||id===u.id)fail('用户不存在或尚未开通私信',404);
@@ -165,6 +167,7 @@ export function createDmHub(Base,{verify=verifySiteIdentity,clock=()=>Date.now()
       fail('接口不存在',404);
     }catch(e){return json({error:e.status?e.message:'私信服务暂时不可用，请稍后重试'},e.status||503);}}
     async alarm(){const now=this.clock(),cutoff=now-DM_LIMITS.days*DAY;cleanMedia(this,now);
+      cleanNoticeReads(this,now);
       this.sql.exec('DELETE FROM dm_messages WHERE id IN (SELECT id FROM dm_messages WHERE created<? LIMIT 1000)',cutoff);
       this.sql.exec('DELETE FROM dm_sessions WHERE token IN (SELECT token FROM dm_sessions WHERE expires<=? LIMIT 500)',now);
       this.sql.exec('DELETE FROM dm_pairs WHERE last_id NOT IN (SELECT id FROM dm_messages)');

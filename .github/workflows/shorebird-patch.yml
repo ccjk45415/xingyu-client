@@ -1,6 +1,11 @@
 name: Publish authorized Dart patches
 on:
   workflow_dispatch:
+    inputs:
+      publish:
+        description: 'Publish only after all platform dry runs have passed'
+        type: boolean
+        default: false
 permissions:
   contents: read
 jobs:
@@ -63,10 +68,11 @@ jobs:
         run: |
           flutter pub get
           flutter analyze --no-pub
-          flutter test --no-pub test/following_feed_performance_test.dart test/core_test.dart test/checkin_patch_test.dart test/macos_platform_test.dart test/updates_test.dart test/window_memory_test.dart
+          flutter test --no-pub test/following_feed_performance_test.dart test/core_test.dart test/checkin_patch_test.dart test/macos_platform_test.dart test/updates_test.dart test/window_memory_test.dart test/windows_close_test.dart test/windows_checkin_monitor_test.dart test/notice_read_sync_test.dart test/in_app_notices_test.dart
       - name: Validate patch against the installed base
         run: python tools/run_desktop_patch.py ${{ matrix.platform }} --dry-run
       - name: Publish authorized patch
+        if: inputs.publish
         run: python tools/run_desktop_patch.py ${{ matrix.platform }}
       - name: Remove temporary authorization
         if: always()

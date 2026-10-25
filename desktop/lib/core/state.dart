@@ -24,6 +24,17 @@ class AppState extends ChangeNotifier {
   bool starting = true, dark = false;
   double fontSize = 17;
   String? startupError;
+  String get windowsCloseAction =>
+      ['ask', 'tray', 'exit'].contains(local['windowsCloseAction'])
+      ? local['windowsCloseAction'] as String
+      : 'ask';
+  Future<void> setWindowsCloseAction(String value) async {
+    if (!['ask', 'tray', 'exit'].contains(value)) return;
+    local['windowsCloseAction'] = value;
+    notifyListeners();
+    await persist();
+  }
+
   Directory? directory;
   int generation = 0, socialRevision = 0;
   final Map<int, Json> authorCache = {};
@@ -103,7 +114,7 @@ class AppState extends ChangeNotifier {
     notifyListeners();
     unawaited(clientConfig.initialize());
     unawaited(patches.check());
-    unawaited(checkin.automatic());
+    unawaited(checkin.automatic(freshUser: user));
     if (user != null) unawaited(loadCategories());
   }
 
@@ -118,7 +129,7 @@ class AppState extends ChangeNotifier {
     startupError = null;
     notifyListeners();
     unawaited(loadCategories());
-    unawaited(checkin.automatic(force: true));
+    unawaited(checkin.automatic(force: true, freshUser: result));
   }
 
   Future<void> loadIdentity() async {
@@ -231,8 +242,20 @@ class AppState extends ChangeNotifier {
   }
 
   Future<Json> post(String path, Json body) async {
+    final owner = uid, current = generation;
     try {
       final value = await site.post(path, body);
+      if (path == 'user/makeNotificationAsRead' &&
+          uid == owner &&
+          generation == current) {
+        notices.confirmSiteRead(
+          text(body['action']),
+          all: body['all'] == true,
+          ids: (body['ids'] is List ? body['ids'] as List : [])
+              .map((id) => text(id))
+              .toList(),
+        );
+      }
       refreshBrowsing();
       return value;
     } on ApiFailure catch (e) {

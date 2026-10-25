@@ -20,10 +20,12 @@ import 'pages/authoring.dart';
 import 'ui/shared.dart';
 import 'pages/diagnostics.dart';
 import 'pages/notification_settings.dart';
+import 'ui/windows_close.dart';
 
 class XingyuApp extends StatelessWidget {
   final AppState app;
-  const XingyuApp({super.key, required this.app});
+  XingyuApp({super.key, required this.app});
+  final navigatorKey = GlobalKey<NavigatorState>();
   ThemeData theme(Brightness brightness) {
     final dark = brightness == Brightness.dark;
     final scheme =
@@ -146,33 +148,38 @@ class XingyuApp extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) => AnimatedBuilder(
-    animation: app,
-    builder: (_, _) => MaterialApp(
-      title: '仓库 · 星屿',
-      scrollBehavior: const MaterialScrollBehavior().copyWith(
-        scrollbars: false,
+  Widget build(BuildContext context) => WindowsCloseHost(
+    app: app,
+    navigatorKey: navigatorKey,
+    child: AnimatedBuilder(
+      animation: app,
+      builder: (_, _) => MaterialApp(
+        navigatorKey: navigatorKey,
+        title: '仓库 · 星屿',
+        scrollBehavior: const MaterialScrollBehavior().copyWith(
+          scrollbars: false,
+        ),
+        debugShowCheckedModeBanner: false,
+        locale: const Locale('zh', 'CN'),
+        supportedLocales: const [Locale('zh', 'CN'), Locale('en')],
+        localizationsDelegates: GlobalMaterialLocalizations.delegates,
+        theme: theme(Brightness.light),
+        darkTheme: theme(Brightness.dark),
+        themeMode: app.dark ? ThemeMode.dark : ThemeMode.light,
+        builder: (context, child) => AnnotatedRegion<SystemUiOverlayStyle>(
+          value: app.dark
+              ? SystemUiOverlayStyle.light
+              : SystemUiOverlayStyle.dark,
+          child: child ?? const SizedBox.shrink(),
+        ),
+        home: app.starting
+            ? const Scaffold(
+                body: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+              )
+            : app.user == null
+            ? LoginPage(app)
+            : DesktopShell(app, key: ValueKey(app.uid)),
       ),
-      debugShowCheckedModeBanner: false,
-      locale: const Locale('zh', 'CN'),
-      supportedLocales: const [Locale('zh', 'CN'), Locale('en')],
-      localizationsDelegates: GlobalMaterialLocalizations.delegates,
-      theme: theme(Brightness.light),
-      darkTheme: theme(Brightness.dark),
-      themeMode: app.dark ? ThemeMode.dark : ThemeMode.light,
-      builder: (context, child) => AnnotatedRegion<SystemUiOverlayStyle>(
-        value: app.dark
-            ? SystemUiOverlayStyle.light
-            : SystemUiOverlayStyle.dark,
-        child: child ?? const SizedBox.shrink(),
-      ),
-      home: app.starting
-          ? const Scaffold(
-              body: Center(child: CircularProgressIndicator(strokeWidth: 2)),
-            )
-          : app.user == null
-          ? LoginPage(app)
-          : DesktopShell(app, key: ValueKey(app.uid)),
     ),
   );
 }
@@ -514,8 +521,9 @@ class _DesktopShellState extends State<DesktopShell>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
+      widget.app.checkin.setWindowVisible(true);
       unawaited(refreshSystemProxy());
-      unawaited(widget.app.checkin.automatic());
+      unawaited(widget.app.checkin.automatic(force: true));
       unawaited(widget.app.clientConfig.refresh());
       unawaited(widget.app.patches.check());
       widget.app.notices.start();
@@ -524,6 +532,9 @@ class _DesktopShellState extends State<DesktopShell>
         state == AppLifecycleState.hidden ||
         state == AppLifecycleState.detached) {
       widget.app.notices.pause();
+      if (state != AppLifecycleState.inactive) {
+        widget.app.checkin.setWindowVisible(false);
+      }
     }
   }
 

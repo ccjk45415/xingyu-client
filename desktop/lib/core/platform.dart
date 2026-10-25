@@ -13,6 +13,7 @@ const androidTestChannel = bool.fromEnvironment(
 const platformChannel = MethodChannel('moe.cangku.xingyu/platform');
 bool get isAndroid => Platform.isAndroid;
 bool get isMacOS => defaultTargetPlatform == TargetPlatform.macOS;
+bool get isWindows => defaultTargetPlatform == TargetPlatform.windows;
 const macosTestVersion = '0.3.1';
 const macosTestBuild = 6;
 String get clientVersion => isAndroid

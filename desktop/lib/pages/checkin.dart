@@ -145,19 +145,25 @@ class _CheckinPageState extends State<CheckinPage> {
                   contentPadding: EdgeInsets.zero,
                   secondary: const IconBadge(Icons.login_rounded),
                   title: const Text('打开应用自动签到'),
-                  subtitle: const Text('启动和回到应用时检查，已签到时不会重复领取'),
+                  subtitle: Text(
+                    isWindows
+                        ? '登录、启动和回到窗口时立即检查，窗口打开时持续确认'
+                        : '启动和回到应用时检查，已签到时不会重复领取',
+                  ),
                   value: c.openEnabled,
                   onChanged: (v) =>
                       action(context, () => c.setPreference('on_open', v)),
                 ),
-                if (isAndroid) ...[
+                if (isAndroid || isWindows) ...[
                   const Divider(height: 28),
                   SwitchListTile.adaptive(
                     contentPadding: EdgeInsets.zero,
                     secondary: const IconBadge(Icons.schedule_rounded),
                     title: const Text('后台自动签到'),
-                    subtitle: const Text(
-                      '从最近任务划掉后仍由系统安排尝试；需要保持登录和可用网络。强行停止、省电限制或代理断开可能延后执行。',
+                    subtitle: Text(
+                      isWindows
+                          ? '最小化到托盘后继续，每30秒确认官网状态；未签到时立即提交。完全退出、休眠或断网时无法执行。'
+                          : '从最近任务划掉后仍由系统安排尝试；需要保持登录和可用网络。强行停止、省电限制或代理断开可能延后执行。',
                     ),
                     value: c.backgroundEnabled,
                     onChanged: (v) =>

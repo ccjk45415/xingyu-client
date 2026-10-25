@@ -23,7 +23,7 @@ class CheckinFixture extends SiteApi {
   Completer<void>? opening;
   @override
   Future<Json> get(String path, [Map<String, dynamic>? params]) async {
-    expect(path, 'auth/me');
+    expectSync(path, 'auth/me');
     await opening?.future;
     if (expired) throw ApiFailure(401, 'fixture');
     return {
@@ -33,8 +33,8 @@ class CheckinFixture extends SiteApi {
 
   @override
   Future<Json> post(String path, Json body) async {
-    expect(path, 'user/signin');
-    expect(body, isEmpty);
+    expectSync(path, 'user/signin');
+    expectSync(body, isEmpty);
     posts++;
     if (fail) throw const SocketException('synthetic');
     signed = true;
