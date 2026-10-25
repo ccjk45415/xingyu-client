@@ -4,6 +4,7 @@ import 'dart:io';
 import 'native_storage.dart';
 import 'system_notices.dart';
 import 'patch_updates.dart';
+import 'platform.dart';
 
 import 'package:path_provider/path_provider.dart';
 
@@ -26,6 +27,10 @@ Future<void> runSelfCheck({
   }
   final symbols = ShorebirdUpdater().isAvailable;
   final native = await SystemNotices().status();
+  if (Platform.isWindows) {
+    // Exercise the registered native bridge without disclosing proxy addresses.
+    await platformChannel.invokeMapMethod<String, dynamic>('proxy');
+  }
   final codePush =
       symbols && (!Platform.isWindows || native['patchReady'] == true);
   if (const bool.fromEnvironment('XINGYU_REQUIRE_CODE_PUSH') && !codePush) {
@@ -79,6 +84,7 @@ Future<void> runSelfCheck({
     stdout.writeln(
       jsonEncode({
         if (Platform.isWindows) 'windows_native_engine': 'pass',
+        if (Platform.isWindows) 'system_proxy_native': true,
         'code_push_engine': codePush ? 'available' : 'unavailable',
         'code_push_initialized': codePush,
         'patch_probe': const int.fromEnvironment(
