@@ -5,6 +5,8 @@ import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 
 import '../core/ai.dart';
+import '../core/api.dart' show siteOrigin;
+import '../core/error_diagnostics.dart';
 import '../core/platform.dart';
 import 'cached_image.dart';
 
@@ -12,7 +14,15 @@ const articleVideoConfiguration = PlayerConfiguration(
   title: '星屿 · 正文视频',
   muted: true,
   bufferSize: 16 * 1024 * 1024,
-  protocolWhitelist: ['https', 'http', 'tcp', 'tls', 'crypto', 'data'],
+  protocolWhitelist: [
+    'https',
+    'http',
+    'httpproxy',
+    'tcp',
+    'tls',
+    'crypto',
+    'data',
+  ],
 );
 
 /// Lazy native playback: no browser, no automatic requests for unopened videos.
@@ -46,6 +56,7 @@ class _InlineArticleVideoState extends State<InlineArticleVideo>
   ScrollPosition? scroll;
   bool busy = false, previewAttempted = false, firstFrame = false;
   bool visibilityQueued = false;
+  bool userRequestedPlay = false;
   Timer? releaseTimer;
   String? error;
   int revision = 0;
@@ -151,12 +162,15 @@ class _InlineArticleVideoState extends State<InlineArticleVideo>
 
   Future<void> start() => prepare(play: true);
   Future<void> prepare({bool play = false}) async {
+    if (play) userRequestedPlay = true;
     if (busy) return;
     if (player != null && firstFrame && error == null) {
       if (play) await player!.play();
       return;
     }
+    userRequestedPlay = play;
     previewAttempted = true;
+    var step = 'article-video-resolve';
     final job = ++revision;
     release();
     setState(() {
@@ -170,6 +184,7 @@ class _InlineArticleVideoState extends State<InlineArticleVideo>
           await (widget.mediaResolver?.call(widget.url) ??
               io.playableVideo(widget.url));
       if (!mounted || job != revision) return;
+      step = 'article-video-initialize';
       MediaKit.ensureInitialized();
       final next = player =
           widget.playerFactory?.call() ??
@@ -188,7 +203,7 @@ class _InlineArticleVideoState extends State<InlineArticleVideo>
         }
       });
       playing = next.stream.playing.listen((value) {
-        if (value) {
+        if (value && (!busy || userRequestedPlay)) {
           for (final other in _active.toList()) {
             if (other != this) unawaited(other.player?.pause());
           }
@@ -204,7 +219,8 @@ class _InlineArticleVideoState extends State<InlineArticleVideo>
       await next.setVolume(0);
       final base = Uri.tryParse(widget.sourceUrl)?.scheme == 'https'
           ? Uri.parse(widget.sourceUrl)
-          : Uri.parse(widget.url);
+          : Uri.parse(siteOrigin);
+      step = 'article-video-open';
       await next.open(
         Media(
           url,
@@ -213,21 +229,34 @@ class _InlineArticleVideoState extends State<InlineArticleVideo>
             'User-Agent': 'Mozilla/5.0 Xingyu-Article-Video/1',
           },
         ),
-        play: false,
+        // Some demuxers do not deliver a texture while opened paused. Decode
+        // the first frame silently, then pause immediately for the preview.
+        play: true,
       );
       if (!mounted || job != revision) return;
-      final output = await controller!.platform.future;
+      step = 'article-video-first-frame';
+      final output = await controller!.platform.future.timeout(
+        const Duration(seconds: 25),
+      );
       await output.waitUntilFirstFrameRendered.timeout(
         const Duration(seconds: 25),
       );
+      if (!mounted || job != revision) return;
+      if (!userRequestedPlay ||
+          !visible ||
+          WidgetsBinding.instance.lifecycleState == AppLifecycleState.paused) {
+        await next.pause();
+        // Keep the preview at the beginning, without consuming the clip.
+        if (!userRequestedPlay) await next.seek(Duration.zero);
+      }
       if (!mounted || job != revision) return;
       setState(() {
         busy = false;
         firstFrame = true;
       });
-      if (play) await next.play();
-    } catch (_) {
+    } catch (failure, stack) {
       if (mounted && job == revision) {
+        unawaited(appDiagnostics.record(failure, stack, step));
         release();
         setState(() {
           busy = false;

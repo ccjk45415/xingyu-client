@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import '../core/api.dart';
 import '../core/category_preferences.dart';
 import '../ui/category_filter.dart';
+import '../ui/category_tab_strip.dart';
 import '../core/home_content.dart';
 import '../core/reader.dart';
 import '../core/pinned_content.dart';
@@ -954,53 +955,47 @@ class _CategoryTabsPageState extends State<CategoryTabsPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: Row(
+                  CategoryTabStrip(
+                    key: const ValueKey('category-root-tabs'),
+                    children: [
+                      for (final node in roots)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: ChoiceChip(
+                            label: Text(text(node['name'])),
+                            selected: number(node['id']) == rootId,
+                            onSelected: (_) => setState(() {
+                              parent = number(node['id']);
+                              selected = 0;
+                              page = 1;
+                              remember();
+                            }),
+                          ),
+                        ),
+                    ],
+                  ),
+                  if (subs.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    CategoryTabStrip(
+                      key: ValueKey('category-child-tabs:$rootId'),
                       children: [
-                        for (final node in roots)
+                        for (final node in [
+                          {'id': rootId, 'name': '全部'},
+                          ...subs,
+                        ])
                           Padding(
-                            padding: const EdgeInsets.only(right: 8),
+                            padding: const EdgeInsets.only(right: 6),
                             child: ChoiceChip(
                               label: Text(text(node['name'])),
-                              selected: number(node['id']) == rootId,
+                              selected: number(node['id']) == active,
                               onSelected: (_) => setState(() {
-                                parent = number(node['id']);
-                                selected = 0;
+                                selected = number(node['id']);
                                 page = 1;
                                 remember();
                               }),
                             ),
                           ),
                       ],
-                    ),
-                  ),
-                  if (subs.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(horizontal: 24),
-                      child: Row(
-                        children: [
-                          for (final node in [
-                            {'id': rootId, 'name': '全部'},
-                            ...subs,
-                          ])
-                            Padding(
-                              padding: const EdgeInsets.only(right: 6),
-                              child: ChoiceChip(
-                                label: Text(text(node['name'])),
-                                selected: number(node['id']) == active,
-                                onSelected: (_) => setState(() {
-                                  selected = number(node['id']);
-                                  page = 1;
-                                  remember();
-                                }),
-                              ),
-                            ),
-                        ],
-                      ),
                     ),
                   ],
                 ],

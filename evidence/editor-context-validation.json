@@ -1,0 +1,37 @@
+{
+  "scope": [
+    "editor_text_context_menu",
+    "editor_image_context_menu",
+    "blur_thumbnail_clear_original",
+    "article_video_paused_muted_preview",
+    "official_lottery",
+    "original_site_external_launch",
+    "category_two_level_scrollbars"
+  ],
+  "flutter_tests": {
+    "passed": 234,
+    "conditionally_skipped": 3
+  },
+  "flutter_analyze": "no_issues",
+  "native_video": "synthetic_and_article_229761_public_stream_passed",
+  "android": "release_apk_original_signer_verified_android_16_alignment_verified_real_device_pending",
+  "windows_test": "output/2026年10月24日/Xingyu-Windows-20261025-editor-test-x64.zip",
+  "android_test": "output/2026年10月24日/Cangku-Xingyu-20261025-editor-test-arm64.apk",
+  "uploaded": false,
+  "release_feed_changed": false,
+  "patches_published": false,
+  "macos_binary_built": false,
+  "test_engine": "stock_flutter_local_test_no_formal_code_push",
+  "artifacts": {
+    "output/2026年10月24日/Xingyu-Windows-20261025-editor-test-x64.zip": {
+      "bytes": 38388274,
+      "sha256": "14930ba089a680476e0e06b82b009830c18aa052e050a109f26a1e0c9f62555e"
+    },
+    "output/2026年10月24日/Cangku-Xingyu-20261025-editor-test-arm64.apk": {
+      "bytes": 18779851,
+      "sha256": "8c86347d955e82dae9fae5274cd5009e21ec8bac96b11e74fe70aa50b127ff0f"
+    }
+  },
+  "final_clear_format_regression_tests": "8 passed after nested-link preservation fix",
+  "live_lottery_participations": 0
+}

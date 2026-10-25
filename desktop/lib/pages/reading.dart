@@ -157,6 +157,7 @@ class ArticlePage extends StatelessWidget {
                     children: [
                       RichContent(
                         document.content,
+                        sourceUrl: '$siteOrigin/archives/$id',
                         maxImageHeight: 520,
                         maxImageWidth: 760,
                       ),
@@ -222,6 +223,7 @@ class ArticlePage extends StatelessWidget {
                             onPressed: () => openLink(
                               context,
                               '$siteOrigin/archives/$id${ownerOnly ? '/preview' : ''}',
+                              external: true,
                             ),
                             icon: const Icon(Icons.open_in_new, size: 16),
                             label: Text(ownerOnly ? '在官网查看草稿' : '在官网查看原文'),

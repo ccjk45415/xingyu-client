@@ -8,11 +8,16 @@ import 'package:media_kit_video/media_kit_video.dart';
 
 import '../ui/inline_video.dart';
 
-Future<void> runVideoPreviewCheck(String fixture) async {
+Future<void> runVideoPreviewCheck(
+  String fixture, {
+  bool publicStream = false,
+}) async {
   final key = GlobalKey();
   final scroll = ScrollController();
   try {
-    if (!await File(fixture).exists()) {
+    if (publicStream
+        ? Uri.tryParse(fixture)?.scheme != 'https'
+        : !await File(fixture).exists()) {
       throw StateError('Synthetic clip missing');
     }
     runApp(
@@ -26,15 +31,21 @@ Future<void> runVideoPreviewCheck(String fixture) async {
                   width: 640,
                   child: InlineArticleVideo(
                     key: key,
-                    url: 'https://example.com/synthetic.mp4',
+                    url: publicStream
+                        ? fixture
+                        : 'https://example.com/synthetic.mp4',
                     mediaResolver: (_) async {
                       await Future<void>.delayed(
                         const Duration(milliseconds: 120),
                       );
-                      return File(fixture).absolute.path;
+                      return publicStream
+                          ? fixture
+                          : File(fixture).absolute.path;
                     },
                     playerFactory: () => Player(
-                      configuration: const PlayerConfiguration(muted: true),
+                      configuration: publicStream
+                          ? articleVideoConfiguration
+                          : const PlayerConfiguration(muted: true),
                     ),
                   ),
                 ),
@@ -48,7 +59,7 @@ Future<void> runVideoPreviewCheck(String fixture) async {
     await WidgetsBinding.instance.endOfFrame;
     final dynamic state = key.currentState;
     Future<void> ready() async {
-      for (var i = 0; i < 200; i++) {
+      for (var i = 0; i < 400; i++) {
         if (state.firstFrame == true) return;
         await Future<void>.delayed(const Duration(milliseconds: 100));
       }
@@ -59,7 +70,9 @@ Future<void> runVideoPreviewCheck(String fixture) async {
     final player = state.player as Player;
     if (player.state.playing ||
         player.state.volume != 0 ||
-        player.state.videoParams.w != 320) {
+        (publicStream
+            ? (player.state.videoParams.w ?? 0) <= 0
+            : player.state.videoParams.w != 320)) {
       throw StateError('Preview must start paused and muted');
     }
     await (state.start() as Future<void>);
@@ -84,7 +97,8 @@ Future<void> runVideoPreviewCheck(String fixture) async {
         'default_volume': 0,
         'offscreen_release_and_reload': true,
         'browser_used': false,
-        'synthetic_only': true,
+        'synthetic_only': !publicStream,
+        'public_stream': publicStream,
       }),
     );
     await stdout.flush();

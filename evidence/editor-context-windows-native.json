@@ -1,0 +1,18 @@
+{
+  "windows_native_engine": "pass",
+  "system_proxy_native": true,
+  "code_push_engine": "unavailable",
+  "code_push_initialized": false,
+  "patch_probe": 0,
+  "current_patch": 0,
+  "next_patch": 0,
+  "system_notifications_native": true,
+  "secure_storage": "pass",
+  "encrypted_file_and_tamper_rejection": "pass",
+  "app_data_directory": "pass",
+  "public_health": "pass",
+  "protocol": 3,
+  "website_password_used": false,
+  "messages_sent": 0,
+  "unicode_install_path_tested": true
+}

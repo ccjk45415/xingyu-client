@@ -43,6 +43,28 @@ void main() {
       'a < b',
     );
   });
+  test(
+    'clearing part of formatted text preserves unselected formatting and links',
+    () {
+      const source =
+          '<p><a href="https://example.com"><strong>原始链接</strong></a></p>';
+      final a = source.indexOf('始链');
+      final cleared = removeSelectionFormat(EditorSnapshot(source, a, a + 2));
+      expect(
+        cleared.text,
+        '<p><a href="https://example.com"><strong>原</strong>始链<strong>接</strong></a></p>',
+      );
+      expect(cleared.text.substring(cleared.a, cleared.b), '始链');
+      const nested =
+          '<p><strong>前<a href="https://example.com">原始链接</a>后</strong></p>';
+      final at = nested.indexOf('始链');
+      final result = removeSelectionFormat(EditorSnapshot(nested, at, at + 2));
+      expect(
+        result.text,
+        '<p><strong>前<a href="https://example.com">原</a></strong><a href="https://example.com">始链</a><strong><a href="https://example.com">接</a>后</strong></p>',
+      );
+    },
+  );
   test('literal replacement is bounded before allocation and undo is coalesced and reversible', () {
     expect(replaceEditorText(r'a$a$a', r'a$', r'b\$'), r'b\$b\$a');
     expect(replaceEditorText('aaa', 'aa', 'x'), 'xa');

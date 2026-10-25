@@ -9,6 +9,7 @@ import 'package:html/parser.dart' as parser;
 import 'api.dart' show desktopVersion;
 import 'platform.dart';
 import 'html_cleanup.dart';
+import 'image_dimensions.dart';
 
 /// A native editable projection of the original HTML, not a HTML serializer.
 /// Hidden tags, attributes, comments and opaque website components remain in
@@ -20,6 +21,9 @@ class VisualHtmlController extends TextEditingController {
   VoidCallback? onSourceChanged;
   void Function(String message)? onEditError;
   void Function(int start, int end, String markup)? onImageEdit;
+  void Function(int start, int end, String markup, Offset position)?
+  onImageMenu;
+  void Function(String url)? onImagePreview;
   void Function(int start, int end, String markup)? onComponentEdit;
 
   void load(String html, {int? start, int? end}) {
@@ -279,6 +283,16 @@ class VisualHtmlController extends TextEditingController {
             anchor != null && close != null ? token.end + close.end : token.end,
             style,
             image: element?.attributes['src'],
+            imageWidth: imageDimensionSource(
+              element?.attributes['style'] ?? '',
+              element?.attributes['width'] ?? '',
+              'width',
+            ),
+            imageHeight: imageDimensionSource(
+              element?.attributes['style'] ?? '',
+              element?.attributes['height'] ?? '',
+              'height',
+            ),
             label: element?.attributes['alt'] ?? '正文图片',
             blurred: element?.classes.contains('blur-img') ?? false,
           ),
@@ -301,6 +315,15 @@ class VisualHtmlController extends TextEditingController {
       style = style.merge(_tagStyle(tag, element?.attributes['style'] ?? ''));
     }
     plain(offset, source.length);
+  }
+
+  void _imageMenu(_Atom atom, Offset position) {
+    final markup = source.substring(atom.start, atom.end);
+    if (onImageMenu != null) {
+      onImageMenu!(atom.start, atom.end, markup, position);
+    } else {
+      onImageEdit?.call(atom.start, atom.end, markup);
+    }
   }
 
   @override
@@ -341,23 +364,25 @@ class VisualHtmlController extends TextEditingController {
                 padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 3),
                 child: validImage
                     ? GestureDetector(
-                        onSecondaryTap: () => onImageEdit?.call(
-                          atom.start,
-                          atom.end,
-                          source.substring(atom.start, atom.end),
-                        ),
-                        onLongPress: () => onImageEdit?.call(
-                          atom.start,
-                          atom.end,
-                          source.substring(atom.start, atom.end),
-                        ),
+                        onTap: () => onImagePreview?.call(atom.image!),
+                        onSecondaryTapUp: (details) =>
+                            _imageMenu(atom, details.globalPosition),
+                        onLongPressStart: (details) =>
+                            _imageMenu(atom, details.globalPosition),
                         child: Tooltip(
                           message: isAndroid
                               ? '长按编辑图片 · 地址、说明、尺寸或移除'
                               : '右键编辑图片 · 地址、说明、尺寸或移除',
                           child: SizedBox(
-                            width: embedWidth,
-                            height: embedWidth * 180 / 280,
+                            width:
+                                imageDimension(atom.imageWidth, embedWidth) ??
+                                embedWidth,
+                            height:
+                                imageDimension(atom.imageHeight, 400) ??
+                                (imageDimension(atom.imageWidth, embedWidth) ??
+                                        embedWidth) *
+                                    180 /
+                                    280,
                             child: ImageFiltered(
                               imageFilter: ui.ImageFilter.blur(
                                 sigmaX: atom.blurred ? 8 : 0,
@@ -506,6 +531,7 @@ class _Atom {
   final TextStyle style;
   final String? image, label;
   final bool blurred;
+  final String imageWidth, imageHeight;
   _Atom(
     this.text,
     this.start,
@@ -514,5 +540,7 @@ class _Atom {
     this.image,
     this.label,
     this.blurred = false,
+    this.imageWidth = '',
+    this.imageHeight = '',
   });
 }

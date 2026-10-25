@@ -1,8 +1,10 @@
+import 'article_lottery.dart';
 import 'inline_video.dart';
 import 'cached_image.dart';
 
 import 'dart:async';
 import 'dart:io';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
@@ -11,6 +13,7 @@ import 'package:flutter_widget_from_html_core/flutter_widget_from_html_core.dart
 import 'package:url_launcher/url_launcher.dart';
 
 import '../core/api.dart';
+import '../core/image_dimensions.dart';
 import '../core/browse_cache.dart';
 import '../core/state.dart';
 import '../core/qr.dart';
@@ -166,9 +169,13 @@ Future<void> copy(BuildContext c, String value, [String label = '已复制']) as
   if (c.mounted) message(c, label);
 }
 
-Future<void> openLink(BuildContext c, String url) async {
+Future<void> openLink(
+  BuildContext c,
+  String url, {
+  bool external = false,
+}) async {
   final id = articleId(url);
-  if (id > 0) {
+  if (!external && id > 0) {
     openRoute(c, DeskRoute('article', '作品详情', id: id));
     return;
   }
@@ -177,7 +184,8 @@ Future<void> openLink(BuildContext c, String url) async {
     return;
   }
   final uri = Uri.parse(url);
-  if (['http', 'https'].contains(uri.scheme) &&
+  if (!external &&
+      ['http', 'https'].contains(uri.scheme) &&
       RegExp(
         r'\.(?:png|jpe?g|gif|webp|bmp)$',
         caseSensitive: false,
@@ -834,11 +842,13 @@ class Pagination extends StatelessWidget {
 class RichContent extends StatelessWidget {
   final String html;
   final bool preloadVideos;
+  final String sourceUrl;
   final double? fontSize, maxImageHeight, maxImageWidth;
   const RichContent(
     this.html, {
     super.key,
     this.preloadVideos = true,
+    this.sourceUrl = '',
     this.fontSize,
     this.maxImageHeight,
     this.maxImageWidth,
@@ -865,6 +875,13 @@ class RichContent extends StatelessWidget {
       }
     },
     customWidgetBuilder: (element) {
+      if (element.classes.contains('xingyu-lottery') ||
+          element.localName == 'lottery') {
+        final id = number(element.attributes['data-id']);
+        return id > 0
+            ? ArticleLottery(id, key: ValueKey('article-lottery:$id'))
+            : const SizedBox.shrink();
+      }
       if (element.classes.contains('xingyu-video') ||
           element.localName == 'video') {
         final url =
@@ -884,9 +901,13 @@ class RichContent extends StatelessWidget {
               url: url,
               preload: preloadVideos,
               sourceUrl:
-                  element.attributes['data-original'] ??
-                  element.attributes['data-source-url'] ??
-                  '',
+                  (element.attributes['data-original'] ??
+                          element.attributes['data-source-url'] ??
+                          '')
+                      .isNotEmpty
+                  ? (element.attributes['data-original'] ??
+                        element.attributes['data-source-url']!)
+                  : sourceUrl,
               poster:
                   element.attributes['data-poster'] ??
                   element.attributes['poster'] ??
@@ -1010,7 +1031,37 @@ class RichContent extends StatelessWidget {
                 message: isAndroid ? '点击查看原图 · 长按识别二维码' : '点击查看原图 · 右键识别二维码',
                 child: InkWell(
                   onTap: () => showImage(context, url: url),
-                  child: image,
+                  child: LayoutBuilder(
+                    builder: (_, size) => SizedBox(
+                      width: imageDimension(
+                        imageDimensionSource(
+                          element.attributes['style'] ?? '',
+                          element.attributes['width'] ?? '',
+                          'width',
+                        ),
+                        size.maxWidth,
+                      ),
+                      height: imageDimension(
+                        imageDimensionSource(
+                          element.attributes['style'] ?? '',
+                          element.attributes['height'] ?? '',
+                          'height',
+                        ),
+                        size.maxHeight,
+                      ),
+                      child: element.classes.contains('blur-img')
+                          ? ClipRect(
+                              child: ImageFiltered(
+                                imageFilter: ui.ImageFilter.blur(
+                                  sigmaX: 8,
+                                  sigmaY: 8,
+                                ),
+                                child: image,
+                              ),
+                            )
+                          : image,
+                    ),
+                  ),
                 ),
               ),
             ),

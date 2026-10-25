@@ -409,3 +409,16 @@ String _extraWithoutStyle(String style, Set<String> names) => style
     )
     .map((s) => s.trim())
     .join(';');
+
+/// Toggle the official display class without rewriting dimensions or image URLs.
+String extraToggleImageBlur(String original, bool blur) {
+  final root = html.parseFragment(original), image = root.querySelector('img');
+  if (image == null) throw const FormatException('未找到图片');
+  if (blur) {
+    image.classes.add('blur-img');
+  } else {
+    image.classes.remove('blur-img');
+  }
+  final wrapper = dom.Element.tag('div')..nodes.addAll(root.nodes.toList());
+  return wrapper.innerHtml;
+}

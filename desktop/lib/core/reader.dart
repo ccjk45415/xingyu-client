@@ -26,6 +26,14 @@ String readerVideoMarkup(String source) => source.replaceAllMapped(
   },
 );
 
+String readerLotteryMarkup(String source) => source.replaceAllMapped(
+  RegExp(
+    r'''\[lottery\s+id\s*=\s*["']([1-9][0-9]{0,9})["']\s*\]\s*\[/lottery\]''',
+    caseSensitive: false,
+  ),
+  (match) => '<div class="xingyu-lottery" data-id="${match[1]}">抽奖活动</div>',
+);
+
 class ResourceBox {
   final String title, info, time, from;
   final Map<String, String> links;
@@ -62,113 +70,116 @@ class ReaderDocument {
         return '$marker${protected.length - 1}_END';
       },
     );
-    var result = readerVideoMarkup(removeEmptyEditingMarkup(prepared))
-        .replaceAllMapped(
-          RegExp(
-            r'\[dlbox\s*([^\]]*)\](?:[\s\S]*?\[/dlbox\])?',
-            caseSensitive: false,
-          ),
-          (m) {
-            final attrs = <String, String>{};
-            final pattern = RegExp(
-              "([a-zA-Z0-9_]+)\\s*=\\s*(?:\"([^\"]*)\"|'([^']*)')",
-            );
-            for (final a in pattern.allMatches(m[1]!)) {
-              attrs[a[1]!.toLowerCase()] =
-                  html.parseFragment(a[2] ?? a[3] ?? '').text ?? '';
-            }
-            final links = <String, String>{};
-            for (final e in attrs.entries.where(
-              (e) => e.key.startsWith('link'),
-            )) {
-              final split = e.value.indexOf('|'),
-                  name = split < 0 ? '打开资源' : e.value.substring(0, split),
-                  url = (split < 0 ? e.value : e.value.substring(split + 1))
-                      .trim();
-              if (safeExternal(url)) {
-                var label = name.isEmpty ? '打开资源' : name;
-                var suffix = 2;
-                while (links.containsKey(label)) {
-                  label = '$name（${suffix++}）';
+    var result =
+        readerLotteryMarkup(
+              readerVideoMarkup(removeEmptyEditingMarkup(prepared)),
+            )
+            .replaceAllMapped(
+              RegExp(
+                r'\[dlbox\s*([^\]]*)\](?:[\s\S]*?\[/dlbox\])?',
+                caseSensitive: false,
+              ),
+              (m) {
+                final attrs = <String, String>{};
+                final pattern = RegExp(
+                  "([a-zA-Z0-9_]+)\\s*=\\s*(?:\"([^\"]*)\"|'([^']*)')",
+                );
+                for (final a in pattern.allMatches(m[1]!)) {
+                  attrs[a[1]!.toLowerCase()] =
+                      html.parseFragment(a[2] ?? a[3] ?? '').text ?? '';
                 }
-                links[label] = url;
-              }
-            }
-            final box = ResourceBox(
-              attrs['title'] ?? '资源下载',
-              attrs['info'] ?? '',
-              links,
-              time: attrs['time'] ?? '',
-              from: attrs['from'] ?? '',
+                final links = <String, String>{};
+                for (final e in attrs.entries.where(
+                  (e) => e.key.startsWith('link'),
+                )) {
+                  final split = e.value.indexOf('|'),
+                      name = split < 0 ? '打开资源' : e.value.substring(0, split),
+                      url = (split < 0 ? e.value : e.value.substring(split + 1))
+                          .trim();
+                  if (safeExternal(url)) {
+                    var label = name.isEmpty ? '打开资源' : name;
+                    var suffix = 2;
+                    while (links.containsKey(label)) {
+                      label = '$name（${suffix++}）';
+                    }
+                    links[label] = url;
+                  }
+                }
+                final box = ResourceBox(
+                  attrs['title'] ?? '资源下载',
+                  attrs['info'] ?? '',
+                  links,
+                  time: attrs['time'] ?? '',
+                  from: attrs['from'] ?? '',
+                );
+                resources.add(box);
+                if (inlineResources) {
+                  const e = HtmlEscape();
+                  return '<div class="xingyu-download"><h3>${e.convert(box.title)}</h3><p>上传时间：${e.convert(box.time.isEmpty ? '未知' : box.time)}<br>文件来源：${e.convert(box.from.isEmpty ? '未知' : box.from)}<br>文件信息：${e.convert(box.info.isEmpty ? '未知' : box.info)}</p><p>下载链接</p>${box.links.entries.map((l) => '<p><a href="${e.convert(l.value)}">${e.convert(l.key.isEmpty ? '打开资源' : l.key)}</a></p>').join()}</div>';
+                }
+                return '<p>◇ 资源 ${resources.length}</p>';
+              },
+            )
+            .replaceAllMapped(
+              RegExp(r'\[iframe\]([\s\S]*?)\[/iframe\]', caseSensitive: false),
+              (m) {
+                final url = html.parseFragment(m[1]!).text?.trim() ?? '';
+                const e = HtmlEscape();
+                final media = Uri.tryParse(url);
+                final video =
+                    [
+                      'chobit.cc',
+                      'www.chobit.cc',
+                      'www.youtube.com',
+                      'youtu.be',
+                      'www.bilibili.com',
+                    ].contains(media?.host) ||
+                    RegExp(
+                      r'\.(mp4|webm|m3u8|mpd)$',
+                      caseSensitive: false,
+                    ).hasMatch(media?.path ?? '');
+                if (video && safeExternal(url) && media?.scheme == 'https') {
+                  return '<div class="xingyu-video" data-url="${e.convert(url)}" data-title="作品视频"><a href="${e.convert(url)}">▶ 查看作品视频</a></div>';
+                }
+                return safeExternal(url) &&
+                        ['http', 'https'].contains(Uri.tryParse(url)?.scheme)
+                    ? '<div class="xingyu-external"><p><strong>外部内容</strong></p><p><a href="${e.convert(url)}">${e.convert(url)}</a></p><p>在系统浏览器打开</p></div>'
+                    : '<p>外部链接无效</p>';
+              },
+            )
+            .replaceAllMapped(
+              RegExp(r'\[collapse\s*([^\]]*)\]', caseSensitive: false),
+              (m) {
+                final title = RegExp('title\\s*=\\s*(?:"([^"]*)"|\'([^\']*)\')')
+                    .firstMatch(m[1]!);
+                final label =
+                    html.parseFragment(title?[1] ?? title?[2] ?? '折叠内容').text ??
+                    '折叠内容';
+                return '<details${RegExp(r'show\s*=\s*["\x27]true', caseSensitive: false).hasMatch(m[1]!) ? ' open' : ''}><summary>${const HtmlEscape().convert(label)}</summary>';
+              },
+            )
+            .replaceAll(
+              RegExp(r'\[/collapse\]', caseSensitive: false),
+              '</details>',
+            )
+            .replaceAll(
+              RegExp(r'\[/?code(?:\s[^\]]*)?\]', caseSensitive: false),
+              '',
+            )
+            .replaceAll(
+              RegExp(
+                r'<(script|style|iframe|object|form)\b[^>]*>[\s\S]*?</\1\s*>',
+                caseSensitive: false,
+              ),
+              '',
+            )
+            .replaceAll(
+              RegExp(
+                r'\[/?(?:spoiler|tip|warning|success|info|tabs|tab|quote|center|hide)(?:\s[^\]]*)?\]',
+                caseSensitive: false,
+              ),
+              '<br>',
             );
-            resources.add(box);
-            if (inlineResources) {
-              const e = HtmlEscape();
-              return '<div class="xingyu-download"><h3>${e.convert(box.title)}</h3><p>上传时间：${e.convert(box.time.isEmpty ? '未知' : box.time)}<br>文件来源：${e.convert(box.from.isEmpty ? '未知' : box.from)}<br>文件信息：${e.convert(box.info.isEmpty ? '未知' : box.info)}</p><p>下载链接</p>${box.links.entries.map((l) => '<p><a href="${e.convert(l.value)}">${e.convert(l.key.isEmpty ? '打开资源' : l.key)}</a></p>').join()}</div>';
-            }
-            return '<p>◇ 资源 ${resources.length}</p>';
-          },
-        )
-        .replaceAllMapped(
-          RegExp(r'\[iframe\]([\s\S]*?)\[/iframe\]', caseSensitive: false),
-          (m) {
-            final url = html.parseFragment(m[1]!).text?.trim() ?? '';
-            const e = HtmlEscape();
-            final media = Uri.tryParse(url);
-            final video =
-                [
-                  'chobit.cc',
-                  'www.chobit.cc',
-                  'www.youtube.com',
-                  'youtu.be',
-                  'www.bilibili.com',
-                ].contains(media?.host) ||
-                RegExp(
-                  r'\.(mp4|webm|m3u8|mpd)$',
-                  caseSensitive: false,
-                ).hasMatch(media?.path ?? '');
-            if (video && safeExternal(url) && media?.scheme == 'https') {
-              return '<div class="xingyu-video" data-url="${e.convert(url)}" data-title="作品视频"><a href="${e.convert(url)}">▶ 查看作品视频</a></div>';
-            }
-            return safeExternal(url) &&
-                    ['http', 'https'].contains(Uri.tryParse(url)?.scheme)
-                ? '<div class="xingyu-external"><p><strong>外部内容</strong></p><p><a href="${e.convert(url)}">${e.convert(url)}</a></p><p>在系统浏览器打开</p></div>'
-                : '<p>外部链接无效</p>';
-          },
-        )
-        .replaceAllMapped(
-          RegExp(r'\[collapse\s*([^\]]*)\]', caseSensitive: false),
-          (m) {
-            final title = RegExp('title\\s*=\\s*(?:"([^"]*)"|\'([^\']*)\')')
-                .firstMatch(m[1]!);
-            final label =
-                html.parseFragment(title?[1] ?? title?[2] ?? '折叠内容').text ??
-                '折叠内容';
-            return '<details${RegExp(r'show\s*=\s*["\x27]true', caseSensitive: false).hasMatch(m[1]!) ? ' open' : ''}><summary>${const HtmlEscape().convert(label)}</summary>';
-          },
-        )
-        .replaceAll(
-          RegExp(r'\[/collapse\]', caseSensitive: false),
-          '</details>',
-        )
-        .replaceAll(
-          RegExp(r'\[/?code(?:\s[^\]]*)?\]', caseSensitive: false),
-          '',
-        )
-        .replaceAll(
-          RegExp(
-            r'<(script|style|iframe|object|form)\b[^>]*>[\s\S]*?</\1\s*>',
-            caseSensitive: false,
-          ),
-          '',
-        )
-        .replaceAll(
-          RegExp(
-            r'\[/?(?:spoiler|tip|warning|success|info|tabs|tab|quote|center|hide)(?:\s[^\]]*)?\]',
-            caseSensitive: false,
-          ),
-          '<br>',
-        );
     for (var i = 0; i < protected.length; i++) {
       result = result.replaceAll('$marker${i}_END', protected[i]);
     }

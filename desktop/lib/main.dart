@@ -20,6 +20,10 @@ void main(List<String> args) {
   runZonedGuarded(
     () async {
       WidgetsFlutterBinding.ensureInitialized();
+      if (args.length == 2 && args.first == '--video-stream-self-check') {
+        unawaited(runVideoPreviewCheck(args[1], publicStream: true));
+        return;
+      }
       if (args.length == 2 && args.first == '--video-preview-self-check') {
         unawaited(runVideoPreviewCheck(args[1]));
         return;

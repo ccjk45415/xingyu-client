@@ -7,6 +7,10 @@ import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
+import 'package:html/parser.dart' as html_parser;
+
+import '../core/editor_extra_rules.dart';
+
 import 'package:flutter/services.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -20,6 +24,7 @@ import '../core/editor_links.dart';
 import '../core/submission_guidance.dart';
 import '../core/submission_extras.dart';
 import '../ui/editor_ime_anchor.dart';
+import '../ui/editor_context_menu.dart';
 import '../ui/editor_templates.dart';
 import '../core/media.dart';
 import '../core/reader.dart';
@@ -445,6 +450,9 @@ class _PostEditorState extends State<PostEditor> {
       visual.onEditError = (error) {
         if (mounted) message(context, error);
       };
+      visual.onImagePreview = (url) => showImage(context, url: url);
+      visual.onImageMenu = (start, end, markup, position) =>
+          unawaited(imageContextMenu(start, end, markup, position));
       visual.onImageEdit = (start, end, markup) =>
           unawaited(editImageAtom(start, end, markup));
       visual.onComponentEdit = (start, end, markup) =>
@@ -626,7 +634,208 @@ class _PostEditorState extends State<PostEditor> {
     changed();
   }
 
+  Widget contextMenu(BuildContext c, EditableTextState editable) {
+    final snapshot = captureEdit();
+    final active = html ? content : visual;
+    final selected = active.selection;
+    final linked = EditorLink.at(snapshot.text, snapshot.a, snapshot.b);
+    VoidCallback? run(VoidCallback callback, {bool enabled = true}) =>
+        !enabled || busy
+        ? null
+        : () {
+            editable.hideToolbar();
+            if (!mounted ||
+                content.text != snapshot.text ||
+                app!.uid != owner) {
+              return;
+            }
+            active.selection = selected;
+            contentFocus.requestFocus();
+            callback();
+          };
+    EditorMenuAction item(
+      String name,
+      IconData icon,
+      VoidCallback callback, {
+      bool enabled = true,
+    }) => EditorMenuAction(name, icon, run(callback, enabled: enabled));
+    void removeLink() {
+      if (linked == null) return;
+      final updated = linked.update(
+        snapshot.text,
+        linked.label,
+        linked.url,
+        remove: true,
+      );
+      final shift = linked.openEnd - linked.start;
+      applyEdit(
+        EditorSnapshot(
+          updated,
+          (snapshot.a - shift).clamp(
+            linked.start,
+            linked.start + linked.closeStart - linked.openEnd,
+          ),
+          (snapshot.b - shift).clamp(
+            linked.start,
+            linked.start + linked.closeStart - linked.openEnd,
+          ),
+        ),
+      );
+    }
+
+    final native = {
+      for (final button in editable.contextMenuButtonItems) button.type: button,
+    };
+    EditorMenuAction clipboard(
+      ContextMenuButtonType type,
+      String name,
+      IconData icon,
+    ) => EditorMenuAction(name, icon, busy ? null : native[type]?.onPressed);
+    final hasSelection = selected.isValid && !selected.isCollapsed;
+    return EditorContextMenu(
+      anchors: editable.contextMenuAnchors,
+      onDismiss: editable.hideToolbar,
+      clipboard: [
+        clipboard(ContextMenuButtonType.cut, '剪切', Icons.content_cut),
+        clipboard(ContextMenuButtonType.copy, '复制', Icons.copy_rounded),
+        clipboard(
+          ContextMenuButtonType.paste,
+          '粘贴',
+          Icons.content_paste_rounded,
+        ),
+        item('全选', Icons.select_all_rounded, () {
+          active.selection = TextSelection(
+            baseOffset: 0,
+            extentOffset: active.text.length,
+          );
+        }),
+      ],
+      links: [
+        item(
+          linked == null ? '插入链接' : '修改链接',
+          Icons.link_rounded,
+          insertLinkDialog,
+        ),
+        item('移除链接', Icons.link_rounded, removeLink, enabled: linked != null),
+      ],
+      groups: {
+        '文字': [
+          item(
+            '撤销',
+            Icons.undo_rounded,
+            () => undoEdit(false),
+            enabled: editHistory?.canUndo == true,
+          ),
+          item(
+            '重做',
+            Icons.redo_rounded,
+            () => undoEdit(true),
+            enabled: editHistory?.canRedo == true,
+          ),
+          item('字号', Icons.format_size, chooseFontSize),
+          item('加粗', Icons.format_bold, () => wrap('<strong>', '</strong>')),
+          item('斜体', Icons.format_italic, () => wrap('<em>', '</em>')),
+          item('下划线', Icons.format_underlined, () => wrap('<u>', '</u>')),
+          item(
+            '删除线',
+            Icons.format_strikethrough,
+            () => wrap('<del>', '</del>'),
+          ),
+          item('文字颜色', Icons.format_color_text, () => chooseColor(false)),
+          item('文字背景', Icons.format_color_fill, () => chooseColor(true)),
+          item('字体', Icons.font_download_outlined, () => extra('fontFamily')),
+          item('上标', Icons.superscript, () => wrap('<sup>', '</sup>')),
+          item('下标', Icons.subscript, () => wrap('<sub>', '</sub>')),
+          item(
+            '清除格式',
+            Icons.format_clear,
+            () => applyEdit(removeSelectionFormat(snapshot)),
+            enabled: hasSelection,
+          ),
+          item('黑幕文字', Icons.rectangle_outlined, () => extra('blackbar')),
+          item('彩虹文字', Icons.palette_outlined, () => extra('rainbow')),
+        ],
+        '段落': [
+          for (final size in [1, 2, 3])
+            item(
+              '$size级标题',
+              Icons.text_fields,
+              () => wrap('<h$size>', '</h$size>'),
+            ),
+          item(
+            '左对齐',
+            Icons.format_align_left,
+            () => wrap('<p style="text-align:left">', '</p>'),
+          ),
+          item(
+            '居中',
+            Icons.format_align_center,
+            () => wrap('<p style="text-align:center">', '</p>'),
+          ),
+          item(
+            '右对齐',
+            Icons.format_align_right,
+            () => wrap('<p style="text-align:right">', '</p>'),
+          ),
+          item(
+            '两端对齐',
+            Icons.format_align_justify,
+            () => wrap('<p style="text-align:justify">', '</p>'),
+          ),
+          item(
+            '无序列表',
+            Icons.format_list_bulleted,
+            () => applyEdit(listMarkup(snapshot, false)),
+          ),
+          item(
+            '有序列表',
+            Icons.format_list_numbered,
+            () => applyEdit(listMarkup(snapshot, true)),
+          ),
+          item(
+            '引用',
+            Icons.format_quote_rounded,
+            () => wrap('<blockquote>', '</blockquote>'),
+          ),
+          item('行高', Icons.format_line_spacing, () => extra('lineHeight')),
+          item('普通段落', Icons.notes_rounded, () => wrap('<p>', '</p>')),
+        ],
+        '插入': [
+          item('上传图片', Icons.image_outlined, upload),
+          item(
+            '网络图片',
+            Icons.add_photo_alternate_outlined,
+            () => insertLinkDialog(image: true),
+          ),
+          item('下载卡片', Icons.cloud_download_outlined, insertDownloadDialog),
+          item('外部链接', Icons.open_in_browser_outlined, insertExternalDialog),
+          item('表格', Icons.table_chart_outlined, () => extra('table')),
+          item('折叠内容', Icons.unfold_less_rounded, () => extra('collapse')),
+          item('行内代码', Icons.code_rounded, () => wrap('<code>', '</code>')),
+          item('代码块', Icons.integration_instructions_outlined, showCodeDialog),
+          item('分隔线', Icons.horizontal_rule_rounded, () => insert('\n<hr>\n')),
+          item('表情', Icons.emoji_emotions_outlined, () => extra('emoji')),
+          item('特殊字符', Icons.insert_emoticon_outlined, () => extra('special')),
+          item('换行', Icons.keyboard_return_rounded, () => insert('<br>')),
+        ],
+        '工具': [
+          item('查找替换', Icons.find_replace_rounded, findReplace),
+          item('AI 投稿助手', Icons.auto_awesome_rounded, aiAssistant),
+          item(
+            '专注编辑',
+            Icons.fullscreen_rounded,
+            () => setState(() => focusedEditor = !focusedEditor),
+          ),
+          item('编辑字放大', Icons.text_increase, () => editorZoom(1)),
+          item('编辑字缩小', Icons.text_decrease, () => editorZoom(-1)),
+          item('导出 HTML', Icons.file_download_outlined, exportPost),
+        ],
+      },
+    );
+  }
+
   Future<void> chooseFontSize() async {
+    final selection = captureEdit();
     final result = await showDialog<int>(
       context: context,
       builder: (c) => SimpleDialog(
@@ -652,16 +861,20 @@ class _PostEditorState extends State<PostEditor> {
         ],
       ),
     );
-    if (result != null && mounted) {
-      wrap(
-        '<span style="font-size:${result}px">',
-        '</span>',
-        placeholder: '调整字号的文字',
+    if (result != null && mounted && content.text == selection.text) {
+      applyEdit(
+        wrapMarkup(
+          selection,
+          '<span style="font-size:${result}px">',
+          '</span>',
+          placeholder: '调整字号的文字',
+        ),
       );
     }
   }
 
   Future<void> chooseColor(bool highlight) async {
+    final selection = captureEdit();
     final result = await showDialog<String>(
       context: context,
       builder: (c) => SimpleDialog(
@@ -711,10 +924,13 @@ class _PostEditorState extends State<PostEditor> {
         ],
       ),
     );
-    if (result != null && mounted) {
-      wrap(
-        '<span style="${highlight ? 'background-color' : 'color'}:$result">',
-        '</span>',
+    if (result != null && mounted && content.text == selection.text) {
+      applyEdit(
+        wrapMarkup(
+          selection,
+          '<span style="${highlight ? 'background-color' : 'color'}:$result">',
+          '</span>',
+        ),
       );
     }
   }
@@ -1581,7 +1797,7 @@ class _PostEditorState extends State<PostEditor> {
           Text(
             html
                 ? '代码视图 · 直接编辑 HTML'
-                : (isAndroid ? '正常模式 · 直接打字，长按图片编辑' : '正常模式 · 直接打字和插图，右键图片可编辑'),
+                : (isAndroid ? '正常模式 · 长按文字或图片打开编辑菜单' : '正常模式 · 右键文字或图片打开编辑菜单'),
             style: const TextStyle(fontSize: 11, color: violet),
           ),
           Text(
@@ -1839,12 +2055,102 @@ class _PostEditorState extends State<PostEditor> {
     return mounted && app!.uid == owner ? uploaded : null;
   }
 
-  Future<void> editImageAtom(int start, int end, String markup) async {
+  Future<void> imageContextMenu(
+    int start,
+    int end,
+    String markup,
+    Offset position,
+  ) async {
+    if (busy) return;
+    final original = content.text;
+    final image = html_parser.parseFragment(markup).querySelector('img');
+    if (image == null) return;
+    final blurred = image.classes.contains('blur-img');
+    final overlay =
+        Overlay.of(context).context.findRenderObject()! as RenderBox;
+    final anchor = overlay.globalToLocal(position);
+    final choice = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromSize(
+        Rect.fromLTWH(anchor.dx, anchor.dy, 0, 0),
+        overlay.size,
+      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      color: Theme.of(context).colorScheme.surface,
+      items: [
+        for (final entry in <(String, String, IconData)>[
+          ('preview', '查看原图', Icons.visibility_rounded),
+          ('replace', '替换图片', Icons.image_outlined),
+          ('link', '编辑图片链接', Icons.link_rounded),
+          ('size', '调整图片尺寸', Icons.photo_size_select_large_outlined),
+          ('alt', '修改图片说明', Icons.notes_rounded),
+          ('blur', blurred ? '取消正文模糊' : '正文模糊显示', Icons.image_outlined),
+          ('settings', '全部图片设置', Icons.tune_rounded),
+          ('delete', '删除图片', Icons.delete_outline_rounded),
+        ])
+          PopupMenuItem(
+            value: entry.$1,
+            key: ValueKey('editor.image.${entry.$1}'),
+            child: Row(
+              children: [
+                Icon(
+                  entry.$3,
+                  size: 19,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(width: 12),
+                Text(entry.$2),
+              ],
+            ),
+          ),
+      ],
+    );
+    if (!mounted ||
+        choice == null ||
+        busy ||
+        app!.uid != owner ||
+        content.text != original) {
+      return;
+    }
+    if (choice == 'preview') {
+      showImage(context, url: text(image.attributes['src']));
+      return;
+    }
+    if (choice == 'blur' || choice == 'delete') {
+      if (choice == 'delete' &&
+          !await confirm(context, '删除这张图片？', '可通过撤销恢复图片。')) {
+        return;
+      }
+      if (!mounted || busy || app!.uid != owner || content.text != original) {
+        return;
+      }
+      final result = choice == 'delete'
+          ? ''
+          : extraToggleImageBlur(markup, !blurred);
+      applyEdit(
+        EditorSnapshot(
+          original.replaceRange(start, end, result),
+          start + result.length,
+          start + result.length,
+        ),
+      );
+      return;
+    }
+    await editImageAtom(start, end, markup, section: choice);
+  }
+
+  Future<void> editImageAtom(
+    int start,
+    int end,
+    String markup, {
+    String section = 'settings',
+  }) async {
     if (busy) return;
     final original = content.text;
     final result = await editEditorImage(
       context,
       markup,
+      initialSection: section,
       uploadImage: uploadForDialog,
     );
     if (!mounted || app!.uid != owner || result == null) return;
@@ -2219,6 +2525,7 @@ class _PostEditorState extends State<PostEditor> {
                               controller: html ? content : visual,
                               child: TextField(
                                 key: const Key('editor.content'),
+                                contextMenuBuilder: contextMenu,
                                 controller: html ? content : visual,
                                 focusNode: contentFocus,
                                 enabled: !busy,

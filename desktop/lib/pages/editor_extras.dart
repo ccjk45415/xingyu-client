@@ -140,11 +140,13 @@ Widget _input(
   TextEditingController controller,
   String label, {
   int lines = 1,
+  bool autofocus = false,
   Widget? suffix,
 }) => Padding(
   padding: const EdgeInsets.only(bottom: 14),
   child: TextField(
     controller: controller,
+    autofocus: autofocus,
     minLines: lines,
     maxLines: lines > 1 ? 8 : 1,
     decoration: InputDecoration(
@@ -295,16 +297,18 @@ class _RandomNameState extends State<_RandomNameDialog> {
 Future<String?> editEditorImage(
   BuildContext context,
   String originalHtml, {
+  String initialSection = 'settings',
   Future<String?> Function()? uploadImage,
 }) => showDialog<String>(
   context: context,
-  builder: (_) => _ImageDialog(originalHtml, uploadImage),
+  builder: (_) => _ImageDialog(originalHtml, uploadImage, initialSection),
 );
 
 class _ImageDialog extends StatefulWidget {
   final String original;
   final Future<String?> Function()? uploadImage;
-  const _ImageDialog(this.original, this.uploadImage);
+  final String initialSection;
+  const _ImageDialog(this.original, this.uploadImage, this.initialSection);
   @override
   State<_ImageDialog> createState() => _ImageState();
 }
@@ -341,14 +345,24 @@ class _ImageState extends State<_ImageDialog> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: const Text('图片设置'),
+    title: Text(switch (widget.initialSection) {
+      'replace' => '替换图片',
+      'link' => '编辑图片链接',
+      'size' => '调整图片尺寸',
+      'alt' => '修改图片说明',
+      _ => '图片设置',
+    }),
     content: SizedBox(
       width: 560,
       child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _input(src, '图片地址（替换图片）'),
+            _input(
+              src,
+              '图片地址（替换图片）',
+              autofocus: widget.initialSection == 'replace',
+            ),
             if (widget.uploadImage != null)
               Align(
                 alignment: Alignment.centerLeft,
@@ -361,15 +375,25 @@ class _ImageState extends State<_ImageDialog> {
                   label: const Text('从设备选择替换图片'),
                 ),
               ),
-            _input(alt, '图片说明'),
+            _input(alt, '图片说明', autofocus: widget.initialSection == 'alt'),
             Row(
               children: [
-                Expanded(child: _input(width, '宽度（像素或百分比）')),
+                Expanded(
+                  child: _input(
+                    width,
+                    '宽度（像素或百分比）',
+                    autofocus: widget.initialSection == 'size',
+                  ),
+                ),
                 const SizedBox(width: 12),
                 Expanded(child: _input(height, '高度（像素或百分比）')),
               ],
             ),
-            _input(link, '图片链接（留空移除）'),
+            _input(
+              link,
+              '图片链接（留空移除）',
+              autofocus: widget.initialSection == 'link',
+            ),
             Align(
               alignment: Alignment.centerLeft,
               child: TextButton.icon(
@@ -394,7 +418,8 @@ class _ImageState extends State<_ImageDialog> {
             SwitchListTile(
               value: blur,
               onChanged: (v) => setState(() => blur = v),
-              title: const Text('图片模糊化'),
+              title: const Text('正文模糊显示'),
+              subtitle: const Text('仅模糊正文中的图片，点击查看原图时正常显示'),
             ),
             _error(error),
           ],

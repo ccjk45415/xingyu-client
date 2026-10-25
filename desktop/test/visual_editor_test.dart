@@ -486,6 +486,9 @@ void main() {
         buttons: kSecondaryMouseButton,
       );
       await tester.pumpAndSettle();
+      expect(find.text('全部图片设置'), findsOneWidget);
+      await tester.tap(find.text('全部图片设置'));
+      await tester.pumpAndSettle();
       expect(find.text('图片设置'), findsOneWidget);
       await tester.enterText(find.widgetWithText(TextField, '图片说明'), '合成插图已编辑');
       await tester.tap(find.text('应用'));

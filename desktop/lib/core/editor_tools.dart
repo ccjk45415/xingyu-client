@@ -148,19 +148,95 @@ EditorSnapshot removeSelectionFormat(EditorSnapshot v) {
   // Clearing text formatting must not delete selected images, website cards,
   // table content or unknown components. Only known inline formatting wrappers
   // are removed; block structure and all embedded source bytes are retained.
-  final escaped = v.text
+  final token = RegExp(
+    r'''<!--[\s\S]*?-->|<(?:pre|code)\b[^>]*>[\s\S]*?</(?:pre|code)\s*>|\[(dlbox|iframe|collapse|poll|lottery)\b[^\]]*\][\s\S]*?\[/\1\]|<(?:[^<>"']|"[^"]*"|'[^']*')*>''',
+    caseSensitive: false,
+  );
+  final inline = RegExp(
+    r'^<(/?)(b|strong|i|em|u|s|del|strike|font|sup|sub|span)\b',
+    caseSensitive: false,
+  );
+  final tagPattern = RegExp(r'^<(/?)([a-z][a-z0-9]*)\b', caseSensitive: false);
+  List<({String tag, String opening})> activeAt(int position) {
+    final stack = <({String tag, String opening})>[];
+    for (final match in token.allMatches(v.text)) {
+      if (match.end > position) break;
+      final tag = tagPattern.firstMatch(match[0]!);
+      if (tag == null ||
+          match[0]!.contains(
+            RegExp(r'</(?:pre|code)\s*>', caseSensitive: false),
+          )) {
+        continue;
+      }
+      final name = tag[2]!.toLowerCase();
+      if (tag[1]!.isEmpty) {
+        if (![
+              'img',
+              'br',
+              'hr',
+              'input',
+              'source',
+              'wbr',
+              'meta',
+              'link',
+              'area',
+              'embed',
+              'param',
+              'track',
+              'col',
+              'base',
+            ].contains(name) &&
+            !match[0]!.endsWith('/>')) {
+          stack.add((tag: name, opening: match[0]!));
+        }
+      } else {
+        final at = stack.lastIndexWhere((entry) => entry.tag == name);
+        if (at >= 0) stack.removeRange(at, stack.length);
+      }
+    }
+    // Do not split block structure to clear a style inherited outside a paragraph.
+    final block = stack.lastIndexWhere(
+      (entry) => [
+        'p',
+        'div',
+        'li',
+        'td',
+        'th',
+        'h1',
+        'h2',
+        'h3',
+        'blockquote',
+      ].contains(entry.tag),
+    );
+    final from = stack.indexWhere(
+      (entry) => inline.hasMatch(entry.opening),
+      block + 1,
+    );
+    return from < 0 ? [] : stack.sublist(from);
+  }
+
+  final before = activeAt(v.a), after = activeAt(v.b);
+  final keepBefore = before.where((entry) => !inline.hasMatch(entry.opening));
+  final keepAfter = after.where((entry) => !inline.hasMatch(entry.opening));
+  // A link nested inside a style wrapper must close and reopen as well, so
+  // clearing only part of its text never creates crossed HTML tags.
+  final close =
+      before.reversed.map((entry) => '</${entry.tag}>').join() +
+      keepBefore.map((entry) => entry.opening).join();
+  final reopen =
+      keepAfter.toList().reversed.map((entry) => '</${entry.tag}>').join() +
+      after.map((entry) => entry.opening).join();
+  final selected = v.text
       .substring(v.a, v.b)
-      .replaceAll(
-        RegExp(
-          r'</?(?:b|strong|i|em|u|s|del|strike|font|sup|sub|span)\b[^>]*>',
-          caseSensitive: false,
-        ),
-        '',
+      .replaceAllMapped(
+        token,
+        (match) => inline.hasMatch(match[0]!) ? '' : match[0]!,
       );
+  final replacement = '$close$selected$reopen';
   return EditorSnapshot(
-    v.text.replaceRange(v.a, v.b, escaped),
-    v.a,
-    v.a + escaped.length,
+    v.text.replaceRange(v.a, v.b, replacement),
+    v.a + close.length,
+    v.a + close.length + selected.length,
     html: v.html,
   );
 }
