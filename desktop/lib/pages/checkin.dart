@@ -154,18 +154,18 @@ class _CheckinPageState extends State<CheckinPage> {
                   onChanged: (v) =>
                       action(context, () => c.setPreference('on_open', v)),
                 ),
-                if (isAndroid || isWindows) ...[
+                if (isAndroid) ...[
                   const Divider(height: 28),
                   SwitchListTile.adaptive(
                     contentPadding: EdgeInsets.zero,
-                    secondary: isAndroid
-                        ? const IconBadge(Icons.schedule_rounded)
-                        : const IconBadge(Icons.history_rounded),
+                    secondary: const IconBadge(
+                      androidTestChannel
+                          ? Icons.schedule_rounded
+                          : Icons.history_rounded,
+                    ),
                     title: const Text('后台自动签到'),
-                    subtitle: Text(
-                      isWindows
-                          ? '最小化到托盘后继续，每30秒确认官网状态；未签到时立即提交。完全退出、休眠或断网时无法执行。'
-                          : '从最近任务划掉后仍由系统安排尝试；需要保持登录和可用网络。强行停止、省电限制或代理断开可能延后执行。',
+                    subtitle: const Text(
+                      '从最近任务划掉后仍由系统安排尝试；需要保持登录和可用网络。强行停止、省电限制或代理断开可能延后执行。',
                     ),
                     value: c.backgroundEnabled,
                     onChanged: (v) =>
@@ -179,6 +179,22 @@ class _CheckinPageState extends State<CheckinPage> {
                         '${text(c.background['status'], '等待系统调度')}\n${text(c.background['time'])}',
                       ),
                     ),
+                ],
+                // Keep Android-only icon constants in their original branch:
+                // desktop bases do not contain that tree-shaken glyph.
+                if (isWindows) ...[
+                  const Divider(height: 28),
+                  SwitchListTile.adaptive(
+                    contentPadding: EdgeInsets.zero,
+                    secondary: const IconBadge(Icons.history_rounded),
+                    title: const Text('后台自动签到'),
+                    subtitle: const Text(
+                      '最小化到托盘后继续，每30秒确认官网状态；未签到时立即提交。完全退出、休眠或断网时无法执行。',
+                    ),
+                    value: c.backgroundEnabled,
+                    onChanged: (v) =>
+                        action(context, () => c.setPreference('background', v)),
+                  ),
                 ],
               ],
             ),
