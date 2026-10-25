@@ -288,8 +288,14 @@ void main() {
   setUpAll(() async {
     final flutterRoot =
         Platform.environment['FLUTTER_ROOT'] ?? 'C:/codex-tools/flutter';
+    final chineseFont = File('C:/Windows/Fonts/msyh.ttc');
     for (final (family, path) in [
-      ('Microsoft YaHei UI', 'C:/Windows/Fonts/msyh.ttc'),
+      (
+        'Microsoft YaHei UI',
+        await chineseFont.exists()
+            ? chineseFont.path
+            : '$flutterRoot/bin/cache/artifacts/material_fonts/roboto-regular.ttf',
+      ),
       // flutter_tester does not load the host's system fonts. Register real
       // Latin metrics instead of Ahem's square glyphs for macOS's UI family.
       (
