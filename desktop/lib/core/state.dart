@@ -12,6 +12,7 @@ import 'client_config.dart';
 import 'checkin.dart';
 import 'patch_updates.dart';
 import 'in_app_notices.dart';
+import 'error_diagnostics.dart';
 
 class AppState extends ChangeNotifier {
   final SiteApi site;
@@ -91,8 +92,11 @@ class AppState extends ChangeNotifier {
           }
         }
       }
-    } catch (e) {
-      startupError = '本机资料暂时无法读取：$e';
+    } catch (e, stack) {
+      unawaited(appDiagnostics.record(e, stack, 'startup'));
+      startupError = e is IOException || e is TimeoutException
+          ? '暂时无法连接网站，请检查客户端的网络与代理设置后重试'
+          : '本机资料暂时无法读取：$e';
     }
     if (user == null) await notices.stopSystem();
     starting = false;

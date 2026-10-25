@@ -10,6 +10,7 @@ import '../ui/shared.dart';
 import 'api.dart';
 import 'platform.dart';
 import 'state.dart';
+import 'windows_update_handoff.dart';
 
 String get updatePlatform => isAndroid
     ? 'android'
@@ -158,20 +159,11 @@ Future<void> checkClientUpdate(
   } else {
     await prepareWindowsUpdate(file, manifest, directory);
     if (!context.mounted) return;
-    await Process.start('powershell.exe', [
-      '-NoProfile',
-      '-NonInteractive',
-      '-WindowStyle',
-      'Hidden',
-      '-ExecutionPolicy',
-      'Bypass',
-      '-File',
-      '${directory.path}/update.ps1',
-      '-Mode',
-      'Apply',
-      '-Job',
-      '${directory.path}/job.json',
-    ], mode: ProcessStartMode.detached);
+    try {
+      await startWindowsUpdate(directory);
+    } catch (_) {
+      throw ApiFailure(500, '更新程序未能启动，客户端未退出。请重试，或下载完整包手动更新。');
+    }
     // Only the verified managed bundle is replaced, after the helper sees this
     // process exit. Account data and drafts live outside the program directory.
     exit(0);

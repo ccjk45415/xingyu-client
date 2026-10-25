@@ -15,8 +15,8 @@ JAVA = Path(os.environ.get('JAVA_HOME', 'C:/Program Files/Java/jdk-17')) / 'bin/
 parser = argparse.ArgumentParser()
 parser.add_argument('--test', action='store_true')
 args = parser.parse_args()
-VERSION, BUILD = ('0.13.0', 36) if args.test else ('0.11.0', 33)
-APK = ROOT / ('output/Cangku-Xingyu-0.13.0-arm64.apk' if args.test else 'output/Cangku-Xingyu-0.11.0-arm64.apk')
+VERSION, BUILD = ('0.13.1', 37) if args.test else ('0.11.0', 33)
+APK = ROOT / ('output/Cangku-Xingyu-0.13.1-arm64.apk' if args.test else 'output/Cangku-Xingyu-0.11.0-arm64.apk')
 
 def output(command):
     return subprocess.check_output([str(v) for v in command], cwd=ROOT).decode('utf-8', errors='replace')

@@ -138,11 +138,18 @@ class CheckinController extends ChangeNotifier {
     final key = 'checkin.cloud.$uid';
     final stored = await app.site.storage.read(key: key);
     if (stored != null) {
-      final value = object(jsonDecode(stored));
-      if ((DateTime.tryParse(text(value['expires_at']))
-              ?.isAfter(DateTime.now()) ??
-          false)) {
-        return text(value['token']);
+      try {
+        final value = object(jsonDecode(stored));
+        final token = text(value['token']);
+        if (RegExp(r'^[a-f0-9]{64}$').hasMatch(token) &&
+            number(value['user_id']) == uid &&
+            (DateTime.tryParse(text(value['expires_at']))
+                    ?.isAfter(DateTime.now()) ??
+                false)) {
+          return token;
+        }
+      } on FormatException {
+        // A damaged or older local grant can be replaced after explicit consent.
       }
     }
     if (!create) return '';
@@ -171,6 +178,10 @@ class CheckinController extends ChangeNotifier {
     } on ApiFailure catch (e) {
       if (e.status == 401) {
         await app.site.storage.delete(key: 'checkin.cloud.$uid');
+        if (current(uid, generation)) {
+          cloud = {};
+          changed();
+        }
       }
       rethrow;
     }
@@ -178,16 +189,41 @@ class CheckinController extends ChangeNotifier {
 
   Future<void> setCloud(bool enabled) async {
     final uid = app.uid, generation = app.generation;
-    final token = await cloudToken(create: enabled);
+    var token = await cloudToken(create: enabled);
     if (token.isEmpty) return;
     if (!current(uid, generation)) throw ApiFailure(409, '账号已切换');
-    final result = await app.service.request(
+    Future<Json> send() => app.service.request(
       '/checkin/v1/${enabled ? 'enable' : 'disable'}',
       token: token,
       body: enabled
           ? {'site_cookie': app.site.cookieHeader, 'consent': true}
           : {},
     );
+    Json result;
+    try {
+      try {
+        result = await send();
+      } on ApiFailure catch (e) {
+        if (e.status != 401 || !enabled) rethrow;
+        // Local expiry cannot detect a revoked server grant. Renew at most once,
+        // only for the enable operation for which consent was just obtained.
+        await app.site.storage.delete(key: 'checkin.cloud.$uid');
+        if (!current(uid, generation)) throw ApiFailure(409, '账号已切换');
+        token = await cloudToken(create: true);
+        if (!current(uid, generation)) throw ApiFailure(409, '账号已切换');
+        result = await send();
+      }
+    } catch (_) {
+      // A response can be lost after the server commits. Read authoritative state
+      // before reporting failure, without repeating the enable/disable request.
+      if (current(uid, generation)) {
+        try {
+          await refreshCloud();
+          if (current(uid, generation) && cloud['enabled'] == enabled) return;
+        } catch (_) {}
+      }
+      rethrow;
+    }
     if (current(uid, generation)) {
       cloud = result;
       changed();

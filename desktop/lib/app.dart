@@ -9,6 +9,7 @@ import 'core/state.dart';
 import 'core/updates.dart';
 import 'core/chat.dart';
 import 'core/platform.dart';
+import 'core/error_diagnostics.dart';
 import 'pages/discovery.dart';
 import 'pages/reading.dart';
 import 'pages/account.dart';
@@ -200,7 +201,8 @@ class _LoginPageState extends State<LoginPage> {
     try {
       await widget.app.login(account.text, password.text, keep);
       password.clear();
-    } catch (e) {
+    } catch (e, stack) {
+      unawaited(appDiagnostics.record(e, stack, 'login'));
       if (mounted) setState(() => error = '$e');
     }
     if (mounted) setState(() => busy = false);

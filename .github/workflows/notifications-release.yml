@@ -55,7 +55,7 @@ jobs:
         run: |
           flutter pub get
           flutter analyze --no-pub
-          flutter test --no-pub test/checkin_patch_test.dart test/macos_platform_test.dart test/updates_test.dart test/core_test.dart test/startup_update_test.dart test/system_notices_test.dart
+          flutter test --no-pub test/checkin_patch_test.dart test/macos_platform_test.dart test/updates_test.dart test/core_test.dart test/startup_update_test.dart test/system_notices_test.dart test/cloud_checkin_test.dart test/login_diagnostics_test.dart test/windows_proxy_test.dart
       - name: Build macOS test installers with official patch engine
         if: runner.os == 'macOS'
         run: python3 tools/build_macos.py --shorebird-test --formal --native-check --skip-tests
@@ -64,13 +64,13 @@ jobs:
         shell: pwsh
         working-directory: desktop
         run: |
-          & "$env:RUNNER_TEMP/shorebird/bin/shorebird.ps1" release windows --flutter-version=3.47.7 --build-name=0.7.0 --build-number=27 --dart-define=XINGYU_PATCH_TRACK=staging --dart-define=XINGYU_REQUIRE_CODE_PUSH=true
+          & "$env:RUNNER_TEMP/shorebird/bin/shorebird.ps1" release windows --flutter-version=3.47.7 --build-name=0.7.1 --build-number=28 --dart-define=XINGYU_PATCH_TRACK=staging --dart-define=XINGYU_REQUIRE_CODE_PUSH=true
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Package and verify Windows test bundle
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          python tools/prepare_desktop_release.py --test-only --version 0.7.0 --build 27 --bundle desktop/build/windows/x64/runner/Release
+          python tools/prepare_desktop_release.py --test-only --version 0.7.1 --build 28 --bundle desktop/build/windows/x64/runner/Release
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python -c "import subprocess,json,pathlib; r=subprocess.run(['desktop/build/windows/x64/runner/Release/Xingyu.exe','--self-check','--offline'],capture_output=True,text=True,timeout=60,check=True); v=next(json.loads(s) for s in r.stdout.splitlines() if s.startswith('{')); assert v['code_push_engine']=='available' and v['code_push_initialized'] is True and v['system_notifications_native'] is True; pathlib.Path('output/windows-test-native.json').write_text(json.dumps(v)); print(json.dumps(v))"
       - name: Remove temporary authorization
@@ -86,9 +86,9 @@ jobs:
           if-no-files-found: error
           retention-days: 3
           path: |
-            output/Xingyu-macOS-0.3.0-arm64.pkg
-            output/Xingyu-macOS-0.3.0-arm64.dmg
-            output/Xingyu-Windows-0.7.0-x64.zip
+            output/Xingyu-macOS-0.3.1-arm64.pkg
+            output/Xingyu-macOS-0.3.1-arm64.dmg
+            output/Xingyu-Windows-0.7.1-x64.zip
             output/*test*.json
             output/macOS-build-report.json
             output/macOS-SHA256SUMS.txt

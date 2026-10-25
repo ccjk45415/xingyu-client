@@ -11,6 +11,7 @@ add_executable(${BINARY_NAME} WIN32
   "main.cpp"
   "patch_bootstrap.cpp"
   "system_notifications.cpp"
+  "system_proxy.cpp"
   "secure_storage.cpp"
   "image_clipboard.cpp"
   "editor_ime.cpp"
@@ -37,7 +38,7 @@ target_compile_definitions(${BINARY_NAME} PRIVATE "NOMINMAX")
 
 # Add dependency libraries and include directories. Add any application-specific
 # dependencies here.
-target_link_libraries(${BINARY_NAME} PRIVATE flutter flutter_wrapper_app crypt32 shell32 gdiplus ole32 imm32 comctl32)
+target_link_libraries(${BINARY_NAME} PRIVATE flutter flutter_wrapper_app crypt32 shell32 gdiplus ole32 imm32 comctl32 winhttp)
 target_link_libraries(${BINARY_NAME} PRIVATE "dwmapi.lib")
 target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}")
 

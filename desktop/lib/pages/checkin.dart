@@ -6,6 +6,20 @@ import '../core/api.dart';
 import '../core/platform.dart';
 import '../ui/shared.dart';
 
+String cloudCheckinError(Object error) {
+  if (error is ApiFailure) {
+    return switch (error.status) {
+      401 => '登录或云端授权已失效，请重新登录后开启',
+      409 => '账号已切换，请在当前账号重新操作',
+      429 => '云端签到尝试过于频繁，请稍后重试',
+      502 => '签到服务暂时无法连接网站，请稍后重试',
+      503 => '云端签到服务暂时不可用，请稍后重试',
+      _ => '云端签到操作未完成，请刷新状态后重试',
+    };
+  }
+  return '未能连接签到服务，请检查网络后刷新状态';
+}
+
 class CheckinCard extends StatelessWidget {
   const CheckinCard({super.key});
   @override
@@ -84,8 +98,9 @@ class _CheckinPageState extends State<CheckinPage> {
   Future<void> refresh() async {
     try {
       await stateOf(context).checkin.refreshCloud();
-    } catch (_) {
-      if (mounted) setState(() => cloudError = '云端状态暂时无法读取，可稍后重试');
+      if (mounted) setState(() => cloudError = null);
+    } catch (error) {
+      if (mounted) setState(() => cloudError = cloudCheckinError(error));
     }
   }
 
@@ -106,8 +121,8 @@ class _CheckinPageState extends State<CheckinPage> {
     });
     try {
       await app.checkin.setCloud(enabled);
-    } catch (_) {
-      if (mounted) setState(() => cloudError = '操作未完成，请检查网络后重试；开关以服务端状态为准');
+    } catch (error) {
+      if (mounted) setState(() => cloudError = cloudCheckinError(error));
     }
     if (mounted) setState(() => working = false);
   }

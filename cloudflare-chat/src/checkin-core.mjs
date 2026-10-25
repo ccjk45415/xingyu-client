@@ -36,7 +36,7 @@ export async function openCookie(raw,uid,secret) {
 
 /** Fixed, verified HTTPS origin only; redirects and unbounded response bodies are rejected. */
 export class CheckinSite {
-  constructor(cookie,fetcher=fetch){cookieOK(cookie);this.fetcher=fetcher;this.jar=new Map(cookie.split(';').map(part=>{const at=part.indexOf('=');return [part.slice(0,at).trim(),part.slice(at+1).trim()];}).filter(([name])=>name));}
+  constructor(cookie,fetcher=fetch){cookieOK(cookie);this.fetcher=fetcher.bind(globalThis);this.jar=new Map(cookie.split(';').map(part=>{const at=part.indexOf('=');return [part.slice(0,at).trim(),part.slice(at+1).trim()];}).filter(([name])=>name));}
   cookie(){return [...this.jar].map(([name,value])=>`${name}=${value}`).join('; ');}
   async request(path,post=false){
     const headers={Cookie:this.cookie(),Accept:'application/json',Origin:'https://cangku.moe',Referer:'https://cangku.moe/','X-Requested-With':'XMLHttpRequest','User-Agent':'Mozilla/5.0 (Linux; Android 16) AppleWebKit/537.36 Chrome/125.0.0.0 Mobile Safari/537.36'};

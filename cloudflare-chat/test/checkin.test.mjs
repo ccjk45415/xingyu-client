@@ -4,6 +4,10 @@ import {DatabaseSync} from 'node:sqlite';
 import {CheckinSite,createCheckinHub,openCookie,sealCookie,nextCheckin} from '../src/checkin-core.mjs';
 const SECRET='a'.repeat(64),COOKIE='session=synthetic-local-only; XSRF-TOKEN=abc%3D';
 const user={id:17,nickname:'fixture',is_banned:false,is_muted:false,is_signed:false};
+test('website fetch preserves the Worker global receiver',async()=>{
+  async function receiverSensitiveFetch(){assert.equal(this,globalThis);return Response.json({code:0,data:user});}
+  assert.equal((await new CheckinSite(COOKIE,receiverSensitiveFetch).account(17)).id,17);
+});
 function fixture(){
   let now=Date.parse('2026-10-24T01:00:00Z'),signed=false,fail=false,invalid=false,posts=0,alarm=null;
   const db=new DatabaseSync(':memory:'),sql={exec(q,...args){const result=db.prepare(q).all(...args);return {toArray:()=>result};}};

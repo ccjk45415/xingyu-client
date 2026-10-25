@@ -47,7 +47,7 @@ def main():
     args = parser.parse_args()
     global VERSION, BUILD
     if args.shorebird_test:
-        VERSION, BUILD = '0.3.0', '5'
+        VERSION, BUILD = '0.3.1', '6'
     check_source()
     if args.check_only:
         return

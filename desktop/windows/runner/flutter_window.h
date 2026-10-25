@@ -6,6 +6,7 @@
 #include "image_clipboard.h"
 #include "editor_ime.h"
 #include "system_notifications.h"
+#include "system_proxy.h"
 #include <flutter/flutter_view_controller.h>
 
 #include <memory>
@@ -29,6 +30,7 @@ class FlutterWindow : public Win32Window {
  private:
   // The project to run.
   std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>> storage_channel_;
+  std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>> proxy_channel_;
   std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>> image_clipboard_channel_;
   std::unique_ptr<EditorIme> editor_ime_;
   std::unique_ptr<SystemNotifications> notifications_;

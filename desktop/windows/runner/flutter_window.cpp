@@ -26,6 +26,7 @@ bool FlutterWindow::OnCreate() {
   }
   RegisterPlugins(flutter_controller_->engine());
   storage_channel_ = RegisterSecureStorage(flutter_controller_->engine()->messenger());
+  proxy_channel_ = RegisterSystemProxy(flutter_controller_->engine()->messenger());
   image_clipboard_channel_ = RegisterImageClipboard(flutter_controller_->engine()->messenger());
   notifications_ = std::make_unique<SystemNotifications>(flutter_controller_->engine()->messenger(), GetHandle());
   SetChildContent(flutter_controller_->view()->GetNativeWindow());
@@ -48,6 +49,7 @@ void FlutterWindow::OnDestroy() {
   editor_ime_.reset();
   image_clipboard_channel_.reset();
   storage_channel_.reset();
+  proxy_channel_.reset();
   if (flutter_controller_) {
     flutter_controller_ = nullptr;
   }
