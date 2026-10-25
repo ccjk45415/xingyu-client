@@ -1,0 +1,35 @@
+{
+  "stage": "pre-publication",
+  "status": "pass",
+  "packages": [
+    {
+      "file": "Cangku-Xingyu-0.13.0-arm64.apk",
+      "bytes": 19953191,
+      "sha256": "26a73705040ebcbe051c4dd9dc10a227ded6851285e08140ee236a8ced9aae71"
+    },
+    {
+      "file": "Xingyu-Windows-0.7.0-x64.zip",
+      "bytes": 39319683,
+      "sha256": "819e915410b270d51a5ea6cebc7aa94d17bb15388b1ebb802598fa9b45de7413"
+    },
+    {
+      "file": "Xingyu-macOS-0.3.0-arm64.pkg",
+      "bytes": 40972633,
+      "sha256": "f1a93c79636aa7e4a71dc21eaa9b1fe87952329a8ce47dec63ce9f977dc305ed"
+    },
+    {
+      "file": "Xingyu-macOS-0.3.0-arm64.dmg",
+      "bytes": 46591753,
+      "sha256": "81b8fd9c3a2783ca35fb082b56b6cad3e5ff3a9f6a2491b809e64bd9473c7c71"
+    },
+    {
+      "file": "Cangku-Xingyu-0.13.0-source.zip",
+      "bytes": 4536688,
+      "sha256": "c2cf4631c70978abaa6240634cae900c813a76661c01b4f24d1eef79ba823d41"
+    }
+  ],
+  "notes_match": true,
+  "credential_scan": "pass",
+  "static_assets_within_pages_limit": true,
+  "complete_native_installers": true
+}

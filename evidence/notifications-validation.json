@@ -1,0 +1,13 @@
+{
+  "shared_tests_passed": 208,
+  "conditional_skips": 3,
+  "startup_shell_regression_passed": true,
+  "static_analysis": "pass",
+  "windows_unicode_bootstrap_ci_native_passed": true,
+  "android_compile": "pass",
+  "android_test_install": "blocked_by_device_package_manager",
+  "android_16_samsung_delivery_test": "not_run",
+  "native_background_delivery_real_messages": "not_tested",
+  "credential_or_message_upload_added": false,
+  "official_site_writes_in_tests": 0
+}

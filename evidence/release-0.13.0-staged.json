@@ -1,0 +1,36 @@
+{
+  "status": "staged_only",
+  "published": false,
+  "packages": [
+    {
+      "file": "Cangku-Xingyu-0.13.0-arm64.apk",
+      "bytes": 19953191,
+      "sha256": "26a73705040ebcbe051c4dd9dc10a227ded6851285e08140ee236a8ced9aae71",
+      "version": "0.13.0",
+      "code": 36
+    },
+    {
+      "file": "Xingyu-Windows-0.7.0-x64.zip",
+      "bytes": 39319683,
+      "sha256": "819e915410b270d51a5ea6cebc7aa94d17bb15388b1ebb802598fa9b45de7413",
+      "version": "0.7.0",
+      "code": 27
+    },
+    {
+      "file": "Xingyu-macOS-0.3.0-arm64.pkg",
+      "bytes": 40972633,
+      "sha256": "f1a93c79636aa7e4a71dc21eaa9b1fe87952329a8ce47dec63ce9f977dc305ed",
+      "version": "0.3.0",
+      "code": 5
+    },
+    {
+      "file": "Xingyu-macOS-0.3.0-arm64.dmg",
+      "bytes": 46591753,
+      "sha256": "81b8fd9c3a2783ca35fb082b56b6cad3e5ff3a9f6a2491b809e64bd9473c7c71",
+      "version": "0.3.0",
+      "code": 5
+    }
+  ],
+  "chunk_reconstruction_verified": true,
+  "notes": "新增应用外通知与通知设置，新增启动更新提醒，修复 Windows 热更新与动态排序等问题。"
+}

@@ -10,17 +10,17 @@ ROOT = Path(__file__).resolve().parents[1]
 work = ROOT / '.toolchain' / ('windows-release-update-' + uuid.uuid4().hex)
 work.mkdir()
 assert work.resolve().is_relative_to((ROOT / '.toolchain').resolve())
-old = ROOT / 'output/Xingyu-Windows-0.4.16-x64.zip'
-new = ROOT / 'output/Xingyu-Windows-0.5.0-x64.zip'
+old = ROOT / 'output/Xingyu-Windows-0.6.0-x64.zip'
+new = ROOT / 'output/Xingyu-Windows-0.7.0-x64.zip'
 with zipfile.ZipFile(old) as archive:
     for name in archive.namelist():
         assert (work / name).resolve().is_relative_to(work.resolve())
     archive.extractall(work)
-install = work / 'Xingyu-Windows-0.4.16'
+install = work / 'Xingyu-Windows-0.6.0'
 (install / 'my-personal-file.txt').write_bytes(b'keep me')
 job = work / 'job.json'
 job.write_text(json.dumps({'archive': str(new), 'install': str(install), 'parentPid': 0,
-    'versionName': '0.5.0', 'versionCode': 24, 'sha256': hashlib.sha256(new.read_bytes()).hexdigest()}), encoding='utf-8')
+    'versionName': '0.7.0', 'versionCode': 27, 'sha256': hashlib.sha256(new.read_bytes()).hexdigest()}), encoding='utf-8')
 for mode in ['Prepare', 'Apply']:
     subprocess.run(['powershell.exe', '-NoProfile', '-NonInteractive', '-WindowStyle', 'Hidden',
         '-ExecutionPolicy', 'Bypass', '-File', str(ROOT / 'desktop/assets/windows-update.ps1'),
@@ -37,5 +37,5 @@ subprocess.run(['python', str(ROOT / 'tools/check_desktop_native.py'), str(insta
 report = {'status': 'pass', 'old_bundle': old.name, 'new_bundle': new.name,
     'verified_installed_files': count, 'unmanaged_files_preserved': True,
     'updated_native_engine_check': 'pass', 'desktop_ui_launched': False}
-(ROOT / 'evidence/windows-release-update.json').write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
+(ROOT / 'evidence/release-0.13.0-windows-upgrade.json').write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
 print(json.dumps(report))

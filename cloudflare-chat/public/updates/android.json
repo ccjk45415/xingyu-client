@@ -1,11 +1,11 @@
 {
   "available": true,
-  "versionName": "0.12.0",
-  "versionCode": 34,
-  "notes": "新增签到和自动签到功能",
-  "url": "https://xingyu-chat-ccjk45415.pages.dev/releases/Cangku-Xingyu-0.12.0-arm64.apk",
-  "size": 19905179,
-  "sha256": "cb4366d67cb09158939fe44dac6fb50df58e4ac043acd1a11495aa7e0135dd5c",
+  "versionName": "0.13.0",
+  "versionCode": 36,
+  "notes": "新增应用外通知与通知设置，新增启动更新提醒，修复 Windows 热更新与动态排序等问题。",
+  "url": "https://xingyu-chat-ccjk45415.pages.dev/releases/Cangku-Xingyu-0.13.0-arm64.apk",
+  "size": 19953191,
+  "sha256": "26a73705040ebcbe051c4dd9dc10a227ded6851285e08140ee236a8ced9aae71",
   "package": "moe.cangku.reader",
   "minSdk": 26
 }

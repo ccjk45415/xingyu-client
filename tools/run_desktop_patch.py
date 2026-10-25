@@ -15,7 +15,7 @@ parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('platform', choices=['windows', 'macos'])
 parser.add_argument('--dry-run', action='store_true')
 args = parser.parse_args()
-name, build = {'windows': ('0.6.0', '25'), 'macos': ('0.2.0', '3')}[args.platform]
+name, build = {'windows': ('0.7.0', '27'), 'macos': ('0.3.0', '5')}[args.platform]
 if sys.platform == 'win32':
     cli = Path(os.environ['RUNNER_TEMP']) / 'shorebird/bin/shorebird.ps1'
     command = ['powershell', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', str(cli)]
@@ -27,4 +27,10 @@ command += ['patch', args.platform, f'--release-version={name}+{build}',
             '--dart-define=XINGYU_REQUIRE_CODE_PUSH=true', '--track=staging']
 if args.dry_run:
     command.append('--dry-run')
-subprocess.run(command, cwd=ROOT / 'desktop', check=True)
+result = subprocess.run(command, cwd=ROOT / 'desktop', stdout=subprocess.PIPE,
+                        stderr=subprocess.STDOUT, encoding='utf-8', errors='replace')
+if hasattr(sys.stdout, 'reconfigure'): sys.stdout.reconfigure(encoding='utf-8')
+print(result.stdout, end='')
+expected = 'No issues detected.' if args.dry_run else 'Published Patch '
+if result.returncode or expected not in result.stdout:
+    raise SystemExit('Shorebird did not confirm the requested patch operation; CLI exit status alone is insufficient.')

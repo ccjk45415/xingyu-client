@@ -1,0 +1,39 @@
+{
+  "status": "pass",
+  "base": "0.7.0+26",
+  "installation_path_contains_unicode": true,
+  "windows_username_contains_unicode": true,
+  "download": {
+    "windows_native_engine": "pass",
+    "code_push_engine": "available",
+    "code_push_initialized": true,
+    "patch_probe": 0,
+    "current_patch": 0,
+    "next_patch": 1,
+    "system_notifications_native": true,
+    "secure_storage": "pass",
+    "encrypted_file_and_tamper_rejection": "pass",
+    "app_data_directory": "pass",
+    "public_health": "skipped_offline",
+    "protocol": 3,
+    "website_password_used": false,
+    "messages_sent": 0
+  },
+  "after_restart": {
+    "windows_native_engine": "pass",
+    "code_push_engine": "available",
+    "code_push_initialized": true,
+    "patch_probe": 1,
+    "current_patch": 1,
+    "next_patch": 1,
+    "system_notifications_native": true,
+    "secure_storage": "pass",
+    "encrypted_file_and_tamper_rejection": "pass",
+    "app_data_directory": "pass",
+    "public_health": "skipped_offline",
+    "protocol": 3,
+    "website_password_used": false,
+    "messages_sent": 0
+  },
+  "message_or_site_writes": 0
+}

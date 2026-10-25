@@ -34,7 +34,7 @@ with fetch('/updates/android') as response:
 with fetch('/health') as response:
     health = json.load(response)
     assert health.get('protocol') == 3 and health.get('channel_count') == 2
-records = json.loads((ROOT / 'evidence/release-0.12.0-assets.json').read_text('utf-8'))['packages']
+records = json.loads((ROOT / 'evidence/release-0.13.0-assets.json').read_text('utf-8'))['packages']
 def download(record):
     size, digest = 0, hashlib.sha256()
     name = record['file']

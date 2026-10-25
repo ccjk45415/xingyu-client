@@ -15,8 +15,8 @@ JAVA = Path(os.environ.get('JAVA_HOME', 'C:/Program Files/Java/jdk-17')) / 'bin/
 parser = argparse.ArgumentParser()
 parser.add_argument('--test', action='store_true')
 args = parser.parse_args()
-VERSION, BUILD = ('0.12.0', 34) if args.test else ('0.11.0', 33)
-APK = ROOT / ('output/Cangku-Xingyu-0.12.0-test-arm64.apk' if args.test else 'output/Cangku-Xingyu-0.11.0-arm64.apk')
+VERSION, BUILD = ('0.13.0', 36) if args.test else ('0.11.0', 33)
+APK = ROOT / ('output/Cangku-Xingyu-0.13.0-arm64.apk' if args.test else 'output/Cangku-Xingyu-0.11.0-arm64.apk')
 
 def output(command):
     return subprocess.check_output([str(v) for v in command], cwd=ROOT).decode('utf-8', errors='replace')
@@ -43,6 +43,7 @@ with zipfile.ZipFile(APK) as archive:
         assert b'auto_update: false' in archive.read('assets/flutter_assets/shorebird.yaml')
         assert b'shorebird' in archive.read('lib/arm64-v8a/libflutter.so')
         manifest = output([SDK / 'aapt2.exe', 'dump', 'xmltree', APK, '--file', 'AndroidManifest.xml'])
+        assert 'NoticeJobService' in manifest and 'android.permission.POST_NOTIFICATIONS' in badging
         assert 'CheckinJobService' in manifest and 'android.permission.BIND_JOB_SERVICE' in manifest
     elf_libraries = []
     for name in sorted(n for n in names if n.endswith('.so')):
@@ -72,5 +73,5 @@ report = {
     'real_device_test': 'not_run_for_this_build', 'android_16_samsung_test': 'pending_user',
     'uploaded': False,
 }
-(ROOT / ('evidence/checkin-android-test-package.json' if args.test else 'evidence/flutter-android-package.json')).write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+(ROOT / ('evidence/notifications-android-package.json' if args.test else 'evidence/flutter-android-package.json')).write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
 print(json.dumps(report, ensure_ascii=False))

@@ -10,7 +10,7 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
 PUBLIC = ROOT / 'cloudflare-chat/public'
-notes = (ROOT / 'docs/RELEASE-0.12.0.md').read_text('utf-8').strip()
+notes = (ROOT / 'docs/RELEASE-0.13.0.md').read_text('utf-8').strip()
 secrets = []
 credentials = ROOT / '.toolchain/cloudflare-auth/.wrangler/config/default.toml'
 if credentials.is_file():
@@ -39,7 +39,7 @@ def scan(data):
 raw = (ROOT / 'cloudflare-entry/release-index.mjs').read_text('utf-8')
 index = json.loads(raw.split('export default ',1)[1].strip().rstrip(';'))
 records = []
-for platform, expected in [('android',('0.12.0',34)),('windows',('0.6.0',25)),('macos',('0.2.0',3))]:
+for platform, expected in [('android',('0.13.0',36)),('windows',('0.7.0',27)),('macos',('0.3.0',5))]:
     info = json.loads((PUBLIC / f'updates/{platform}.json').read_text('utf-8'))
     assert (info['versionName'],info['versionCode']) == expected and info['notes'] == notes
     assert info['url'].startswith('https://xingyu-chat-ccjk45415.pages.dev/releases/')
@@ -57,11 +57,11 @@ for platform, expected in [('android',('0.12.0',34)),('windows',('0.6.0',25)),('
     else: assert (PUBLIC / 'releases' / name).read_bytes() == file.read_bytes()
     scan(file.read_bytes())
     records.append({'file':name,'bytes':info['size'],'sha256':info['sha256']})
-extra = ROOT / 'output/Xingyu-macOS-0.2.0-arm64.dmg'
+extra = ROOT / 'output/Xingyu-macOS-0.3.0-arm64.dmg'
 assert hashlib.sha256(extra.read_bytes()).hexdigest() == index[extra.name]['sha256']
 scan(extra.read_bytes())
 records.append({'file':extra.name,'bytes':extra.stat().st_size,'sha256':index[extra.name]['sha256']})
-source = ROOT / 'output/Cangku-Xingyu-0.12.0-source.zip'
+source = ROOT / 'output/Cangku-Xingyu-0.13.0-source.zip'
 scan(source.read_bytes())
 with zipfile.ZipFile(source) as z:
     for name in ['desktop/lib/core/updates.dart','desktop/assets/windows-update.ps1',
@@ -73,6 +73,6 @@ assert all(p.stat().st_size <= 25 * 1024 * 1024 for p in PUBLIC.rglob('*') if p.
 report = {'stage':'pre-publication','status':'pass','packages':records,
           'notes_match':True,'credential_scan':'pass','static_assets_within_pages_limit':True,
           'complete_native_installers':True}
-(ROOT / 'output/Release-0.12.0-SHA256SUMS.txt').write_text(''.join(p['sha256']+'  '+p['file']+'\n' for p in records),encoding='ascii')
-(ROOT / 'evidence/release-0.12.0-assets.json').write_text(json.dumps(report,indent=2)+'\n',encoding='utf-8')
+(ROOT / 'output/Release-0.13.0-SHA256SUMS.txt').write_text(''.join(p['sha256']+'  '+p['file']+'\n' for p in records),encoding='ascii')
+(ROOT / 'evidence/release-0.13.0-assets.json').write_text(json.dumps(report,indent=2)+'\n',encoding='utf-8')
 print(json.dumps(report))

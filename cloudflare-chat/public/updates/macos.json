@@ -1,11 +1,11 @@
 {
   "available": true,
-  "versionName": "0.2.0",
-  "versionCode": 3,
-  "notes": "新增签到和自动签到功能",
-  "url": "https://xingyu-chat-ccjk45415.pages.dev/releases/Xingyu-macOS-0.2.0-arm64.pkg",
-  "size": 40873604,
-  "sha256": "54344e77b99da085bd81ec1a2bc6f1af4c3eb5e330e7de1187495050c4d7573a",
+  "versionName": "0.3.0",
+  "versionCode": 5,
+  "notes": "新增应用外通知与通知设置，新增启动更新提醒，修复 Windows 热更新与动态排序等问题。",
+  "url": "https://xingyu-chat-ccjk45415.pages.dev/releases/Xingyu-macOS-0.3.0-arm64.pkg",
+  "size": 40972633,
+  "sha256": "f1a93c79636aa7e4a71dc21eaa9b1fe87952329a8ce47dec63ce9f977dc305ed",
   "platform": "macos-arm64",
   "product": "moe.cangku.xingyu.macos"
 }
