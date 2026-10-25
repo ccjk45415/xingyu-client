@@ -1,0 +1,57 @@
+{
+  "source": "7c6be74dd3b9c8e6064c26e3cc8e256a70e9e0e2",
+  "client_tests_passed": 224,
+  "conditional_tests_skipped": 3,
+  "server_tests_passed": 59,
+  "analyzer_issues": 0,
+  "native_or_asset_changes": false,
+  "android_dry_run": "No issues detected.",
+  "desktop_dry_run_workflow": 40171608379,
+  "font_fixture_portable": true,
+  "android_dry_run_log": ".toolchain/notice-sync-android-dry-run-final.log",
+  "font_compatibility": {
+    "windows_background_icon": "history_rounded already present in base",
+    "android_background_icon": "schedule_rounded retained",
+    "selection": "Existing Android build define resolves Android-only icon constants before desktop font subsetting"
+  },
+  "windows_font_identical": true,
+  "windows_font_sha256": "f2b163c688bbd266df14f081d2066b4903d93b1020353f729790f257494c3189",
+  "desktop_publish_workflow": 40171608379,
+  "mac_base_font_same_as_verified_windows": true,
+  "status": "published_and_verified",
+  "desktop_platform_checks": "both passed without native/asset overrides",
+  "published_utc": "2026-10-25T07:22:06.416196+00:00",
+  "patches": [
+    {
+      "platform": "android",
+      "release": "0.13.1+37",
+      "patch": {
+        "id": 747548,
+        "number": 1,
+        "channel": "staging",
+        "is_rolled_back": false
+      }
+    },
+    {
+      "platform": "windows",
+      "release": "0.7.1+28",
+      "patch": {
+        "id": 747558,
+        "number": 1,
+        "channel": "staging",
+        "is_rolled_back": false
+      }
+    },
+    {
+      "platform": "macos",
+      "release": "0.3.1+6",
+      "patch": {
+        "id": 747563,
+        "number": 1,
+        "channel": "staging",
+        "is_rolled_back": false
+      }
+    }
+  ],
+  "temporary_ci_secret_removed": true
+}

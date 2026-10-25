@@ -1,0 +1,20 @@
+{
+  "worker_version": "1f13c810-a2fc-4cb1-bea6-d35ebf739280",
+  "checks": [
+    {
+      "path": "/health",
+      "status": 200,
+      "revision": null
+    },
+    {
+      "path": "/dm/v1/notice-reads",
+      "status": 401,
+      "revision": null
+    },
+    {
+      "path": "/announcements",
+      "status": 200,
+      "revision": 3
+    }
+  ]
+}

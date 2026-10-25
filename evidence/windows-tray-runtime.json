@@ -1,0 +1,18 @@
+{
+  "fixture_only": true,
+  "production_script": true,
+  "results": [
+    {
+      "scenario": "explicit-stop",
+      "passed": true
+    },
+    {
+      "scenario": "parent-exit",
+      "passed": true
+    },
+    {
+      "scenario": "invalid-window-owner",
+      "passed": true
+    }
+  ]
+}
