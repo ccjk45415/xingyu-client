@@ -286,13 +286,16 @@ void main() {
   );
 
   setUpAll(() async {
+    final flutterRoot =
+        Platform.environment['FLUTTER_ROOT'] ?? 'C:/codex-tools/flutter';
     for (final (family, path) in [
       ('Microsoft YaHei UI', 'C:/Windows/Fonts/msyh.ttc'),
       (
         'MaterialIcons',
-        'C:/codex-tools/flutter/bin/cache/artifacts/material_fonts/materialicons-regular.otf',
+        '$flutterRoot/bin/cache/artifacts/material_fonts/materialicons-regular.otf',
       ),
     ]) {
+      if (!await File(path).exists()) continue;
       await (FontLoader(family)..addFont(
             File(path).readAsBytes().then((v) => ByteData.sublistView(v)),
           ))
