@@ -15,7 +15,7 @@ parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('platform', choices=['windows', 'macos'])
 parser.add_argument('--dry-run', action='store_true')
 args = parser.parse_args()
-name, build = {'windows': ('0.7.0', '27'), 'macos': ('0.3.0', '5')}[args.platform]
+name, build = {'windows': ('0.7.1', '28'), 'macos': ('0.3.1', '6')}[args.platform]
 if sys.platform == 'win32':
     cli = Path(os.environ['RUNNER_TEMP']) / 'shorebird/bin/shorebird.ps1'
     command = ['powershell', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', str(cli)]

@@ -1,11 +1,11 @@
 {
   "available": true,
-  "versionName": "0.3.0",
-  "versionCode": 5,
-  "notes": "新增应用外通知与通知设置，新增启动更新提醒，修复 Windows 热更新与动态排序等问题。",
-  "url": "https://xingyu-chat-ccjk45415.pages.dev/releases/Xingyu-macOS-0.3.0-arm64.pkg",
-  "size": 40972633,
-  "sha256": "f1a93c79636aa7e4a71dc21eaa9b1fe87952329a8ce47dec63ce9f977dc305ed",
+  "versionName": "0.3.1",
+  "versionCode": 6,
+  "notes": "修复 Windows 下载更新后未完成安装与重启的问题，改善 Windows 系统 HTTP 代理兼容，修复云端签到开启失败与授权状态处理，补全登录及启动异常诊断记录。",
+  "url": "https://xingyu-chat-ccjk45415.pages.dev/releases/Xingyu-macOS-0.3.1-arm64.pkg",
+  "size": 40979294,
+  "sha256": "4e2a659d31b67ad51e223215274cbefc471af91d7880f206bae9b3a354ce8ce3",
   "platform": "macos-arm64",
   "product": "moe.cangku.xingyu.macos"
 }

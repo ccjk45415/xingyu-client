@@ -1,0 +1,9 @@
+{
+  "client_passed": 216,
+  "conditional_live_tests_skipped": 3,
+  "server_passed": 56,
+  "windows_update_fixture_restart": "pass",
+  "windows_updater_security_and_rollback_cases": 10,
+  "android_original_package_and_signer": "pass",
+  "physical_device_testing": "not_performed_for_this_build"
+}

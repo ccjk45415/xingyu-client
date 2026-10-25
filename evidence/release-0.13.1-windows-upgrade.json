@@ -1,0 +1,9 @@
+{
+  "status": "pass",
+  "old_bundle": "Xingyu-Windows-0.6.0-x64.zip",
+  "new_bundle": "Xingyu-Windows-0.7.1-x64.zip",
+  "verified_installed_files": 52,
+  "unmanaged_files_preserved": true,
+  "updated_native_engine_check": "pass",
+  "desktop_ui_launched": false
+}

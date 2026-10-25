@@ -11,14 +11,14 @@ jobs:
         include:
           - os: windows-latest
             platform: windows
-            version: '0.6.0+25'
-            name: '0.6.0'
-            build: '25'
+            version: '0.7.1+28'
+            name: '0.7.1'
+            build: '28'
           - os: macos-15
             platform: macos
-            version: '0.2.0+3'
-            name: '0.2.0'
-            build: '3'
+            version: '0.3.1+6'
+            name: '0.3.1'
+            build: '6'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 40
     env:

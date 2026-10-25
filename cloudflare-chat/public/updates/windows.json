@@ -1,11 +1,11 @@
 {
   "available": true,
-  "versionName": "0.7.0",
-  "versionCode": 27,
-  "notes": "新增应用外通知与通知设置，新增启动更新提醒，修复 Windows 热更新与动态排序等问题。",
-  "url": "https://xingyu-chat-ccjk45415.pages.dev/releases/Xingyu-Windows-0.7.0-x64.zip",
-  "size": 39319683,
-  "sha256": "819e915410b270d51a5ea6cebc7aa94d17bb15388b1ebb802598fa9b45de7413",
+  "versionName": "0.7.1",
+  "versionCode": 28,
+  "notes": "修复 Windows 下载更新后未完成安装与重启的问题，改善 Windows 系统 HTTP 代理兼容，修复云端签到开启失败与授权状态处理，补全登录及启动异常诊断记录。",
+  "url": "https://xingyu-chat-ccjk45415.pages.dev/releases/Xingyu-Windows-0.7.1-x64.zip",
+  "size": 39333216,
+  "sha256": "913c560447a97eb6f33fafdf4218c4abe0216bca25a3e5c234e935cec42a0b7f",
   "platform": "windows-x64",
   "product": "moe.cangku.xingyu.desktop"
 }

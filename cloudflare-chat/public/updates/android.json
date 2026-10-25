@@ -1,11 +1,11 @@
 {
   "available": true,
-  "versionName": "0.13.0",
-  "versionCode": 36,
-  "notes": "新增应用外通知与通知设置，新增启动更新提醒，修复 Windows 热更新与动态排序等问题。",
-  "url": "https://xingyu-chat-ccjk45415.pages.dev/releases/Cangku-Xingyu-0.13.0-arm64.apk",
-  "size": 19953191,
-  "sha256": "26a73705040ebcbe051c4dd9dc10a227ded6851285e08140ee236a8ced9aae71",
+  "versionName": "0.13.1",
+  "versionCode": 37,
+  "notes": "修复 Windows 下载更新后未完成安装与重启的问题，改善 Windows 系统 HTTP 代理兼容，修复云端签到开启失败与授权状态处理，补全登录及启动异常诊断记录。",
+  "url": "https://xingyu-chat-ccjk45415.pages.dev/releases/Cangku-Xingyu-0.13.1-arm64.apk",
+  "size": 19954939,
+  "sha256": "640523253c374df092383ee2ae42bd5f43426eee8f026fd69625d09bca22705e",
   "package": "moe.cangku.reader",
   "minSdk": 26
 }

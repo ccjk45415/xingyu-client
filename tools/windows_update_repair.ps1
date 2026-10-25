@@ -1,15 +1,15 @@
-param([string]$InstallPath, [string]$Package, [switch]$NoRestart)
+﻿param([string]$InstallPath, [string]$Package, [switch]$NoRestart)
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Windows.Forms
 try {
-    if (-not $Package) { $Package = Join-Path $PSScriptRoot 'Xingyu-Windows-0.7.0-x64.zip' }
+    if (-not $Package) { $Package = Join-Path $PSScriptRoot 'Xingyu-Windows-0.7.1-x64.zip' }
     $Package = [IO.Path]::GetFullPath($Package)
-    $expected = '819e915410b270d51a5ea6cebc7aa94d17bb15388b1ebb802598fa9b45de7413'
+    $expected = '913c560447a97eb6f33fafdf4218c4abe0216bca25a3e5c234e935cec42a0b7f'
     $stream = [IO.File]::OpenRead($Package)
     $algorithm = [Security.Cryptography.SHA256]::Create()
     try { $actual = [BitConverter]::ToString($algorithm.ComputeHash($stream)).Replace('-', '').ToLowerInvariant() }
     finally { $stream.Dispose(); $algorithm.Dispose() }
-    if ($actual -ne $expected) { throw '安装包校验失败，请使用原始的 0.7.0 安装包。' }
+    if ($actual -ne $expected) { throw '安装包校验失败，请使用原始的 0.7.1 安装包。' }
     if (-not $InstallPath) {
         $picker = New-Object Windows.Forms.OpenFileDialog
         $picker.Title = '选择原来启动星屿的 Xingyu.exe（请先保存内容并退出客户端）'
@@ -29,12 +29,12 @@ try {
     $versionFile = Join-Path $InstallPath 'VERSION.json'
     if (Test-Path -LiteralPath $versionFile) {
         $version = Get-Content -LiteralPath $versionFile -Raw -Encoding UTF8 | ConvertFrom-Json
-        if ([int]$version.versionCode -gt 27) { throw '当前版本高于 0.7.0，此工具不会降级客户端。' }
+        if ([int]$version.versionCode -gt 28) { throw '当前版本高于 0.7.1，此工具不会降级客户端。' }
     }
     $work = Join-Path ([IO.Path]::GetTempPath()) ('xingyu-update-repair-' + [Guid]::NewGuid().ToString('N'))
     [IO.Directory]::CreateDirectory($work) | Out-Null
     $job = Join-Path $work 'job.json'
-    @{archive=$Package;install=$InstallPath;parentPid=0;versionName='0.7.0';versionCode=27;sha256=$expected} |
+    @{archive=$Package;install=$InstallPath;parentPid=0;versionName='0.7.1';versionCode=28;sha256=$expected} |
         ConvertTo-Json | Set-Content -LiteralPath $job -Encoding UTF8
     $engine = Join-Path $PSScriptRoot 'windows-update-repair-engine.ps1'
     & $engine -Mode Prepare -Job $job -NoRestart
@@ -48,7 +48,7 @@ try {
         $start.UseShellExecute = $true
         [Diagnostics.Process]::Start($start) | Out-Null
     }
-    Write-Output 'Installed official Windows 0.7.0 (27).'
+    Write-Output 'Installed official Windows 0.7.1 (28).'
     exit 0
 } catch {
     if ($NoRestart) { Write-Error $_ -ErrorAction Continue }
