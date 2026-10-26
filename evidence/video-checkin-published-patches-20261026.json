@@ -1,0 +1,32 @@
+[
+  {
+    "platform": "android",
+    "release": "0.13.1+37",
+    "patch": {
+      "id": 750506,
+      "number": 4,
+      "channel": "staging",
+      "is_rolled_back": false
+    }
+  },
+  {
+    "platform": "windows",
+    "release": "0.7.1+28",
+    "patch": {
+      "id": 750536,
+      "number": 4,
+      "channel": "staging",
+      "is_rolled_back": false
+    }
+  },
+  {
+    "platform": "macos",
+    "release": "0.3.1+6",
+    "patch": {
+      "id": 750547,
+      "number": 4,
+      "channel": "staging",
+      "is_rolled_back": false
+    }
+  }
+]

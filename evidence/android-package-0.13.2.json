@@ -1,0 +1,28 @@
+{
+  "artifact": "Cangku-Xingyu-0.13.2-arm64.apk",
+  "size": 20004807,
+  "sha256": "157ed51cfff6882a37a67d180e2518b4937d8e3a49bc723ef16c9f399b9a5bbb",
+  "engine": "Flutter Android / Dart AOT",
+  "min_sdk": 26,
+  "target_sdk": 36,
+  "package": "moe.cangku.reader",
+  "version_name": "0.13.2",
+  "version_code": 38,
+  "abi": "arm64-v8a",
+  "signature_verified": true,
+  "original_test_signer_preserved": true,
+  "alignment_16kb_verified": true,
+  "all_elf_load_segments_16kb_verified": true,
+  "native_libraries": [
+    "lib/arm64-v8a/libapp.so",
+    "lib/arm64-v8a/libdartjni.so",
+    "lib/arm64-v8a/libflutter.so",
+    "lib/arm64-v8a/libflutter_avif.so",
+    "lib/arm64-v8a/libmediakitandroidhelper.so",
+    "lib/arm64-v8a/libmpv.so"
+  ],
+  "debuggable": false,
+  "real_device_test": "not_run_for_this_build",
+  "android_16_samsung_test": "pending_user",
+  "uploaded": false
+}

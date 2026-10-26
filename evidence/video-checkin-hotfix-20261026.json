@@ -1,0 +1,64 @@
+{
+  "status": "published",
+  "date_utc": "2026-10-26T10:20:26.756467+00:00",
+  "source_commit": "10511cabefe3c054c87f289fe0fa1d77d5e79702",
+  "article": 229761,
+  "provider": "Bilibili",
+  "video_id": "BV1YQp16yE2M",
+  "playback": "inline, muted by default",
+  "flutter_tests": {
+    "passed": 245,
+    "conditional_skips": 3
+  },
+  "flutter_analyze": "pass",
+  "native_windows_public_bilibili_playback": "pass",
+  "android_native_service_isolated_cases": 8,
+  "android_api_36_compile": "pass",
+  "android_real_device_test": "not_run_for_this_build",
+  "cloud_checkin_live_tests": 0,
+  "android_installer": {
+    "version": "0.13.2",
+    "build": 38,
+    "url": "https://xingyu-chat-ccjk45415.pages.dev/releases/Cangku-Xingyu-0.13.2-arm64.apk",
+    "sha256": "157ed51cfff6882a37a67d180e2518b4937d8e3a49bc723ef16c9f399b9a5bbb",
+    "original_signature_preserved": true,
+    "local_copy": "output/2026年10月24日/Cangku-Xingyu-0.13.2-arm64.apk"
+  },
+  "hotpatches": [
+    {
+      "platform": "android",
+      "release": "0.13.1+37",
+      "patch": {
+        "id": 750506,
+        "number": 4,
+        "channel": "staging",
+        "is_rolled_back": false
+      }
+    },
+    {
+      "platform": "windows",
+      "release": "0.7.1+28",
+      "patch": {
+        "id": 750536,
+        "number": 4,
+        "channel": "staging",
+        "is_rolled_back": false
+      }
+    },
+    {
+      "platform": "macos",
+      "release": "0.3.1+6",
+      "patch": {
+        "id": 750547,
+        "number": 4,
+        "channel": "staging",
+        "is_rolled_back": false
+      }
+    }
+  ],
+  "temporary_ci_secret_removed": true,
+  "first_party_download_verified": true,
+  "github_release": "https://github.com/ccjk45415/xingyu-client/releases/tag/v0.13.2",
+  "pages_deployment": "https://eff0c158.xingyu-chat-ccjk45415.pages.dev",
+  "windows_macos_native_update_feeds_unchanged": true
+}

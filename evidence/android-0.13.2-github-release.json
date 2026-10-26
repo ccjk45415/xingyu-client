@@ -1,0 +1,51 @@
+{
+  "assets": [
+    {
+      "apiUrl": "https://api.github.com/repos/ccjk45415/xingyu-client/releases/assets/677746984",
+      "contentType": "application/vnd.android.package-archive",
+      "createdAt": "2026-10-26T10:03:14Z",
+      "digest": "sha256:157ed51cfff6882a37a67d180e2518b4937d8e3a49bc723ef16c9f399b9a5bbb",
+      "downloadCount": 0,
+      "id": "RA_kwDOVR02EM4oZZko",
+      "label": "",
+      "name": "Cangku-Xingyu-0.13.2-arm64.apk",
+      "size": 20004807,
+      "state": "uploaded",
+      "updatedAt": "2026-10-26T10:03:16Z",
+      "url": "https://github.com/ccjk45415/xingyu-client/releases/download/v0.13.2/Cangku-Xingyu-0.13.2-arm64.apk"
+    },
+    {
+      "apiUrl": "https://api.github.com/repos/ccjk45415/xingyu-client/releases/assets/677775605",
+      "contentType": "application/zip",
+      "createdAt": "2026-10-26T10:15:17Z",
+      "digest": "sha256:183ca9c81cf3c7c46e69dbe9ba4cf62a1ba27e8792ccd53a466851ad118a62c5",
+      "downloadCount": 0,
+      "id": "RA_kwDOVR02EM4oZgj1",
+      "label": "",
+      "name": "Cangku-Xingyu-0.13.2-source.zip",
+      "size": 4614546,
+      "state": "uploaded",
+      "updatedAt": "2026-10-26T10:15:18Z",
+      "url": "https://github.com/ccjk45415/xingyu-client/releases/download/v0.13.2/Cangku-Xingyu-0.13.2-source.zip"
+    },
+    {
+      "apiUrl": "https://api.github.com/repos/ccjk45415/xingyu-client/releases/assets/677775606",
+      "contentType": "text/plain; charset=utf-8",
+      "createdAt": "2026-10-26T10:15:17Z",
+      "digest": "sha256:8f3b3a1f474a01793b996b0bacc3206b10dc4f11d8ed54693b3aaaa2d0291036",
+      "downloadCount": 0,
+      "id": "RA_kwDOVR02EM4oZgj2",
+      "label": "",
+      "name": "Release-0.13.2-SHA256SUMS.txt",
+      "size": 197,
+      "state": "uploaded",
+      "updatedAt": "2026-10-26T10:15:17Z",
+      "url": "https://github.com/ccjk45415/xingyu-client/releases/download/v0.13.2/Release-0.13.2-SHA256SUMS.txt"
+    }
+  ],
+  "isDraft": false,
+  "isPrerelease": false,
+  "tagName": "v0.13.2",
+  "targetCommitish": "10511cabefe3c054c87f289fe0fa1d77d5e79702",
+  "url": "https://github.com/ccjk45415/xingyu-client/releases/tag/v0.13.2"
+}

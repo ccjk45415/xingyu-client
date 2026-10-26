@@ -1,0 +1,221 @@
+{
+  "conclusion": "success",
+  "headSha": "10511cabefe3c054c87f289fe0fa1d77d5e79702",
+  "jobs": [
+    {
+      "completedAt": "2026-10-26T10:04:00Z",
+      "conclusion": "success",
+      "databaseId": 121505987443,
+      "name": "desktop-patch (windows-latest, windows, 0.7.1+28, 0.7.1, 28)",
+      "startedAt": "2026-10-26T09:54:51Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-10-26T09:54:53Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-10-26T09:54:52Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-26T09:55:00Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+          "number": 2,
+          "startedAt": "2026-10-26T09:54:53Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-26T09:56:33Z",
+          "conclusion": "success",
+          "name": "Run subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2",
+          "number": 3,
+          "startedAt": "2026-10-26T09:55:00Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-26T09:56:36Z",
+          "conclusion": "success",
+          "name": "Install pinned official Shorebird CLI",
+          "number": 4,
+          "startedAt": "2026-10-26T09:56:33Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-26T09:56:40Z",
+          "conclusion": "success",
+          "name": "Restore short-lived official authorization",
+          "number": 5,
+          "startedAt": "2026-10-26T09:56:36Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-26T09:58:27Z",
+          "conclusion": "success",
+          "name": "Validate Dart changes",
+          "number": 6,
+          "startedAt": "2026-10-26T09:56:40Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-26T10:03:54Z",
+          "conclusion": "success",
+          "name": "Validate patch against the installed base",
+          "number": 7,
+          "startedAt": "2026-10-26T09:58:27Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-26T10:03:54Z",
+          "conclusion": "skipped",
+          "name": "Publish authorized patch",
+          "number": 8,
+          "startedAt": "2026-10-26T10:03:54Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-26T10:03:54Z",
+          "conclusion": "success",
+          "name": "Remove temporary authorization",
+          "number": 9,
+          "startedAt": "2026-10-26T10:03:54Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-26T10:03:54Z",
+          "conclusion": "success",
+          "name": "Post Run subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2",
+          "number": 17,
+          "startedAt": "2026-10-26T10:03:54Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-26T10:03:57Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+          "number": 18,
+          "startedAt": "2026-10-26T10:03:54Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-26T10:03:57Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 19,
+          "startedAt": "2026-10-26T10:03:57Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/ccjk45415/xingyu-client/actions/runs/40303243917/job/121505987443"
+    },
+    {
+      "completedAt": "2026-10-26T10:04:41Z",
+      "conclusion": "success",
+      "databaseId": 121505987728,
+      "name": "desktop-patch (macos-15, macos, 0.3.1+6, 0.3.1, 6)",
+      "startedAt": "2026-10-26T09:54:52Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-10-26T09:54:54Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-10-26T09:54:53Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-26T09:54:56Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+          "number": 2,
+          "startedAt": "2026-10-26T09:54:54Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-26T09:56:10Z",
+          "conclusion": "success",
+          "name": "Run subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2",
+          "number": 3,
+          "startedAt": "2026-10-26T09:54:56Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-26T09:56:13Z",
+          "conclusion": "success",
+          "name": "Install pinned official Shorebird CLI",
+          "number": 4,
+          "startedAt": "2026-10-26T09:56:10Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-26T09:56:14Z",
+          "conclusion": "success",
+          "name": "Restore short-lived official authorization",
+          "number": 5,
+          "startedAt": "2026-10-26T09:56:13Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-26T09:57:24Z",
+          "conclusion": "success",
+          "name": "Validate Dart changes",
+          "number": 6,
+          "startedAt": "2026-10-26T09:56:14Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-26T10:04:35Z",
+          "conclusion": "success",
+          "name": "Validate patch against the installed base",
+          "number": 7,
+          "startedAt": "2026-10-26T09:57:24Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-26T10:04:35Z",
+          "conclusion": "skipped",
+          "name": "Publish authorized patch",
+          "number": 8,
+          "startedAt": "2026-10-26T10:04:35Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-26T10:04:35Z",
+          "conclusion": "success",
+          "name": "Remove temporary authorization",
+          "number": 9,
+          "startedAt": "2026-10-26T10:04:35Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-26T10:04:35Z",
+          "conclusion": "success",
+          "name": "Post Run subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2",
+          "number": 17,
+          "startedAt": "2026-10-26T10:04:35Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-26T10:04:36Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+          "number": 18,
+          "startedAt": "2026-10-26T10:04:35Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-26T10:04:38Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 19,
+          "startedAt": "2026-10-26T10:04:36Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/ccjk45415/xingyu-client/actions/runs/40303243917/job/121505987728"
+    }
+  ],
+  "status": "completed"
+}

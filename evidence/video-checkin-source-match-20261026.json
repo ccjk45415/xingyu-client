@@ -1,0 +1,16 @@
+{
+  "source": "10511cabefe3c054c87f289fe0fa1d77d5e79702",
+  "local_published_source_matches": true,
+  "files": {
+    "desktop/lib/core/video_source.dart": "37ae2a11f9c68e976120f7a8ffe9b2ce6a613507d81ddc84a132c3aa31dd16bf",
+    "desktop/lib/core/ai.dart": "948ece49833364afde04a0e927a161404b4392872560376ed342c5dd3d5c4a31",
+    "desktop/lib/ui/inline_video.dart": "a0890b4837cb20ccb28305581ffd854e84af9883ef25b830a4588d46a090661e",
+    "desktop/lib/core/platform.dart": "bac032a58545b1c784b7b73bf7b40b252f70ef32b2e20a9fa0f5d14a111f31b7",
+    "desktop/lib/core/video_diagnostics.dart": "741574eed28a6784a17e1837df98136cdb72498067f7ab922ff468385ddc3f96",
+    "desktop/lib/core/checkin.dart": "0db231af780c9d7b3240a87ce8e463158dc760beb82d3f4eb4df56b5a6c10576",
+    "desktop/lib/pages/checkin.dart": "16297a2a560e78da96d594b010781828819423393f132659e778651a94aa3f44",
+    "desktop/android/app/src/main/java/moe/cangku/xingyu_desktop/CheckinPolicy.java": "38e15686da8595853a747efff0d1b67e39673b57520ed89caf07933a6ca4c22b",
+    "desktop/android/app/src/main/java/moe/cangku/xingyu_desktop/CheckinJobService.java": "afd95d7f64f421b7386147be0058bcfa544ebbce4327338e77b963fdd83b9d86"
+  },
+  "normalization": "LF for cross-platform checkout"
+}

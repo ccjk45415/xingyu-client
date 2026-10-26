@@ -1,0 +1,20 @@
+{
+  "status": "pass",
+  "packages": [
+    {
+      "file": "Cangku-Xingyu-0.13.2-arm64.apk",
+      "bytes": 20004807,
+      "sha256": "157ed51cfff6882a37a67d180e2518b4937d8e3a49bc723ef16c9f399b9a5bbb"
+    },
+    {
+      "file": "Cangku-Xingyu-0.13.2-source.zip",
+      "bytes": 4614546,
+      "sha256": "183ca9c81cf3c7c46e69dbe9ba4cf62a1ba27e8792ccd53a466851ad118a62c5"
+    }
+  ],
+  "credential_scan": "pass",
+  "other_platform_feeds_unchanged": true,
+  "package_identity": "moe.cangku.reader",
+  "version": "0.13.2",
+  "build": 38
+}

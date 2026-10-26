@@ -1,11 +1,11 @@
 {
   "available": true,
-  "versionName": "0.13.1",
-  "versionCode": 37,
-  "notes": "修复 Windows 下载更新后未完成安装与重启的问题，改善 Windows 系统 HTTP 代理兼容，修复云端签到开启失败与授权状态处理，补全登录及启动异常诊断记录。",
-  "url": "https://xingyu-chat-ccjk45415.pages.dev/releases/Cangku-Xingyu-0.13.1-arm64.apk",
-  "size": 19954939,
-  "sha256": "640523253c374df092383ee2ae42bd5f43426eee8f026fd69625d09bca22705e",
+  "versionName": "0.13.2",
+  "versionCode": 38,
+  "notes": "修复文章内哔哩哔哩视频无法播放的问题，保持正文内播放与默认静音。优化安卓后台自动签到的任务调度、网络失败重试及状态显示。",
+  "url": "https://xingyu-chat-ccjk45415.pages.dev/releases/Cangku-Xingyu-0.13.2-arm64.apk",
+  "size": 20004807,
+  "sha256": "157ed51cfff6882a37a67d180e2518b4937d8e3a49bc723ef16c9f399b9a5bbb",
   "package": "moe.cangku.reader",
   "minSdk": 26
 }

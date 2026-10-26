@@ -1,0 +1,12 @@
+{
+  "origin": "https://xingyu-chat-ccjk45415.pages.dev",
+  "status": "pass",
+  "version": "0.13.2",
+  "build": 38,
+  "bytes": 20004807,
+  "sha256": "157ed51cfff6882a37a67d180e2518b4937d8e3a49bc723ef16c9f399b9a5bbb",
+  "anonymous_download": true,
+  "redirects_followed": false,
+  "all_three_feeds_match_local": true,
+  "legacy_android_endpoint": "pass"
+}
