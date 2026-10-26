@@ -9,14 +9,28 @@ import 'platform.dart';
 import 'state.dart';
 import 'error_diagnostics.dart';
 
+Future<void> _refreshCheckinProxy() async {
+  // The application installs this transport before loading account state.
+  // Clients using a different transport (such as isolated fixtures) own it themselves.
+  if (HttpOverrides.current is AndroidProxyOverrides) {
+    await refreshSystemProxy();
+  }
+}
+
 /// Only a fresh account response can establish whether today's check-in exists.
 class CheckinController extends ChangeNotifier {
   final AppState app;
   final bool windows;
   final DateTime Function() now;
-  CheckinController(this.app, {bool? windows, DateTime Function()? now})
-    : windows = windows ?? Platform.isWindows,
-      now = now ?? DateTime.now;
+  final Future<void> Function() refreshProxy;
+  CheckinController(
+    this.app, {
+    bool? windows,
+    DateTime Function()? now,
+    Future<void> Function()? refreshProxy,
+  }) : windows = windows ?? Platform.isWindows,
+       now = now ?? DateTime.now,
+       refreshProxy = refreshProxy ?? _refreshCheckinProxy;
   bool busy = false, _disposed = false;
   String message = '';
   DateTime _automaticCheck = DateTime(2000);
@@ -61,6 +75,20 @@ class CheckinController extends ChangeNotifier {
       app.user?['is_signed'] == true || app.user?['is_signed'] == 1;
   bool get openEnabled => preferences['on_open'] == true;
   bool get backgroundEnabled => preferences['background'] == true;
+  String get backgroundStatus {
+    final status = text(background['status'], '等待系统调度');
+    if (!['今日已签到', 'signed'].contains(status)) return status;
+    final time = DateTime.tryParse(text(background['time']));
+    if (time == null) return '后台成功记录时间未知，今日待确认';
+    final recorded = time.toUtc().add(const Duration(hours: 8));
+    final today = now().toUtc().add(const Duration(hours: 8));
+    return recorded.year == today.year &&
+            recorded.month == today.month &&
+            recorded.day == today.day
+        ? '今日已签到'
+        : '上次后台签到成功，今日待确认';
+  }
+
   void changed() {
     if (!_disposed) notifyListeners();
   }
@@ -138,6 +166,20 @@ class CheckinController extends ChangeNotifier {
     if ((windows ? _monitorEnabled : openEnabled) &&
         app.clientConfig.enabled('checkin')) {
       try {
+        if (windows) {
+          // A proxy may be enabled or moved to a new port while the window is in the tray.
+          try {
+            await refreshProxy();
+          } catch (_) {
+            /* Keep the last known proxy and retry the request. */
+          }
+          if (_disposed ||
+              _stopping ||
+              owner != '${app.uid}:${app.generation}' ||
+              !_monitorEnabled) {
+            return;
+          }
+        }
         await run(
           source: windows && !_windowVisible ? 'background' : 'open',
           freshUser: freshUser,
@@ -146,10 +188,13 @@ class CheckinController extends ChangeNotifier {
       } catch (error, stack) {
         if (owner == '${app.uid}:${app.generation}') {
           _failures++;
-          if (error is ApiFailure &&
-              [301, 302, 303, 307, 308, 401, 403, 419].contains(error.status)) {
+          // Only an unauthorized session/identity response establishes login loss.
+          // Access blocks, redirects and CSRF expiry can recover without logging in.
+          if (error is ApiFailure && error.status == 401) {
             _loginRequiredFor = owner;
             message = '登录已失效，重新登录后继续自动签到';
+          } else {
+            message = windows ? '暂时无法访问网站，将自动重试签到' : '暂时无法访问网站，回到应用时将再次尝试';
           }
           if (_failures == 1) {
             unawaited(appDiagnostics.record(error, stack, 'automatic-checkin'));
@@ -213,6 +258,9 @@ class CheckinController extends ChangeNotifier {
         await app.persist();
       }
       message = '今日已签到';
+      _loginRequiredFor = '';
+      _failures = 0;
+      _scheduleWindows();
     } catch (_) {
       if (current(uid, generation)) message = '暂时未能完成签到，请检查网络与登录状态';
       rethrow;

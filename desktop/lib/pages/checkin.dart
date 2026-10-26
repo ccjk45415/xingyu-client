@@ -165,7 +165,7 @@ class _CheckinPageState extends State<CheckinPage> {
                     ),
                     title: const Text('后台自动签到'),
                     subtitle: const Text(
-                      '从最近任务划掉后仍由系统安排尝试；需要保持登录和可用网络。强行停止、省电限制或代理断开可能延后执行。',
+                      '约每3小时由系统安排尝试，需要保持登录与代理网络可用；强行停止或省电限制会影响执行。',
                     ),
                     value: c.backgroundEnabled,
                     onChanged: (v) =>
@@ -176,7 +176,7 @@ class _CheckinPageState extends State<CheckinPage> {
                       contentPadding: EdgeInsets.zero,
                       title: const Text('最近后台任务'),
                       subtitle: Text(
-                        '${text(c.background['status'], '等待系统调度')}\n${text(c.background['time'])}',
+                        '${c.backgroundStatus}\n${text(c.background['time'])}',
                       ),
                     ),
                 ],
