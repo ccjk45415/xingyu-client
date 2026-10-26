@@ -1,0 +1,16 @@
+{
+  "real_website_requests": 0,
+  "cases": [
+    "migration_and_initial_job_no_collision",
+    "network_failure_retries_then_periodic_fallback",
+    "network_recovery_and_duplicate_prevention",
+    "lost_post_response_reconciled_without_reposting",
+    "http_403_419_retry_401_login_required",
+    "cancellation_does_not_resume_old_work_or_duplicate_post",
+    "history_status_uses_shanghai_day",
+    "disable_preserves_notification_job"
+  ],
+  "android_framework": "synthetic JobScheduler and storage, no real device",
+  "production_service_logic_executed": true,
+  "crypto_and_http": "isolated substitutes"
+}

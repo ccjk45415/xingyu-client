@@ -14,9 +14,10 @@ SDK = ROOT / '.toolchain/android-sdk/build-tools/35.0.0'
 JAVA = Path(os.environ.get('JAVA_HOME', 'C:/Program Files/Java/jdk-17')) / 'bin/java.exe'
 parser = argparse.ArgumentParser()
 parser.add_argument('--test', action='store_true')
+parser.add_argument('--version', choices=['0.13.1', '0.13.2'], default='0.13.1')
 args = parser.parse_args()
-VERSION, BUILD = ('0.13.1', 37) if args.test else ('0.11.0', 33)
-APK = ROOT / ('output/Cangku-Xingyu-0.13.1-arm64.apk' if args.test else 'output/Cangku-Xingyu-0.11.0-arm64.apk')
+VERSION, BUILD = (args.version, 38 if args.version == '0.13.2' else 37) if args.test else ('0.11.0', 33)
+APK = ROOT / f'output/Cangku-Xingyu-{VERSION}-arm64.apk'
 
 def output(command):
     return subprocess.check_output([str(v) for v in command], cwd=ROOT).decode('utf-8', errors='replace')
@@ -73,5 +74,5 @@ report = {
     'real_device_test': 'not_run_for_this_build', 'android_16_samsung_test': 'pending_user',
     'uploaded': False,
 }
-(ROOT / ('evidence/notifications-android-package.json' if args.test else 'evidence/flutter-android-package.json')).write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+(ROOT / (f'evidence/android-package-{VERSION}.json' if args.test else 'evidence/flutter-android-package.json')).write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
 print(json.dumps(report, ensure_ascii=False))

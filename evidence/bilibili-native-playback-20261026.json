@@ -1,0 +1,20 @@
+[
+  {
+    "inline_preview": "pass",
+    "paused_first_frame": true,
+    "default_volume": 0,
+    "offscreen_release_and_reload": true,
+    "browser_used": false,
+    "synthetic_only": true,
+    "public_stream": false
+  },
+  {
+    "inline_preview": "pass",
+    "paused_first_frame": true,
+    "default_volume": 0,
+    "offscreen_release_and_reload": true,
+    "browser_used": false,
+    "synthetic_only": false,
+    "public_stream": true
+  }
+]

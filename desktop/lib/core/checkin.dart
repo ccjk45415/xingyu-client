@@ -76,6 +76,9 @@ class CheckinController extends ChangeNotifier {
   bool get openEnabled => preferences['on_open'] == true;
   bool get backgroundEnabled => preferences['background'] == true;
   String get backgroundStatus {
+    if (number(background['uid']) > 0 && number(background['uid']) != app.uid) {
+      return '等待当前账号后台签到';
+    }
     final status = text(background['status'], '等待系统调度');
     if (!['今日已签到', 'signed'].contains(status)) return status;
     final time = DateTime.tryParse(text(background['time']));

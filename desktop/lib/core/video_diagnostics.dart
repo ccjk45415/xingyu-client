@@ -34,14 +34,16 @@ Future<void> runVideoPreviewCheck(
                     url: publicStream
                         ? fixture
                         : 'https://example.com/synthetic.mp4',
-                    mediaResolver: (_) async {
-                      await Future<void>.delayed(
-                        const Duration(milliseconds: 120),
-                      );
-                      return publicStream
-                          ? fixture
-                          : File(fixture).absolute.path;
-                    },
+                    mediaResolver: publicStream
+                        ? null
+                        : (_) async {
+                            await Future<void>.delayed(
+                              const Duration(milliseconds: 120),
+                            );
+                            return publicStream
+                                ? fixture
+                                : File(fixture).absolute.path;
+                          },
                     playerFactory: () => Player(
                       configuration: publicStream
                           ? articleVideoConfiguration

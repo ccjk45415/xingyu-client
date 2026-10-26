@@ -4,8 +4,14 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart' show SingleActivator;
 import 'package:flutter/foundation.dart';
 
-const androidTestVersion = '0.13.1';
-const androidTestBuild = 37;
+const androidTestVersion = String.fromEnvironment(
+  'XINGYU_ANDROID_VERSION',
+  defaultValue: '0.13.1',
+);
+const androidTestBuild = int.fromEnvironment(
+  'XINGYU_ANDROID_BUILD',
+  defaultValue: 37,
+);
 const androidTestChannel = bool.fromEnvironment(
   'XINGYU_ANDROID_TEST',
   defaultValue: false,
@@ -142,3 +148,14 @@ String windowsProxyDirective(Uri uri, String server, String bypass) {
 String get nativeMediaProxy => _proxy.proxy.startsWith('PROXY ')
     ? 'http://${_proxy.proxy.substring(6)}'
     : '';
+
+/// Respect per-host proxy bypass rules for third-party video CDNs as well.
+String nativeMediaProxyFor(String url) {
+  final uri = Uri.tryParse(url);
+  final directive = _proxy.windowsServer == null || uri == null
+      ? _proxy.proxy
+      : windowsProxyDirective(uri, _proxy.windowsServer!, _proxy.windowsBypass);
+  return directive.startsWith('PROXY ')
+      ? 'http://${directive.substring(6)}'
+      : '';
+}

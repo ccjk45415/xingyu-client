@@ -63,7 +63,10 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--device-test', help='Run isolated, synthetic integration tests on this ADB device')
     parser.add_argument('--shorebird-test', action='store_true', help='Build/register a private Shorebird test base, never publish an installer')
+    parser.add_argument('--version', choices=['0.13.1', '0.13.2'], default='0.13.2')
     args = parser.parse_args()
+    version, build = args.version, ('38' if args.version == '0.13.2' else '37')
+    version_flags = [f'--dart-define=XINGYU_ANDROID_VERSION={version}', f'--dart-define=XINGYU_ANDROID_BUILD={build}'] if build == '38' else []
     env = prepare()
     command = [str(FLUTTER / 'bin/cache/dart-sdk/bin/dart.exe'), str(FLUTTER / 'bin/cache/flutter_tools.snapshot')]
     def run(arguments):
@@ -82,13 +85,13 @@ def main():
         env.update(GIT_CONFIG_COUNT='1', GIT_CONFIG_KEY_0='core.longpaths', GIT_CONFIG_VALUE_0='true')
         subprocess.run(['powershell', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File',
             str(TOOL / 'xingyu-shorebird/bin/shorebird.ps1'), 'release', 'android', '--artifact=apk',
-            '--target-platform=android-arm64', '--flutter-version=3.47.7', '--build-name=0.13.1',
-            '--build-number=37', '--dart-define=XINGYU_ANDROID_TEST=true', '--dart-define=XINGYU_PATCH_TRACK=staging'],
+            '--target-platform=android-arm64', '--flutter-version=3.47.7', f'--build-name={version}',
+            f'--build-number={build}', '--dart-define=XINGYU_ANDROID_TEST=true', '--dart-define=XINGYU_PATCH_TRACK=staging'] + version_flags,
             cwd=STAGE, env=env, check=True)
     else:
         run(['build', 'apk', '--release', '--target-platform=android-arm64',
-             '--build-name=0.13.1', '--build-number=37', '--dart-define=XINGYU_ANDROID_TEST=true'])
-    output = ROOT / 'output/Cangku-Xingyu-0.13.1-arm64.apk'
+             f'--build-name={version}', f'--build-number={build}', '--dart-define=XINGYU_ANDROID_TEST=true'] + version_flags)
+    output = ROOT / f'output/Cangku-Xingyu-{version}-arm64.apk'
     output.parent.mkdir(exist_ok=True)
     shutil.copy2(STAGE / 'build/app/outputs/flutter-apk/app-release.apk', output)
     if output.stat().st_size > 24 * 1024 * 1024:

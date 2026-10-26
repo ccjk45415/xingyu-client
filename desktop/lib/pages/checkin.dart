@@ -164,8 +164,10 @@ class _CheckinPageState extends State<CheckinPage> {
                           : Icons.history_rounded,
                     ),
                     title: const Text('后台自动签到'),
-                    subtitle: const Text(
-                      '约每3小时由系统安排尝试，需要保持登录与代理网络可用；强行停止或省电限制会影响执行。',
+                    subtitle: Text(
+                      number(c.background['period_minutes']) == 15
+                          ? '约每15分钟由系统检查，临时失败会退避重试；需要保持登录和代理网络可用，省电限制仍可能延迟。'
+                          : '约每3小时由系统安排尝试，需要保持登录与代理网络可用；强行停止或省电限制会影响执行。',
                     ),
                     value: c.backgroundEnabled,
                     onChanged: (v) =>

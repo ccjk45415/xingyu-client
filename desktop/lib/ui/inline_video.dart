@@ -5,7 +5,8 @@ import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 
 import '../core/ai.dart';
-import '../core/api.dart' show siteOrigin;
+import '../core/api.dart' show ApiFailure;
+import '../core/video_source.dart';
 import '../core/error_diagnostics.dart';
 import '../core/platform.dart';
 import 'cached_image.dart';
@@ -170,7 +171,6 @@ class _InlineArticleVideoState extends State<InlineArticleVideo>
     }
     userRequestedPlay = play;
     previewAttempted = true;
-    var step = 'article-video-resolve';
     final job = ++revision;
     release();
     setState(() {
@@ -178,92 +178,103 @@ class _InlineArticleVideoState extends State<InlineArticleVideo>
       error = null;
       firstFrame = false;
     });
+    var step = 'article-video-resolve';
     try {
       final io = transport = AiTransport();
-      final url =
-          await (widget.mediaResolver?.call(widget.url) ??
-              io.playableVideo(widget.url));
+      final source = widget.mediaResolver == null
+          ? await io.resolveVideo(widget.url, sourceUrl: widget.sourceUrl)
+          : ArticleVideoSource([
+              await widget.mediaResolver!(widget.url),
+            ], articleVideoHeaders(widget.sourceUrl));
       if (!mounted || job != revision) return;
-      step = 'article-video-initialize';
-      MediaKit.ensureInitialized();
-      final next = player =
-          widget.playerFactory?.call() ??
-          Player(configuration: articleVideoConfiguration);
-      controller = VideoController(next);
-      // Native initialization waits for the next Flutter frame, including
-      // when an embedded player URL was resolved after the loading frame.
-      setState(() {});
-      errors = next.stream.error.listen((_) {
-        if (mounted && job == revision) {
-          unawaited(next.pause());
-          setState(() {
-            error = '视频加载失败，请检查网络后重试';
-            busy = false;
-          });
+      Object? lastFailure;
+      StackTrace? lastStack;
+      for (final url in source.urls) {
+        try {
+          step = 'article-video-first-frame';
+          await openCandidate(url, source.headers, job);
+          return;
+        } catch (failure, stack) {
+          if (!mounted || job != revision) return;
+          lastFailure = failure;
+          lastStack = stack;
+          release();
         }
-      });
-      playing = next.stream.playing.listen((value) {
-        if (value && (!busy || userRequestedPlay)) {
-          for (final other in _active.toList()) {
-            if (other != this) unawaited(other.player?.pause());
-          }
-        }
-      });
-      _active.add(this);
-      if (nativeMediaProxy.isNotEmpty && next.platform is NativePlayer) {
-        await (next.platform as NativePlayer).setProperty(
-          'http-proxy',
-          nativeMediaProxy,
-        );
       }
-      await next.setVolume(0);
-      final base = Uri.tryParse(widget.sourceUrl)?.scheme == 'https'
-          ? Uri.parse(widget.sourceUrl)
-          : Uri.parse(siteOrigin);
-      step = 'article-video-open';
-      await next.open(
-        Media(
-          url,
-          httpHeaders: {
-            'Referer': '${base.origin}/',
-            'User-Agent': 'Mozilla/5.0 Xingyu-Article-Video/1',
-          },
-        ),
-        // Some demuxers do not deliver a texture while opened paused. Decode
-        // the first frame silently, then pause immediately for the preview.
-        play: true,
+      Error.throwWithStackTrace(
+        lastFailure ?? StateError('No video stream'),
+        lastStack ?? StackTrace.current,
       );
-      if (!mounted || job != revision) return;
-      step = 'article-video-first-frame';
-      final output = await controller!.platform.future.timeout(
-        const Duration(seconds: 25),
-      );
-      await output.waitUntilFirstFrameRendered.timeout(
-        const Duration(seconds: 25),
-      );
-      if (!mounted || job != revision) return;
-      if (!userRequestedPlay ||
-          !visible ||
-          WidgetsBinding.instance.lifecycleState == AppLifecycleState.paused) {
-        await next.pause();
-        // Keep the preview at the beginning, without consuming the clip.
-        if (!userRequestedPlay) await next.seek(Duration.zero);
-      }
-      if (!mounted || job != revision) return;
-      setState(() {
-        busy = false;
-        firstFrame = true;
-      });
     } catch (failure, stack) {
       if (mounted && job == revision) {
         unawaited(appDiagnostics.record(failure, stack, step));
         release();
         setState(() {
           busy = false;
-          error = '暂时无法播放此视频，请检查网络后重试';
+          error = failure is ApiFailure
+              ? failure.message
+              : '暂时无法播放此视频，请检查网络后重试';
         });
       }
     }
+  }
+
+  Future<void> openCandidate(
+    String url,
+    Map<String, String> headers,
+    int job,
+  ) async {
+    MediaKit.ensureInitialized();
+    final next = player =
+        widget.playerFactory?.call() ??
+        Player(configuration: articleVideoConfiguration);
+    final outputController = controller = VideoController(next);
+    final failed = Completer<void>();
+    setState(() {});
+    errors = next.stream.error.listen((_) {
+      if (!mounted || job != revision || player != next) return;
+      if (busy) {
+        if (!failed.isCompleted) failed.complete();
+      } else {
+        unawaited(next.pause());
+        setState(() => error = '视频加载失败，请检查网络后重试');
+      }
+    });
+    playing = next.stream.playing.listen((value) {
+      if (value && (!busy || userRequestedPlay)) {
+        for (final other in _active.toList()) {
+          if (other != this) unawaited(other.player?.pause());
+        }
+      }
+    });
+    _active.add(this);
+    final proxy = nativeMediaProxyFor(url);
+    if (proxy.isNotEmpty && next.platform is NativePlayer) {
+      await (next.platform as NativePlayer).setProperty('http-proxy', proxy);
+    }
+    await next.setVolume(0);
+    await Future.any<void>([
+      () async {
+        await next.open(Media(url, httpHeaders: headers), play: true);
+        final output = await outputController.platform.future;
+        await output.waitUntilFirstFrameRendered;
+      }(),
+      failed.future.then(
+        (_) => throw StateError('Video stream could not open'),
+      ),
+    ]).timeout(const Duration(seconds: 35));
+    if (!mounted || job != revision || player != next) return;
+    if (!userRequestedPlay ||
+        !visible ||
+        WidgetsBinding.instance.lifecycleState == AppLifecycleState.paused) {
+      await next.pause();
+      if (!userRequestedPlay) await next.seek(Duration.zero);
+    }
+    if (!mounted || job != revision || player != next) return;
+    setState(() {
+      busy = false;
+      firstFrame = true;
+    });
   }
 
   @override

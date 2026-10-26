@@ -9,6 +9,9 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.net.ConnectivityManager;
 import android.net.ProxyInfo;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import android.util.Base64;
 import java.net.*;
 import java.io.*;
@@ -23,39 +26,70 @@ import org.json.*;
 /** System-scheduled work, independent from the Activity and Flutter engine. */
 public final class CheckinJobService extends JobService {
     static final Object LOCK = new Object();
-    private static final int JOB = 73104;
     private static final String PREFS = "xingyu.checkin", COOKIE_KEY = "website.cookies";
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
-    private volatile boolean stopped;
-    private Future<?> task;
+    private final ConcurrentHashMap<Integer, Work> running = new ConcurrentHashMap<>();
+    private static final class Work {
+        final int uid, jobId; final long epoch; final JobParameters parameters;
+        volatile boolean stopped; volatile HttpURLConnection connection; volatile Future<?> future;
+        String phase = "session"; int httpStatus;
+        Work(int uid, long epoch, JobParameters parameters) {
+            this.uid=uid; this.epoch=epoch; this.parameters=parameters; this.jobId=parameters.getJobId();
+        }
+        void stop() { stopped=true; if(connection!=null)connection.disconnect(); if(future!=null)future.cancel(true); }
+    }
     static SharedPreferences prefs(Context c) { return c.getSharedPreferences(PREFS, Context.MODE_PRIVATE); }
     static void configure(Context c, boolean enabled, int uid) {
         synchronized (LOCK) {
-            SharedPreferences p = prefs(c);
-            boolean same = p.getBoolean("enabled", false) == enabled && p.getInt("uid", 0) == uid;
-            if (!same) p.edit().putBoolean("enabled", enabled).putInt("uid", uid).putLong("epoch", p.getLong("epoch", 0)+1).remove("status").remove("time").apply();
-            JobScheduler scheduler = (JobScheduler)c.getSystemService(Context.JOB_SCHEDULER_SERVICE);
-            if (!enabled || uid <= 0) { scheduler.cancel(JOB); return; }
-            if (same && scheduler.getPendingJob(JOB) != null) return;
-            JobInfo job = new JobInfo.Builder(JOB, new ComponentName(c, CheckinJobService.class))
+            SharedPreferences p=prefs(c);
+            JobScheduler scheduler=c.getSystemService(JobScheduler.class);
+            boolean same=p.getBoolean("enabled",false)==enabled && p.getInt("uid",0)==uid;
+            if(!same) p.edit().putBoolean("enabled",enabled).putInt("uid",uid)
+                .putLong("epoch",p.getLong("epoch",0)+1).remove("status").remove("time")
+                .remove("retry."+CheckinPolicy.PERIODIC_JOB).remove("retry."+CheckinPolicy.INITIAL_JOB).apply();
+            if(!enabled || uid<=0) {
+                scheduler.cancel(CheckinPolicy.PERIODIC_JOB);scheduler.cancel(CheckinPolicy.INITIAL_JOB);return;
+            }
+            JobInfo existing=scheduler.getPendingJob(CheckinPolicy.PERIODIC_JOB);
+            boolean migrate=p.getInt("schedule_version",0)!=CheckinPolicy.VERSION || existing==null || existing.getIntervalMillis()!=CheckinPolicy.PERIOD;
+            if(same && !migrate) return;
+            JobInfo periodic=new JobInfo.Builder(CheckinPolicy.PERIODIC_JOB,new ComponentName(c,CheckinJobService.class))
                 .setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY).setPersisted(true)
-                .setPeriodic(3*60*60*1000L, 30*60*1000L)
-                .setBackoffCriteria(30*60*1000L, JobInfo.BACKOFF_POLICY_EXPONENTIAL).build();
-            if (scheduler.schedule(job) != JobScheduler.RESULT_SUCCESS) {
-                p.edit().putBoolean("enabled", false).apply();
+                .setPeriodic(CheckinPolicy.PERIOD,CheckinPolicy.FLEX)
+                .setBackoffCriteria(CheckinPolicy.BACKOFF,JobInfo.BACKOFF_POLICY_LINEAR).build();
+            if(scheduler.schedule(periodic)!=JobScheduler.RESULT_SUCCESS) {
+                p.edit().putBoolean("enabled",false).putString("status","schedule_failed").apply();
                 throw new IllegalStateException("schedule");
             }
+            p.edit().putInt("schedule_version",CheckinPolicy.VERSION).apply();
+            // One initial attempt; normal application resumes do not recreate it.
+            JobInfo initial=new JobInfo.Builder(CheckinPolicy.INITIAL_JOB,new ComponentName(c,CheckinJobService.class))
+                .setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY).setPersisted(true).setMinimumLatency(0)
+                .setBackoffCriteria(CheckinPolicy.BACKOFF,JobInfo.BACKOFF_POLICY_LINEAR).build();
+            if(scheduler.schedule(initial)!=JobScheduler.RESULT_SUCCESS) p.edit().putString("status","waiting").apply();
         }
     }
     static Map<String,Object> status(Context c) {
-        SharedPreferences p = prefs(c); Map<String,Object> out = new HashMap<>();
-        String raw = p.getString("status", "waiting");
-        String label = "signed".equals(raw) ? "今日已签到" : "login_required".equals(raw) ? "需要重新登录" : "network".equals(raw) ? "网络暂不可用，等待下次尝试" : "等待系统调度";
-        out.put("status", label); out.put("time", p.getString("time", "")); return out;
+        SharedPreferences p=prefs(c); Map<String,Object> out=new HashMap<>();
+        String raw=p.getString("status","waiting"), time=p.getString("time","");
+        String label="signed".equals(raw) ? (CheckinPolicy.today(time,Instant.now()) ? "今日已签到" : "上次后台签到成功，今日待确认")
+            : "login_required".equals(raw) ? "需要重新登录"
+            : "network".equals(raw) ? "网络暂不可用，等待系统重试"
+            : "storage".equals(raw) ? "本机登录资料无法读取，请重新登录"
+            : "schedule_failed".equals(raw) ? "系统暂时无法安排后台签到" : "等待系统调度";
+        JobScheduler scheduler=c.getSystemService(JobScheduler.class);
+        out.put("status",label);out.put("code",raw);out.put("time",time);out.put("uid",p.getInt("uid",0));
+        out.put("period_minutes",CheckinPolicy.PERIOD/60000);
+        out.put("scheduled",scheduler.getPendingJob(CheckinPolicy.PERIODIC_JOB)!=null);
+        out.put("phase",p.getString("phase",""));out.put("http_status",p.getInt("http_status",0));
+        return out;
     }
-    private boolean active(int uid, long epoch) {
-        SharedPreferences p = prefs(this);
-        return !stopped && p.getBoolean("enabled", false) && p.getInt("uid", 0)==uid && p.getLong("epoch", 0)==epoch;
+    private boolean enabledFor(Work work) {
+        SharedPreferences p=prefs(this);
+        return p.getBoolean("enabled",false) && p.getInt("uid",0)==work.uid && p.getLong("epoch",0)==work.epoch;
+    }
+    private boolean active(Work work) {
+        return !work.stopped && !Thread.currentThread().isInterrupted() && enabledFor(work);
     }
     private String decrypt(String encoded) throws Exception {
         String[] parts = encoded.split(":", -1); if(parts.length!=2) throw new IOException();
@@ -72,12 +106,15 @@ public final class CheckinJobService extends JobService {
         cipher.updateAAD(COOKIE_KEY.getBytes(StandardCharsets.UTF_8));
         return Base64.encodeToString(cipher.getIV(), Base64.NO_WRAP)+":"+Base64.encodeToString(cipher.doFinal(raw.getBytes(StandardCharsets.UTF_8)), Base64.NO_WRAP);
     }
-    private JSONObject request(String path, boolean post, Map<String,HttpCookie> cookies) throws Exception {
+    private JSONObject request(Work work, String path, boolean post, Map<String,HttpCookie> cookies) throws Exception {
+        if (!active(work)) throw new InterruptedIOException();
         URL url = new URL("https://cangku.moe/api/v1/"+path);
         ConnectivityManager cm = (ConnectivityManager)getSystemService(CONNECTIVITY_SERVICE);
         ProxyInfo info = cm == null ? null : cm.getDefaultProxy();
         Proxy proxy = info != null && info.getHost()!=null && info.getPort()>0 ? new Proxy(Proxy.Type.HTTP, new InetSocketAddress(info.getHost(),info.getPort())) : Proxy.NO_PROXY;
         HttpURLConnection connection = (HttpURLConnection)url.openConnection(proxy);
+        work.connection = connection;
+        if (!active(work)) { connection.disconnect(); throw new InterruptedIOException(); }
         connection.setConnectTimeout(15000); connection.setReadTimeout(15000); connection.setInstanceFollowRedirects(false);
         connection.setRequestMethod(post ? "POST" : "GET");
         connection.setRequestProperty("Accept", "application/json");
@@ -93,7 +130,8 @@ public final class CheckinJobService extends JobService {
         try {
             if (post) { connection.setRequestProperty("Content-Type", "application/json"); connection.setDoOutput(true); try(OutputStream out=connection.getOutputStream()){out.write("{}".getBytes(StandardCharsets.UTF_8));} }
             int code = connection.getResponseCode();
-            if (code==401 || code==419 || (code>=300 && code<400)) throw new SecurityException();
+            if(code!=200 || work.httpStatus==0) work.httpStatus = code;
+            if (code==401) throw new SecurityException();
             if (code!=200) throw new IOException();
             for (Map.Entry<String,List<String>> entry:connection.getHeaderFields().entrySet()) {
                 if (entry.getKey()!=null && entry.getKey().equalsIgnoreCase("Set-Cookie")) for(String value:entry.getValue()) for(HttpCookie cookie:HttpCookie.parse(value)) {
@@ -106,54 +144,104 @@ public final class CheckinJobService extends JobService {
             JSONObject payload = new JSONObject(bytes.toString("UTF-8"));
             if(payload.optInt("code", -1)!=0) throw new IOException();
             return payload.optJSONObject("data");
-        } finally { connection.disconnect(); }
+        } finally { work.connection = null; connection.disconnect(); }
     }
-    private JSONObject account(int uid, Map<String,HttpCookie> cookies) throws Exception {
-        JSONObject user=request("auth/me", false, cookies);
-        if(user==null || user.optInt("id",0)!=uid || user.optBoolean("is_banned") || user.optBoolean("should_verify_otp"))throw new SecurityException();
+    private JSONObject account(Work work, Map<String,HttpCookie> cookies) throws Exception {
+        JSONObject user=request(work,"auth/me",false,cookies);
+        if(user==null || user.optInt("id",0)<=0)throw new IOException();
+        if(user.optInt("id",0)!=work.uid || user.optBoolean("is_banned") || user.optBoolean("should_verify_otp")) throw new SecurityException();
         return user;
     }
-    private void runTask() {
+    private CheckinPolicy.Outcome runTask(Work work) {
         SharedPreferences p=prefs(this), vault=getSharedPreferences("flutter_secure_vault",MODE_PRIVATE);
-        final int uid=p.getInt("uid",0); final long epoch=p.getLong("epoch",0);
-        if(!active(uid,epoch))return;
+        if(!active(work))return CheckinPolicy.Outcome.STOPPED;
         final String original=vault.getString(COOKIE_KEY,null);
-        String status="network";
+        String status="network"; CheckinPolicy.Outcome outcome=CheckinPolicy.Outcome.TRANSIENT;
         try {
             if(original==null)throw new SecurityException();
             Map<String,HttpCookie> cookies=new LinkedHashMap<>();
-            JSONArray raw=new JSONArray(decrypt(original));
+            work.phase="session";
+            JSONArray raw;
+            try {raw=new JSONArray(decrypt(original));}
+            catch(Exception error){status="storage";throw new SecurityException();}
+            final Instant loaded=Instant.now();
             for(int i=0;i<raw.length();i++) for(HttpCookie cookie:HttpCookie.parse(raw.getJSONObject(i).getString("cookie"))) {
-                String domain=cookie.getDomain(); if(domain==null || domain.equals("cangku.moe") || domain.equals(".cangku.moe"))cookies.put(cookie.getName(),cookie);
+                String domain=cookie.getDomain();
+                if((domain==null || domain.equals("cangku.moe") || domain.equals(".cangku.moe")) && !cookie.hasExpired()) cookies.put(cookie.getName(),cookie);
             }
-            JSONObject user=account(uid,cookies);
-            if(!active(uid,epoch))return;
+            work.phase="account";
+            JSONObject user=account(work,cookies);
+            if(!active(work))return CheckinPolicy.Outcome.STOPPED;
             if(!user.optBoolean("is_signed") && user.optInt("is_signed",0)!=1) {
-                try { request("user/signin",true,cookies); } catch(Exception error) { /* Reconcile before retrying. */ }
-                user=account(uid,cookies);
+                synchronized(LOCK) {
+                    if(!active(work) || !original.equals(vault.getString(COOKIE_KEY,null))) return CheckinPolicy.Outcome.TRANSIENT;
+                }
+                work.phase="signin";
+                try {request(work,"user/signin",true,cookies);} catch(Exception error){ /* Read authoritative state before any retry. */ }
+                if(!active(work))return CheckinPolicy.Outcome.STOPPED;
+                work.phase="verify";user=account(work,cookies);
             }
-            if(user.optBoolean("is_signed") || user.optInt("is_signed",0)==1)status="signed";
-            // Never overwrite cookies refreshed by the foreground account.
+            if(user.optBoolean("is_signed") || user.optInt("is_signed",0)==1) {
+                status="signed";outcome=CheckinPolicy.Outcome.SIGNED;
+            }
             synchronized(LOCK) {
-                if(active(uid,epoch) && original.equals(vault.getString(COOKIE_KEY,null))) {
-                    JSONArray saved=new JSONArray();
+                if(active(work) && original.equals(vault.getString(COOKIE_KEY,null))) {
+                    work.phase="storage";JSONArray saved=new JSONArray();
                     for(HttpCookie cookie:cookies.values()) if(!cookie.hasExpired()) {
                         String value=cookie.getName()+"="+cookie.getValue()+"; Path=/; Domain=cangku.moe; Secure";
-                        if(cookie.getMaxAge()>=0) value+="; Max-Age="+cookie.getMaxAge();
+                        if(cookie.getMaxAge()>=0) {
+                            long remaining=cookie.getMaxAge()-Math.max(0,Instant.now().getEpochSecond()-loaded.getEpochSecond());
+                            if(remaining<=0)continue;
+                            value+="; Expires="+DateTimeFormatter.RFC_1123_DATE_TIME.format(Instant.now().plusSeconds(remaining).atZone(ZoneOffset.UTC));
+                        }
                         saved.put(new JSONObject().put("cookie",value));
                     }
-                    vault.edit().putString(COOKIE_KEY,encrypt(saved.toString())).commit();
+                    if(!vault.edit().putString(COOKIE_KEY,encrypt(saved.toString())).commit()) throw new IOException();
                 }
             }
-        } catch(SecurityException error) { status="login_required"; }
-        catch(Exception error) { /* Do not record cookies, upstream bodies or exception messages. */ }
-        if(active(uid,epoch)) p.edit().putString("status",status).putString("time",java.time.Instant.now().toString()).apply();
+        } catch(SecurityException error) {
+            if(!"storage".equals(status))status="login_required";outcome=CheckinPolicy.Outcome.LOGIN;
+        } catch(Exception error) { /* Never persist session values, upstream bodies or exception messages. */ }
+        synchronized(LOCK) {
+            if(!active(work))return CheckinPolicy.Outcome.STOPPED;
+            p.edit().putString("status",status).putString("time",Instant.now().toString())
+                .putString("phase",work.phase).putInt("http_status",work.httpStatus).apply();
+        }
+        return outcome;
     }
     @Override public boolean onStartJob(JobParameters parameters) {
-        stopped=false;
-        task=executor.submit(()->{ try { runTask(); } finally { if(!stopped)jobFinished(parameters,false); } });
+        final Work work;
+        synchronized(LOCK) {
+            SharedPreferences p=prefs(this);
+            if(!p.getBoolean("enabled",false) || p.getInt("uid",0)<=0)return false;
+            work=new Work(p.getInt("uid",0),p.getLong("epoch",0),parameters);
+            if(running.putIfAbsent(work.jobId,work)!=null)return true;
+        }
+        work.future=executor.submit(()->{
+            CheckinPolicy.Outcome outcome=CheckinPolicy.Outcome.TRANSIENT;
+            try { outcome=runTask(work); }
+            finally {
+                boolean retry=false;
+                synchronized(LOCK) {
+                    if(active(work)) {
+                        SharedPreferences p=prefs(this);String key="retry."+work.jobId;
+                        int failures=outcome==CheckinPolicy.Outcome.TRANSIENT?p.getInt(key,0)+1:0;
+                        retry=CheckinPolicy.retry(outcome,failures);
+                        p.edit().putInt(key,retry?failures:0).apply();
+                    }
+                }
+                running.remove(work.jobId,work);
+                if(!work.stopped)jobFinished(parameters,retry);
+            }
+        });
         return true;
     }
-    @Override public boolean onStopJob(JobParameters parameters) { stopped=true; if(task!=null)task.cancel(true); return true; }
-    @Override public void onDestroy() { stopped=true; executor.shutdownNow(); super.onDestroy(); }
+    @Override public boolean onStopJob(JobParameters parameters) {
+        Work work=running.remove(parameters.getJobId());
+        if(work==null)return false;
+        work.stop();return enabledFor(work);
+    }
+    @Override public void onDestroy() {
+        for(Work work:running.values())work.stop();running.clear();executor.shutdownNow();super.onDestroy();
+    }
 }

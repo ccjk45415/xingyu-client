@@ -363,10 +363,85 @@ class AiTransport {
     _publicDns[host] = DateTime.now().add(const Duration(minutes: 1));
   }
 
-  Future<String> playableVideo(String raw) async {
-    var uri = aiSourceUrl(raw);
-    if (directVideoUrl(uri.toString())) return uri.toString();
+  Future<String> playableVideo(String raw) async =>
+      (await resolveVideo(raw)).url;
+
+  Future<Json> _videoJson(Uri uri) async {
+    await checkSourceHost(uri.host);
+    final request = await client
+        .getUrl(uri)
+        .timeout(const Duration(seconds: 20));
+    request.followRedirects = false;
+    for (final entry in articleVideoHeaders(
+      'https://www.bilibili.com/',
+    ).entries) {
+      request.headers.set(entry.key, entry.value);
+    }
+    request.headers.set('Accept', 'application/json');
+    final response = await request.close().timeout(const Duration(seconds: 25));
+    if (response.statusCode != 200) {
+      await response.drain<void>();
+      throw ApiFailure(response.statusCode, '来源视频接口暂时不可用，请稍后重试');
+    }
+    try {
+      return object(
+        jsonDecode(utf8.decode(await bounded(response, 2 * 1024 * 1024))),
+      );
+    } on FormatException {
+      throw ApiFailure(502, '来源视频接口返回格式异常');
+    }
+  }
+
+  Future<ArticleVideoSource> _bilibiliVideo(BilibiliVideoRef reference) async {
+    final view = await _videoJson(
+      Uri.https(
+        'api.bilibili.com',
+        '/x/web-interface/view',
+        reference.identity,
+      ),
+    );
+    if (number(view['code']) != 0) throw ApiFailure(422, '来源视频不存在或暂时无法公开读取');
+    final data = object(view['data']),
+        pages = rows(object(view['data'])['pages']);
+    if (reference.page > (pages.isEmpty ? 1 : pages.length)) {
+      throw ApiFailure(422, '来源视频分集不存在');
+    }
+    final cid = number(
+      pages.isEmpty ? data['cid'] : pages[reference.page - 1]['cid'],
+    );
+    if (cid <= 0) throw ApiFailure(422, '未读取到来源视频的分集编号');
+    final result = await _videoJson(
+      Uri.https('api.bilibili.com', '/x/player/playurl', {
+        ...reference.identity,
+        'cid': '$cid',
+        'qn': '32',
+        'fnval': '0',
+        'fourk': '0',
+        'platform': 'html5',
+      }),
+    );
+    final urls = bilibiliProgressiveUrls(result)
+        .map((url) => aiSourceUrl(url).removeFragment().toString())
+        .toList();
+    return ArticleVideoSource(
+      urls,
+      articleVideoHeaders('https://www.bilibili.com/'),
+    );
+  }
+
+  Future<ArticleVideoSource> resolveVideo(
+    String raw, {
+    String sourceUrl = '',
+  }) async {
+    var uri = aiSourceUrl(raw).removeFragment();
+    if (directVideoUrl(uri.toString())) {
+      return ArticleVideoSource([
+        uri.toString(),
+      ], articleVideoHeaders(sourceUrl));
+    }
     for (var redirects = 0; redirects < 4; redirects++) {
+      final bili = BilibiliVideoRef.parse(uri);
+      if (bili != null) return _bilibiliVideo(bili);
       await checkSourceHost(uri.host);
       final request = await client
           .getUrl(uri)
@@ -380,8 +455,12 @@ class AiTransport {
         final location = response.headers.value('location');
         await response.drain<void>();
         if (location == null) throw ApiFailure(502, '视频跳转无效');
-        uri = aiSourceUrl(uri.resolve(location).toString());
-        if (directVideoUrl(uri.toString())) return uri.toString();
+        uri = aiSourceUrl(uri.resolve(location).toString()).removeFragment();
+        if (directVideoUrl(uri.toString())) {
+          return ArticleVideoSource([
+            uri.toString(),
+          ], articleVideoHeaders(sourceUrl));
+        }
         continue;
       }
       if (response.statusCode != 200 ||
@@ -390,10 +469,12 @@ class AiTransport {
         throw ApiFailure(502, '视频暂时无法读取，请重试');
       }
       final bytes = await bounded(response, 2 * 1024 * 1024);
-      return playableVideoFromHtml(
-        const Utf8Decoder(allowMalformed: true).convert(bytes),
-        uri,
-      );
+      return ArticleVideoSource([
+        playableVideoFromHtml(
+          const Utf8Decoder(allowMalformed: true).convert(bytes),
+          uri,
+        ),
+      ], articleVideoHeaders(sourceUrl));
     }
     throw ApiFailure(502, '视频跳转过多');
   }
