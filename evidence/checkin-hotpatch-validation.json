@@ -1,0 +1,21 @@
+{
+  "source": "fb70cfa97fcc054dd14a3ab56b22fe4069690290",
+  "desktop_compatibility_run": 40291248880,
+  "full_flutter_tests_passed": 241,
+  "conditional_skips": 3,
+  "focused_checkin_regressions_passed": 20,
+  "flutter_analyze": "no issues",
+  "official_dry_run": {
+    "android": "passed",
+    "windows": "passed",
+    "macos": "passed"
+  },
+  "native_or_asset_differences_bypassed": false,
+  "cloud_service_changed": false,
+  "real_cloud_signin_tested": false,
+  "android_native_scheduler_changed": false,
+  "android_native_retry_fixed": false,
+  "android_history_display_fixed": true,
+  "windows_transient_access_retry_fixed": true,
+  "windows_tray_proxy_refresh_added": true
+}
