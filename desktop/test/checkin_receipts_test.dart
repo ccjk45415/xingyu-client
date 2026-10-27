@@ -1,10 +1,15 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:xingyu_desktop/core/api.dart';
+import 'package:xingyu_desktop/core/native_storage.dart';
+
+import 'dart:convert';
+
 import 'package:xingyu_desktop/core/state.dart';
 import 'package:xingyu_desktop/core/checkin_receipts.dart';
 import 'package:xingyu_desktop/pages/notification_settings.dart';
 
 class ReceiptService extends ServiceApi {
+  String expectedToken = 'a' * 64;
   final List<Json> values = [];
   final List<String> paths = [];
   @override
@@ -15,7 +20,7 @@ class ReceiptService extends ServiceApi {
     String? method,
   }) async {
     paths.add(path);
-    expect(token, 'a' * 64);
+    expect(token, expectedToken);
     if (path.endsWith('/read')) {
       for (final value in values) {
         if ((body!['keys'] as List).contains(value['key'])) {
@@ -37,6 +42,7 @@ class ReceiptService extends ServiceApi {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  setUp(() => SecureVault.setMockInitialValues({}));
   AppState app(ReceiptService service) => AppState(serviceApi: service)
     ..user = {'id': 47}
     ..identity = {
@@ -119,5 +125,32 @@ void main() {
     second.notices.acceptCheckin(second.checkinReceipts.events.single);
     expect(second.notices.banner, isNull);
     expect(second.notices.entries, hasLength(1));
+  });
+  test(
+    'stale background receipts never enter the newly active account',
+    () async {
+      final state = app(ReceiptService());
+      state.user = {'id': 48};
+      state.generation++;
+      await state.checkinReceipts.accept(event(), owner: 47);
+      expect(state.checkinReceipts.events, isEmpty);
+      expect(state.notices.entries, isEmpty);
+    },
+  );
+  test('valid cloud grant delivers success independently of a revoked chat session', () async {
+    final service = ReceiptService()..expectedToken = 'b' * 64;
+    final state = app(service);
+    SecureVault.setMockInitialValues({
+      'checkin.cloud.47': jsonEncode({
+        'token': 'b' * 64,
+        'user_id': 47,
+        'expires_at': DateTime.now()
+            .add(const Duration(days: 1))
+            .toIso8601String(),
+      }),
+    });
+    await state.checkinReceipts.accept(event());
+    await state.checkinReceipts.sync();
+    expect(service.values, hasLength(1));
   });
 }

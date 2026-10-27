@@ -63,10 +63,10 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--device-test', help='Run isolated, synthetic integration tests on this ADB device')
     parser.add_argument('--shorebird-test', action='store_true', help='Build/register a private Shorebird test base, never publish an installer')
-    parser.add_argument('--version', choices=['0.13.1', '0.13.2', '0.13.3', '0.13.4'], default='0.13.2')
+    parser.add_argument('--version', choices=['0.13.1', '0.13.2', '0.13.3', '0.13.4', '0.13.5'], default='0.13.2')
     parser.add_argument('--patch-track', default='staging')
     args = parser.parse_args()
-    version, build = args.version, {'0.13.1':'37','0.13.2':'38','0.13.3':'39','0.13.4':'40'}[args.version]
+    version, build = args.version, {'0.13.1':'37','0.13.2':'38','0.13.3':'39','0.13.4':'40','0.13.5':'41'}[args.version]
     version_flags = [f'--dart-define=XINGYU_ANDROID_VERSION={version}', f'--dart-define=XINGYU_ANDROID_BUILD={build}'] if build != '37' else []
     env = prepare()
     command = [str(FLUTTER / 'bin/cache/dart-sdk/bin/dart.exe'), str(FLUTTER / 'bin/cache/flutter_tools.snapshot')]

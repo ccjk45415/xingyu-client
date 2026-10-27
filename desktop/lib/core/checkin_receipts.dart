@@ -68,7 +68,8 @@ class CheckinReceipts {
     app.local['checkinReceipts'] = all;
   }
 
-  Future<void> accept(Json raw, {bool upload = true}) async {
+  Future<void> accept(Json raw, {bool upload = true, int? owner}) async {
+    if (owner != null && app.uid != owner) return;
     final event = checkinReceipt(raw);
     if (event == null || app.uid <= 0) return;
     final values = events;
@@ -90,6 +91,17 @@ class CheckinReceipts {
         : 'windows',
     'method': source,
   });
+  Future<String> _token() async {
+    // A cloud grant remains independent of chat enrollment and revocation.
+    try {
+      final token = await app.checkin.cloudToken();
+      if (token.isNotEmpty) return token;
+    } catch (_) {
+      /* Optional grant; verified chat identity can still deliver own receipts. */
+    }
+    return app.verified ? app.token : '';
+  }
+
   Future<List<Json>> sync() {
     final owner = '${app.uid}:${app.generation}';
     if (_flight != null && _owner == owner) return _flight!;
@@ -112,13 +124,13 @@ class CheckinReceipts {
         );
         if (current() && number(status['uid']) == uid) {
           for (final event in rows(status['events'])) {
-            await accept(event);
+            await accept(event, owner: uid);
           }
         }
       } catch (_) {}
     }
     if (!current()) return [];
-    final token = app.verified ? app.token : await app.checkin.cloudToken();
+    final token = await _token();
     if (!current()) return [];
     if (token.isEmpty) return events;
     final outbox = pending;
@@ -186,7 +198,7 @@ class CheckinReceipts {
         )
         .toList();
     if (keys.isEmpty) return;
-    final token = app.verified ? app.token : await app.checkin.cloudToken();
+    final token = await _token();
     if (token.isEmpty || app.uid != uid || app.generation != generation) return;
     await app.service.request(
       '/checkin/v1/events/read',

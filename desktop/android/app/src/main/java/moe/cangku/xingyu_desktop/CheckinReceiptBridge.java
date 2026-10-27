@@ -21,7 +21,7 @@ final class CheckinReceiptBridge {
         return new String(cipher.doFinal(Base64.decode(parts[1],Base64.NO_WRAP)),StandardCharsets.UTF_8);
     }
     static String token(Context c,int uid)throws Exception{
-        for(String key:new String[]{"chat."+uid,"checkin.cloud."+uid})try{
+        for(String key:new String[]{"checkin.cloud."+uid,"chat."+uid})try{
             JSONObject v=new JSONObject(read(c,key));int owner=key.startsWith("chat.")?(v.optJSONObject("user")==null?0:v.getJSONObject("user").optInt("id")):v.optInt("user_id");
             String token=v.optString("token");if(owner==uid&&token.matches("[a-f0-9]{64}")&&Instant.parse(v.getString("expires_at")).isAfter(Instant.now()))return token;
         }catch(Exception ignored){}
