@@ -108,7 +108,7 @@ export function createCheckinHub(Base,{clock=()=>Date.now(),fetcher=fetch}={}){r
     const grant=this.first('SELECT * FROM checkin_grants WHERE token=?',await hash(auth.slice(7)));
     if(!grant||grant.expires<=clock())fail('签到授权已过期',401);return grant;
   }
-  status(uid){const row=this.first('SELECT * FROM checkin_users WHERE uid=?',uid);return {enabled:!!row?.cipher&&row.expires>clock(),expires_at:row?.expires?iso(row.expires):null,next_at:row?.cipher&&row.next?iso(row.next):null,history:row?JSON.parse(row.history):[]};}
+  status(uid){const row=this.first('SELECT * FROM checkin_users WHERE uid=?',uid);return {enabled:!!row?.cipher&&row.expires>clock(),expires_at:row?.expires?iso(row.expires):null,next_at:row?.cipher&&row.next?iso(row.next):null,history:row?JSON.parse(row.history).map(item=>item.status==='already_signed'?{...item,status:'signed',performed:false}:item):[]};}
   async schedule(){return this.lock('alarm',async()=>{
     const row=this.first('SELECT MIN(MIN(next,expires)) AS due FROM checkin_users WHERE cipher IS NOT NULL');
     if(row?.due)await this.ctx.storage.setAlarm(Math.max(clock()+1000,row.due));else await this.ctx.storage.deleteAlarm();
@@ -192,7 +192,7 @@ export function createCheckinHub(Base,{clock=()=>Date.now(),fetcher=fetch}={}){r
       let site;
       try{
         const cookie=await openCookie(row.cipher,uid,this.env.CHECKIN_ENCRYPTION_KEY);site=new CheckinSite(cookie,fetcher);
-        reward=await site.run(uid);status=reward.performed?'signed':'already_signed';if(reward.performed)recordCheckinEvent(this,uid,{time:now,client:'cloud',method:'cloud'},now,{cloud:true});cipher=await sealCookie(site.cookie(),uid,this.env.CHECKIN_ENCRYPTION_KEY);
+        reward=await site.run(uid);status='signed';if(reward.performed)recordCheckinEvent(this,uid,{time:now,client:'cloud',method:'cloud'},now,{cloud:true});cipher=await sealCookie(site.cookie(),uid,this.env.CHECKIN_ENCRYPTION_KEY);
       }catch(error){reward={phase:site?.phase||'session',http_status:site?.httpStatus||0};status=error.status===401?'login_required':'network';if(status==='login_required')cipher=null;else next=Math.min(now+retryDelay(attempts),nextCheckin(now));}
     }
     const history=[{...reward,time:iso(now),status},...JSON.parse(row.history)].slice(0,10);

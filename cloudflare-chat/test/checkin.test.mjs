@@ -88,7 +88,7 @@ test('early retry recovers before 08:40 and already signed is not attributed to 
   f.fail=false;f.now=f.alarm+1;await f.hub.alarm();assert.equal(f.posts,1);assert.ok(f.now<Date.parse('2026-10-27T00:40:00Z'));
   const events=await (await f.request('events',null,token)).json();assert.equal(events.events.length,1);assert.equal(events.events[0].client,'cloud');
   f.now=Date.parse('2026-10-28T00:01:01Z');f.signed=true;await f.hub.alarm();
-  const status=await (await f.request('status',null,token)).json();assert.equal(status.history[0].status,'already_signed');assert.equal((await (await f.request('events',null,token)).json()).events.length,1);
+  const status=await (await f.request('status',null,token)).json();assert.equal(status.history[0].status,'signed');assert.equal(status.history[0].performed,false);assert.equal((await (await f.request('events',null,token)).json()).events.length,1);
 });
 test('events are uid-scoped, deduplicated per reset day and reject fake cloud sources',async()=>{
   const f=fixture(),token=await f.enroll();const event={time:new Date(f.now).toISOString(),client:'android',method:'manual'};

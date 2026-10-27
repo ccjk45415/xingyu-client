@@ -248,7 +248,7 @@ class _CheckinPageState extends State<CheckinPage> {
                       ),
                       title: Text(
                         ['signed', 'already_signed'].contains(record['status'])
-                            ? (record['status'] == 'already_signed'
+                            ? (record['performed'] != true
                                   ? '已确认今日签到 · 执行来源未确认'
                                   : '云端自动签到成功')
                             : record['status'] == 'expired'

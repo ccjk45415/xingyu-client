@@ -14,9 +14,9 @@ SDK = ROOT / '.toolchain/android-sdk/build-tools/35.0.0'
 JAVA = Path(os.environ.get('JAVA_HOME', 'C:/Program Files/Java/jdk-17')) / 'bin/java.exe'
 parser = argparse.ArgumentParser()
 parser.add_argument('--test', action='store_true')
-parser.add_argument('--version', choices=['0.13.1', '0.13.2', '0.13.3'], default='0.13.1')
+parser.add_argument('--version', choices=['0.13.1', '0.13.2', '0.13.3', '0.13.4'], default='0.13.1')
 args = parser.parse_args()
-VERSION, BUILD = (args.version, {'0.13.1':37,'0.13.2':38,'0.13.3':39}[args.version]) if args.test else ('0.11.0', 33)
+VERSION, BUILD = (args.version, {'0.13.1':37,'0.13.2':38,'0.13.3':39,'0.13.4':40}[args.version]) if args.test else ('0.11.0', 33)
 APK = ROOT / f'output/Cangku-Xingyu-{VERSION}-arm64.apk'
 
 def output(command):
