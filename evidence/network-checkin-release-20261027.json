@@ -1,0 +1,69 @@
+{
+  "status": "published",
+  "time_utc": "2026-10-27T05:42:35.753710+00:00",
+  "source_commit": "92153ec513e8d8fc9190ba256b4f692c889b5a0a",
+  "release_source_commit": "334fc53e9ee16c52dc7e1ebc8d159b25553db362",
+  "github_release": "https://github.com/ccjk45415/xingyu-client/releases/tag/v0.13.5",
+  "pages_deployment": "https://035d7b8d.xingyu-chat-ccjk45415.pages.dev",
+  "worker_deployment": "ebbbf664-e1c6-4393-901e-f9f398710570",
+  "client_versions": {
+    "android": "0.13.5+41",
+    "windows": "0.7.4+31",
+    "macos": "0.3.4+9"
+  },
+  "installers": [
+    {
+      "file": "Cangku-Xingyu-0.13.5-arm64.apk",
+      "bytes": 20053867,
+      "sha256": "c19c44f6610ade0782a86c54285b8db4fa88ff4bf673d0039a48ca13eda6f35d",
+      "version": "0.13.5",
+      "code": 41
+    },
+    {
+      "file": "Xingyu-Windows-0.7.4-x64.zip",
+      "bytes": 39443808,
+      "sha256": "bc61a64c746ac21941b3e6ff0af1b1c61ef75a1509bd69ffbc00271263df7152",
+      "version": "0.7.4",
+      "code": 31
+    },
+    {
+      "file": "Xingyu-macOS-0.3.4-arm64.pkg",
+      "bytes": 41184488,
+      "sha256": "68c2a4f645d1a4596f3fa7bcfaf53608e9a9b8599d657cb2956b9bcd66f2ad9c",
+      "version": "0.3.4",
+      "code": 9
+    },
+    {
+      "file": "Xingyu-macOS-0.3.4-arm64.dmg",
+      "bytes": 46874445,
+      "sha256": "b4f7b2f038925d3fc693dc1fa552e6502760698c617d90ed6c2d19b9f0a8be48",
+      "version": "0.3.4",
+      "code": 9
+    },
+    {
+      "file": "Cangku-Xingyu-0.13.5-source.zip",
+      "bytes": 4645728,
+      "sha256": "4fee2caf27a76ea51791c38ae9da6b27f9e910017f6a6bee4304d6c1d1c857da"
+    }
+  ],
+  "current_base_patch_track": "qa-20261027",
+  "official_update_feeds_updated": 3,
+  "anonymous_first_party_downloads_verified": 4,
+  "messages_sent_to_other_users": 0,
+  "flutter_tests": {
+    "passed": 255,
+    "conditional_skips": 3
+  },
+  "backend_tests_passed": 66,
+  "android_native_isolated_cases": 10,
+  "original_android_signer_preserved": true,
+  "android_real_device_test": "not_run_for_this_build",
+  "native_proxy_connect_verified": true,
+  "cloud_schedule": "08:01 Asia/Shanghai, bounded retry after failures",
+  "new_checkin_receipts": "acknowledged POST plus confirmed state; daily dedup and cross-device reads",
+  "temporary_build_secret_removed": true,
+  "user_history_published": false,
+  "local_directory": "output/2026年10月24日",
+  "published_hotpatches": 0,
+  "delivery": "full installers; Android native background additions require this base"
+}

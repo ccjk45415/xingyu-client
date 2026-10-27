@@ -4,7 +4,7 @@ cangku.moe 的非官方 Flutter Android、Windows 与 macOS 客户端，三个�
 
 Android 0.6.1修复改名后聊天室资料不同步，并为作品详情页增加右侧滚动条。0.6.0加入统一设置、作者UID复制、首页实时公告轮播，以及仓库认证聊天室、聊天室/私信图片、@和引用回复；详细说明见[0.6.0修改说明](docs/PENDING_CHANGES.md)。
 
-当前版本：**Android 0.13.5 / Windows 0.7.4 / macOS 0.3.4**。修复文章内哔哩哔哩视频与安卓后台签到，桌面端通过兼容热补丁接收视频修复。见[更新记录](CHANGELOG.md)与[安装说明](docs/RELEASE-INSTALLATION.md)。
+当前版本：**Android 0.13.5 / Windows 0.7.4 / macOS 0.3.4**。修复云端签到调度，新增签到成功提醒与局域网代理设置，改善补丁连接。见[更新记录](CHANGELOG.md)与[安装说明](docs/RELEASE-INSTALLATION.md)。
 
 ## 下载
 

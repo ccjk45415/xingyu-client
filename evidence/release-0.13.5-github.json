@@ -1,0 +1,93 @@
+{
+  "assets": [
+    {
+      "apiUrl": "https://api.github.com/repos/ccjk45415/xingyu-client/releases/assets/680583263",
+      "contentType": "application/vnd.android.package-archive",
+      "createdAt": "2026-10-27T05:37:37Z",
+      "digest": "sha256:c19c44f6610ade0782a86c54285b8db4fa88ff4bf673d0039a48ca13eda6f35d",
+      "downloadCount": 0,
+      "id": "RA_kwDOVR02EM4okOBf",
+      "label": "",
+      "name": "Cangku-Xingyu-0.13.5-arm64.apk",
+      "size": 20053867,
+      "state": "uploaded",
+      "updatedAt": "2026-10-27T05:37:41Z",
+      "url": "https://github.com/ccjk45415/xingyu-client/releases/download/v0.13.5/Cangku-Xingyu-0.13.5-arm64.apk"
+    },
+    {
+      "apiUrl": "https://api.github.com/repos/ccjk45415/xingyu-client/releases/assets/680583269",
+      "contentType": "application/zip",
+      "createdAt": "2026-10-27T05:37:38Z",
+      "digest": "sha256:4fee2caf27a76ea51791c38ae9da6b27f9e910017f6a6bee4304d6c1d1c857da",
+      "downloadCount": 0,
+      "id": "RA_kwDOVR02EM4okOBl",
+      "label": "",
+      "name": "Cangku-Xingyu-0.13.5-source.zip",
+      "size": 4645728,
+      "state": "uploaded",
+      "updatedAt": "2026-10-27T05:37:39Z",
+      "url": "https://github.com/ccjk45415/xingyu-client/releases/download/v0.13.5/Cangku-Xingyu-0.13.5-source.zip"
+    },
+    {
+      "apiUrl": "https://api.github.com/repos/ccjk45415/xingyu-client/releases/assets/680583315",
+      "contentType": "text/plain; charset=utf-8",
+      "createdAt": "2026-10-27T05:37:39Z",
+      "digest": "sha256:54a689835b4ffa7fa94b1ead9b95740cd96639e86e115c4bba0bf8df3360da9b",
+      "downloadCount": 0,
+      "id": "RA_kwDOVR02EM4okOCT",
+      "label": "",
+      "name": "Release-0.13.5-SHA256SUMS.txt",
+      "size": 485,
+      "state": "uploaded",
+      "updatedAt": "2026-10-27T05:37:39Z",
+      "url": "https://github.com/ccjk45415/xingyu-client/releases/download/v0.13.5/Release-0.13.5-SHA256SUMS.txt"
+    },
+    {
+      "apiUrl": "https://api.github.com/repos/ccjk45415/xingyu-client/releases/assets/680583268",
+      "contentType": "application/x-apple-diskimage",
+      "createdAt": "2026-10-27T05:37:38Z",
+      "digest": "sha256:b4f7b2f038925d3fc693dc1fa552e6502760698c617d90ed6c2d19b9f0a8be48",
+      "downloadCount": 0,
+      "id": "RA_kwDOVR02EM4okOBk",
+      "label": "",
+      "name": "Xingyu-macOS-0.3.4-arm64.dmg",
+      "size": 46874445,
+      "state": "uploaded",
+      "updatedAt": "2026-10-27T05:37:50Z",
+      "url": "https://github.com/ccjk45415/xingyu-client/releases/download/v0.13.5/Xingyu-macOS-0.3.4-arm64.dmg"
+    },
+    {
+      "apiUrl": "https://api.github.com/repos/ccjk45415/xingyu-client/releases/assets/680583265",
+      "contentType": "application/octet-stream",
+      "createdAt": "2026-10-27T05:37:37Z",
+      "digest": "sha256:68c2a4f645d1a4596f3fa7bcfaf53608e9a9b8599d657cb2956b9bcd66f2ad9c",
+      "downloadCount": 0,
+      "id": "RA_kwDOVR02EM4okOBh",
+      "label": "",
+      "name": "Xingyu-macOS-0.3.4-arm64.pkg",
+      "size": 41184488,
+      "state": "uploaded",
+      "updatedAt": "2026-10-27T05:37:48Z",
+      "url": "https://github.com/ccjk45415/xingyu-client/releases/download/v0.13.5/Xingyu-macOS-0.3.4-arm64.pkg"
+    },
+    {
+      "apiUrl": "https://api.github.com/repos/ccjk45415/xingyu-client/releases/assets/680583264",
+      "contentType": "application/zip",
+      "createdAt": "2026-10-27T05:37:37Z",
+      "digest": "sha256:bc61a64c746ac21941b3e6ff0af1b1c61ef75a1509bd69ffbc00271263df7152",
+      "downloadCount": 0,
+      "id": "RA_kwDOVR02EM4okOBg",
+      "label": "",
+      "name": "Xingyu-Windows-0.7.4-x64.zip",
+      "size": 39443808,
+      "state": "uploaded",
+      "updatedAt": "2026-10-27T05:37:47Z",
+      "url": "https://github.com/ccjk45415/xingyu-client/releases/download/v0.13.5/Xingyu-Windows-0.7.4-x64.zip"
+    }
+  ],
+  "isDraft": false,
+  "isPrerelease": false,
+  "tagName": "v0.13.5",
+  "targetCommitish": "334fc53e9ee16c52dc7e1ebc8d159b25553db362",
+  "url": "https://github.com/ccjk45415/xingyu-client/releases/tag/v0.13.5"
+}

@@ -1,0 +1,35 @@
+{
+  "origin": "https://xingyu-chat-ccjk45415.pages.dev",
+  "status": "pass",
+  "manifest_channels": 3,
+  "legacy_android_endpoint": "pass",
+  "anonymous_downloads_verified": [
+    {
+      "file": "Cangku-Xingyu-0.13.5-arm64.apk",
+      "size": 20053867,
+      "sha256": "c19c44f6610ade0782a86c54285b8db4fa88ff4bf673d0039a48ca13eda6f35d",
+      "status": 200
+    },
+    {
+      "file": "Xingyu-Windows-0.7.4-x64.zip",
+      "size": 39443808,
+      "sha256": "bc61a64c746ac21941b3e6ff0af1b1c61ef75a1509bd69ffbc00271263df7152",
+      "status": 200
+    },
+    {
+      "file": "Xingyu-macOS-0.3.4-arm64.pkg",
+      "size": 41184488,
+      "sha256": "68c2a4f645d1a4596f3fa7bcfaf53608e9a9b8599d657cb2956b9bcd66f2ad9c",
+      "status": 200
+    },
+    {
+      "file": "Xingyu-macOS-0.3.4-arm64.dmg",
+      "size": 46874445,
+      "sha256": "b4f7b2f038925d3fc693dc1fa552e6502760698c617d90ed6c2d19b9f0a8be48",
+      "status": 200
+    }
+  ],
+  "health_protocol": 3,
+  "messages_sent": 0,
+  "redirects_followed": false
+}
