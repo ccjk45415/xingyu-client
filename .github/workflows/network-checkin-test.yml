@@ -1,0 +1,94 @@
+name: Build network and check-in test clients
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  desktop-release:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-15]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    env:
+      CI: 'true'
+      FLUTTER_SUPPRESS_ANALYTICS: 'true'
+      GIT_CONFIG_COUNT: '1'
+      GIT_CONFIG_KEY_0: core.longpaths
+      GIT_CONFIG_VALUE_0: 'true'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          flutter-version: '3.47.7'
+          channel: stable
+          cache: false
+      - name: Install pinned official Shorebird CLI
+        shell: bash
+        run: |
+          git init "$RUNNER_TEMP/shorebird"
+          git -C "$RUNNER_TEMP/shorebird" remote add origin https://github.com/shorebirdtech/shorebird.git
+          git -C "$RUNNER_TEMP/shorebird" fetch --depth 1 origin 07c191c9448f0b67c5f96253d8832356ba213b06
+          git -C "$RUNNER_TEMP/shorebird" checkout --detach FETCH_HEAD
+          echo "$RUNNER_TEMP/shorebird/bin" >> "$GITHUB_PATH"
+      - name: Restore short-lived official authorization
+        shell: python
+        env:
+          XINGYU_TEST_LOGIN: ${{ secrets.SHOREBIRD_QA_LOGIN }}
+        run: |
+          import os,json,pathlib,sys
+          value=json.loads(os.environ['XINGYU_TEST_LOGIN'])
+          assert not value.get('refreshToken') and not value.get('idToken')
+          if sys.platform=='win32': base=pathlib.Path(os.environ['APPDATA'])/'shorebird'
+          elif sys.platform=='darwin': base=pathlib.Path.home()/'Library/Application Support/shorebird'
+          else: base=pathlib.Path.home()/'.config/shorebird'
+          base.mkdir(parents=True,exist_ok=True)
+          target=base/'credentials-v2.json'
+          target.write_text(json.dumps(value))
+          target.chmod(0o600)
+      - name: Validate shared code
+        shell: bash
+        working-directory: desktop
+        run: |
+          flutter pub get
+          flutter analyze --no-pub
+          flutter test --no-pub test/checkin_patch_test.dart test/macos_platform_test.dart test/updates_test.dart test/core_test.dart test/startup_update_test.dart test/system_notices_test.dart test/cloud_checkin_test.dart test/login_diagnostics_test.dart test/windows_proxy_test.dart test/network_settings_test.dart test/checkin_receipts_test.dart test/notice_read_sync_test.dart
+      - name: Build macOS test installers with official patch engine
+        if: runner.os == 'macOS'
+        run: python3 tools/build_macos.py --shorebird-test --formal --native-check --skip-tests --version 0.3.2 --build 7 --patch-track qa-20261027
+      - name: Build Windows test base with official patch engine
+        if: runner.os == 'Windows'
+        shell: pwsh
+        working-directory: desktop
+        run: |
+          & "$env:RUNNER_TEMP/shorebird/bin/shorebird.ps1" release windows --flutter-version=3.47.7 --build-name=0.7.2 --build-number=29 --dart-define=XINGYU_WINDOWS_VERSION=0.7.2 --dart-define=XINGYU_WINDOWS_BUILD=29 --dart-define=XINGYU_PATCH_TRACK=qa-20261027 --dart-define=XINGYU_REQUIRE_CODE_PUSH=true
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Package and verify Windows test bundle
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          python tools/prepare_desktop_release.py --test-only --version 0.7.2 --build 29 --bundle desktop/build/windows/x64/runner/Release
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -c "import subprocess,json,pathlib; r=subprocess.run(['desktop/build/windows/x64/runner/Release/Xingyu.exe','--self-check','--offline'],capture_output=True,text=True,timeout=60,check=True); v=next(json.loads(s) for s in r.stdout.splitlines() if s.startswith('{')); assert v['code_push_engine']=='available' and v['code_push_initialized'] is True and v['system_notifications_native'] is True; pathlib.Path('output/windows-test-native.json').write_text(json.dumps(v)); print(json.dumps(v))"
+      - name: Remove temporary authorization
+        if: always()
+        shell: python
+        run: |
+          import os,pathlib,sys
+          base=pathlib.Path(os.environ['APPDATA'])/'shorebird' if sys.platform=='win32' else pathlib.Path.home()/'Library/Application Support/shorebird'
+          (base/'credentials-v2.json').unlink(missing_ok=True)
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: Xingyu-network-checkin-test-${{ runner.os }}
+          if-no-files-found: error
+          retention-days: 7
+          path: |
+            output/Xingyu-macOS-0.3.2-arm64.pkg
+            output/Xingyu-macOS-0.3.2-arm64.dmg
+            output/Xingyu-Windows-0.7.2-x64.zip
+            output/*test*.json
+            output/macOS-build-report.json
+            output/macOS-SHA256SUMS.txt
