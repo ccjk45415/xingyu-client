@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 
 import 'system_notices.dart';
+import 'native_proxy_environment.dart';
+import 'platform.dart';
 
 import 'package:shorebird_code_push/shorebird_code_push.dart';
 
@@ -58,19 +60,27 @@ class PatchUpdates extends ChangeNotifier {
         message = '补丁引擎尚未就绪，请安装最新完整版本';
         return;
       }
-      current = (await updater.readCurrentPatch())?.number ?? 0;
-      final status = await updater.checkForUpdate(track: track);
-      if (status == UpdateStatus.outdated || status == UpdateStatus.upToDate) {
-        // The SDK's boolean check also returns false on native/network errors.
-        // The result-bearing update call distinguishes "no update" from failure.
-        message = status == UpdateStatus.outdated ? '正在后台下载补丁' : '正在确认补丁状态';
-        changed();
-        await updater.update(track: track);
+      if (!_injected) {
+        try {
+          await refreshSystemProxy();
+        } catch (_) {}
       }
-      next = (await updater.readNextPatch())?.number ?? current;
-      message = next != current || status == UpdateStatus.restartRequired
-          ? '补丁已就绪，下次完全退出后打开生效'
-          : '已是最新补丁';
+      await NativeProxyEnvironment.lease(() async {
+        current = (await updater.readCurrentPatch())?.number ?? 0;
+        final status = await updater.checkForUpdate(track: track);
+        if (status == UpdateStatus.outdated ||
+            status == UpdateStatus.upToDate) {
+          // The SDK's boolean check also returns false on native/network errors.
+          // The result-bearing update call distinguishes "no update" from failure.
+          message = status == UpdateStatus.outdated ? '正在后台下载补丁' : '正在确认补丁状态';
+          changed();
+          await updater.update(track: track);
+        }
+        next = (await updater.readNextPatch())?.number ?? current;
+        message = next != current || status == UpdateStatus.restartRequired
+            ? '补丁已就绪，下次完全退出后打开生效'
+            : '已是最新补丁';
+      });
     } catch (_) {
       message = '暂时无法检查补丁，将在下次联网时重试';
     } finally {

@@ -67,8 +67,8 @@ final class NoticeBridge {
             JSONArray seen=new JSONArray(p.getString("delivered","[]"));
             for(int i=0;i<seen.length();i++) if(key.equals(seen.optString(i))) return;
             channels(c);
-            String title=options.optBoolean("preview",false)?payload.optString("title","星屿 · 新消息"):"星屿 · 新消息";
-            String body=options.optBoolean("preview",false)?payload.optString("body","点击查看新消息"):"你有一条新的消息，点击查看";
+            String title=(kind.equals("checkin")||options.optBoolean("preview",false))?payload.optString("title","星屿 · 新消息"):"星屿 · 新消息";
+            String body=(kind.equals("checkin")||options.optBoolean("preview",false))?payload.optString("body","点击查看新消息"):"你有一条新的消息，点击查看";
             // Only routing metadata enters PendingIntent, never the body or credentials.
             JSONObject route=new JSONObject().put("uid",uid).put("key",key).put("kind",kind)
                 .put("target",payload.optInt("target")).put("channel",payload.optString("channel"));

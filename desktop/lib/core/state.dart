@@ -10,6 +10,8 @@ import 'browse_cache.dart';
 import 'following_feed.dart';
 import 'client_config.dart';
 import 'checkin.dart';
+import 'checkin_receipts.dart';
+import 'platform.dart';
 import 'patch_updates.dart';
 import 'in_app_notices.dart';
 import 'error_diagnostics.dart';
@@ -39,6 +41,7 @@ class AppState extends ChangeNotifier {
   int generation = 0, socialRevision = 0;
   final Map<int, Json> authorCache = {};
   late final ClientConfigStore clientConfig = ClientConfigStore(this);
+  late final CheckinReceipts checkinReceipts = CheckinReceipts(this);
   late final CheckinController checkin = CheckinController(this);
   late final PatchUpdates patches = PatchUpdates();
   late final InAppNotices notices = InAppNotices(this);
@@ -83,6 +86,12 @@ class AppState extends ChangeNotifier {
           local = object(jsonDecode(await file.readAsString()));
         } catch (_) {}
       }
+      try {
+        configureNetworkProxy(local['networkProxy']);
+      } on FormatException {
+        configureNetworkProxy(null);
+      }
+      await syncNativeNetworkProxy();
       BrowseCache.shared.enabled = local['cacheEnabled'] != false;
       dark = local['dark'] == true;
       fontSize = (local['fontSize'] as num?)?.toDouble().clamp(13, 26) ?? 17;

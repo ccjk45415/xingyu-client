@@ -1,3 +1,4 @@
+import {initCheckinEvents,recordCheckinEvent,checkinEvents,checkinDay,readCheckinEvents} from './checkin-events.mjs';
 // Opt-in credential vault. It is deliberately separate from chat authentication.
 const enc = new TextEncoder(), DAY = 86400000, LEASE = 7 * DAY;
 const json = (data, status=200) => Response.json(data,{status,headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});
@@ -6,7 +7,9 @@ const hex = bytes => Array.from(bytes,x=>x.toString(16).padStart(2,'0')).join(''
 const random = () => hex(crypto.getRandomValues(new Uint8Array(32)));
 const hash = async value => hex(new Uint8Array(await crypto.subtle.digest('SHA-256',enc.encode(value))));
 const iso = time => new Date(time).toISOString();
-export const nextCheckin = now => Math.floor((now+8*3600000)/DAY)*DAY-8*3600000+10*3600000 + ((now+8*3600000)%DAY>=10*3600000?DAY:0);
+// Run just after the website's daily 08:00 Beijing reset, not at 10:00.
+export const nextCheckin = now => { const first=Math.floor(now/DAY)*DAY+60000;return first>now?first:first+DAY; };
+const retryDelay=attempt=>[60000,300000,900000,1800000,3600000,7200000][Math.min(attempt,5)];
 function cookieOK(value) { if(typeof value!=='string'||!value.trim()||enc.encode(value).length>7000||/[\x00-\x1f\x7f]/.test(value))fail('登录会话无效',401); return value; }
 async function bytes(stream,max) {
   const reader=stream?.getReader(); if(!reader)fail('响应为空',502);
@@ -39,11 +42,13 @@ export class CheckinSite {
   constructor(cookie,fetcher=fetch){cookieOK(cookie);this.fetcher=fetcher.bind(globalThis);this.jar=new Map(cookie.split(';').map(part=>{const at=part.indexOf('=');return [part.slice(0,at).trim(),part.slice(at+1).trim()];}).filter(([name])=>name));}
   cookie(){return [...this.jar].map(([name,value])=>`${name}=${value}`).join('; ');}
   async request(path,post=false){
+    this.phase=path==='auth/me'?'account':'signin';
     const headers={Cookie:this.cookie(),Accept:'application/json',Origin:'https://cangku.moe',Referer:'https://cangku.moe/','X-Requested-With':'XMLHttpRequest','User-Agent':'Mozilla/5.0 (Linux; Android 16) AppleWebKit/537.36 Chrome/125.0.0.0 Mobile Safari/537.36'};
     if(this.jar.has('XSRF-TOKEN')){try{headers['X-XSRF-TOKEN']=decodeURIComponent(this.jar.get('XSRF-TOKEN'));}catch{fail('登录会话无效',401);}}
     if(post)headers['Content-Type']='application/json';
     const response=await this.fetcher('https://cangku.moe/api/v1/'+path,{method:post?'POST':'GET',redirect:'manual',signal:AbortSignal.timeout(15000),headers,...(post?{body:'{}'}:{})});
-    if([301,302,303,307,308,401,419].includes(response.status)){await response.body?.cancel();fail('请重新授权签到',401);}
+    this.httpStatus=response.status;
+    if(response.status===401){await response.body?.cancel();fail('请重新授权签到',401);}
     if(response.status!==200){await response.body?.cancel();fail('签到网站暂不可用',502);}
     const cookies=response.headers.getSetCookie?.() || (response.headers.get('Set-Cookie')||'').split(/,(?=\s*[^;,=\s]+=)/);
     for(const raw of cookies){
@@ -64,13 +69,13 @@ export class CheckinSite {
     return user;
   }
   async run(uid){
-    let user=await this.account(uid), reward={};
+    let user=await this.account(uid), reward={},performed=false;
     if(user.is_signed!==true&&user.is_signed!==1){
-      try{reward=await this.request('user/signin',true)||{};}catch{/* Re-query rather than treating an error as already signed. */}
+      try{reward=await this.request('user/signin',true)||{};performed=true;}catch{/* Re-query rather than treating an error as already signed. */}
       user=await this.account(uid);
     }
     if(user.is_signed!==true&&user.is_signed!==1)fail('签到尚未确认',502);
-    return {status:'signed',...Object.fromEntries(['continuous_signin','exp','point'].filter(key=>Number.isFinite(reward[key])).map(key=>[key,reward[key]]))};
+    return {status:'signed',performed,...Object.fromEntries(['continuous_signin','exp','point'].filter(key=>Number.isFinite(reward[key])).map(key=>[key,reward[key]]))};
   }
 }
 
@@ -81,6 +86,14 @@ export function createCheckinHub(Base,{clock=()=>Date.now(),fetcher=fetch}={}){r
     this.sql.exec('CREATE TABLE IF NOT EXISTS checkin_grants(token TEXT PRIMARY KEY,uid INTEGER NOT NULL,expires INTEGER NOT NULL)');
     this.sql.exec('CREATE INDEX IF NOT EXISTS checkin_grants_uid ON checkin_grants(uid)');
     this.sql.exec('CREATE TABLE IF NOT EXISTS checkin_limits(key TEXT PRIMARY KEY,day INTEGER NOT NULL,n INTEGER NOT NULL)');
+    initCheckinEvents(this.sql);
+    this.sql.exec('CREATE TABLE IF NOT EXISTS checkin_meta(key TEXT PRIMARY KEY,value INTEGER NOT NULL)');
+    if(!this.rows('PRAGMA table_info(checkin_users)').some(c=>c.name==='previous_next'))this.sql.exec('ALTER TABLE checkin_users ADD COLUMN previous_next INTEGER NOT NULL DEFAULT 0');
+    if(!this.first("SELECT value FROM checkin_meta WHERE key='schedule_v2'")){
+      this.sql.exec('UPDATE checkin_users SET previous_next=next,next=MIN(next,?+(uid%120)*1000),attempt_day=0,attempts=0 WHERE cipher IS NOT NULL AND expires>?',clock()+60000,clock());
+      this.sql.exec("INSERT INTO checkin_meta(key,value) VALUES('schedule_v2',?)",clock());
+      this.needsSchedule=true;
+    }
   }
   rows(q,...args){return this.sql.exec(q,...args).toArray();}
   first(q,...args){return this.rows(q,...args)[0];}
@@ -100,8 +113,34 @@ export function createCheckinHub(Base,{clock=()=>Date.now(),fetcher=fetch}={}){r
     const row=this.first('SELECT MIN(MIN(next,expires)) AS due FROM checkin_users WHERE cipher IS NOT NULL');
     if(row?.due)await this.ctx.storage.setAlarm(Math.max(clock()+1000,row.due));else await this.ctx.storage.deleteAlarm();
   });}
+  async eventOwner(req){
+    try{return (await this.grant(req)).uid;}catch(error){if(error.status!==401)throw error;}
+    const auth=req.headers.get('Authorization')||'';
+    if(!/^Bearer [a-f0-9]{64}$/.test(auth)||!this.env.DM)fail('请先认证仓库账号',401);
+    const response=await this.env.DM.get(this.env.DM.idFromName('xingyu-dm-v1')).fetch(new Request('https://internal/internal/identity',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token_hash:await hash(auth.slice(7))})}));
+    if(response.status!==200)fail('消息身份已过期',401);
+    const value=await response.json(),uid=value.user?.id;
+    if(!Number.isSafeInteger(uid)||uid<1)fail('消息身份无效',401);return uid;
+  }
   async fetch(req){try{
-    const path=new URL(req.url).pathname;
+    if(this.needsSchedule){this.needsSchedule=false;await this.schedule();}
+    const url=new URL(req.url),path=url.pathname;
+    if(path==='/checkin/v1/admin/status'&&req.method==='GET'){
+      const secret=this.env.ANNOUNCEMENTS_ADMIN_KEY,auth=req.headers.get('Authorization')||'';
+      if(typeof secret!=='string'||!/^[a-f0-9]{64}$/.test(secret)||!/^Bearer [a-f0-9]{64}$/.test(auth)||await hash(auth.slice(7))!==await hash(secret))fail('无诊断权限',401);
+      const uid=Number(url.searchParams.get('uid'));if(!Number.isSafeInteger(uid)||uid<1)fail('账号无效');
+      const row=this.first('SELECT uid,next,previous_next,expires,attempt_day,attempts,history FROM checkin_users WHERE uid=?',uid);
+      return json({uid,found:!!row,...(row?{...this.status(uid),previous_next_at:row.previous_next?iso(row.previous_next):null,attempt_day:row.attempt_day,attempts:row.attempts}:{}),schedule_version:2});
+    }
+    if(path==='/checkin/v1/events'||path==='/checkin/v1/events/read'){
+      const uid=await this.eventOwner(req);
+      if(path.endsWith('/read')){if(req.method!=='POST')fail('接口不存在',404);const data=await body(req);exact(data,['keys']);return await this.lock(uid,async()=>{this.budget('event-reads:'+uid,200);this.ctx.storage.transactionSync(()=>readCheckinEvents(this,uid,data.keys,clock()));return json({ok:true});});}
+      if(req.method==='GET')return json({events:checkinEvents(this,uid,clock())});
+      if(req.method!=='POST')fail('接口不存在',404);
+      const data=await body(req);exact(data,['events']);
+      if(!Array.isArray(data.events)||data.events.length<1||data.events.length>10)fail('签到记录无效');
+      return await this.lock(uid,async()=>{this.budget('events:'+uid,100);const events=this.ctx.storage.transactionSync(()=>data.events.map(e=>recordCheckinEvent(this,uid,e,clock())));return json({events});});
+    }
     if(path==='/checkin/v1/session'&&req.method==='POST'){
       await encryptionKey(this.env.CHECKIN_ENCRYPTION_KEY);
       const data=await body(req);exact(data,['site_cookie','expected_user_id']);
@@ -140,27 +179,29 @@ export function createCheckinHub(Base,{clock=()=>Date.now(),fetcher=fetch}={}){r
   }catch(error){return json({error:error.status?error.message:'签到服务暂不可用'},error.status||503);}}
   async run(uid){return this.lock(uid,async()=>{
     let row=this.first('SELECT * FROM checkin_users WHERE uid=?',uid);if(!row?.cipher)return;
-    const now=clock(),day=Math.floor((now+8*3600000)/DAY);
+    const now=clock(),day=checkinDay(now);
     if(row.next>now&&row.expires>now)return;
     let status, reward={},next=nextCheckin(now),cipher=row.cipher;
     if(row.expires<=now){status='expired';cipher=null;}
     else {
       const attempts=row.attempt_day===day?row.attempts:0;
-      if(attempts>=3){this.sql.exec('UPDATE checkin_users SET next=? WHERE uid=?',next,uid);return;}
+      if(attempts>=12){this.sql.exec('UPDATE checkin_users SET next=? WHERE uid=?',next,uid);return;}
       try { this.budget('execution',10000); }
       catch { this.sql.exec('UPDATE checkin_users SET next=? WHERE uid=?',next,uid); return; }
       this.sql.exec('UPDATE checkin_users SET attempt_day=?,attempts=? WHERE uid=?',day,attempts+1,uid);
+      let site;
       try{
-        const cookie=await openCookie(row.cipher,uid,this.env.CHECKIN_ENCRYPTION_KEY),site=new CheckinSite(cookie,fetcher);
-        reward=await site.run(uid);status='signed';cipher=await sealCookie(site.cookie(),uid,this.env.CHECKIN_ENCRYPTION_KEY);
-      }catch(error){status=error.status===401?'login_required':'network';if(status==='login_required')cipher=null;else if(attempts<2)next=now+3600000;}
+        const cookie=await openCookie(row.cipher,uid,this.env.CHECKIN_ENCRYPTION_KEY);site=new CheckinSite(cookie,fetcher);
+        reward=await site.run(uid);status=reward.performed?'signed':'already_signed';if(reward.performed)recordCheckinEvent(this,uid,{time:now,client:'cloud',method:'cloud'},now,{cloud:true});cipher=await sealCookie(site.cookie(),uid,this.env.CHECKIN_ENCRYPTION_KEY);
+      }catch(error){reward={phase:site?.phase||'session',http_status:site?.httpStatus||0};status=error.status===401?'login_required':'network';if(status==='login_required')cipher=null;else next=Math.min(now+retryDelay(attempts),nextCheckin(now));}
     }
-    const history=[{time:iso(now),status,...reward},...JSON.parse(row.history)].slice(0,10);
+    const history=[{...reward,time:iso(now),status},...JSON.parse(row.history)].slice(0,10);
     this.sql.exec('UPDATE checkin_users SET cipher=?,next=?,history=? WHERE uid=?',cipher,cipher?next:0,JSON.stringify(history),uid);
   });}
   async alarm(){
+    this.needsSchedule=false;
     const due=this.rows('SELECT uid FROM checkin_users WHERE cipher IS NOT NULL AND (next<=? OR expires<=?) ORDER BY next LIMIT 10',clock(),clock());
-    for(const row of due){try{await this.run(row.uid);}catch{/* Bounded retry, no credential or response logging. */}}
+    for(const row of due){try{await this.run(row.uid);}catch{this.sql.exec('UPDATE checkin_users SET next=? WHERE uid=? AND cipher IS NOT NULL',clock()+300000,row.uid);}}
     this.sql.exec('DELETE FROM checkin_grants WHERE expires<=?',clock());
     await this.schedule();
   }

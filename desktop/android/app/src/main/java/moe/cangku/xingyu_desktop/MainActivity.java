@@ -181,7 +181,9 @@ public class MainActivity extends FlutterActivity {
         });
         new MethodChannel(engine.getDartExecutor().getBinaryMessenger(), "moe.cangku.xingyu/platform")
             .setMethodCallHandler((call, result) -> {
-                if (call.method.equals("configureCheckinBackground")) {
+                if(call.method.equals("configureNetworkProxy")){
+                    try{NetworkProxy.configure(this,(java.util.Map<?,?>)call.arguments);result.success(null);}catch(Exception error){result.error("proxy","无法保存代理设置",null);}
+                } else if (call.method.equals("configureCheckinBackground")) {
                     try {
                         Integer uid = call.argument("uid");
                         CheckinJobService.configure(this, Boolean.TRUE.equals(call.argument("enabled")), uid == null ? 0 : uid);

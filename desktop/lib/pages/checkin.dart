@@ -241,14 +241,16 @@ class _CheckinPageState extends State<CheckinPage> {
                       dense: true,
                       contentPadding: EdgeInsets.zero,
                       leading: Icon(
-                        record['status'] == 'signed'
+                        ['signed', 'already_signed'].contains(record['status'])
                             ? Icons.check_circle_outline_rounded
                             : Icons.info_outline_rounded,
                         color: violet,
                       ),
                       title: Text(
-                        record['status'] == 'signed'
-                            ? '今日已签到'
+                        ['signed', 'already_signed'].contains(record['status'])
+                            ? (record['status'] == 'already_signed'
+                                  ? '已确认今日签到 · 执行来源未确认'
+                                  : '云端自动签到成功')
                             : record['status'] == 'expired'
                             ? '授权已过期，请重新开启'
                             : record['status'] == 'login_required'

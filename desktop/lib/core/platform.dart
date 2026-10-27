@@ -1,5 +1,8 @@
 import 'dart:io';
 
+import 'proxy_config.dart';
+import 'native_proxy_environment.dart';
+
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart' show SingleActivator;
 import 'package:flutter/foundation.dart';
@@ -20,18 +23,32 @@ const platformChannel = MethodChannel('moe.cangku.xingyu/platform');
 bool get isAndroid => Platform.isAndroid;
 bool get isMacOS => defaultTargetPlatform == TargetPlatform.macOS;
 bool get isWindows => defaultTargetPlatform == TargetPlatform.windows;
-const macosTestVersion = '0.3.1';
-const macosTestBuild = 6;
+const macosTestVersion = String.fromEnvironment(
+  'XINGYU_MACOS_VERSION',
+  defaultValue: '0.3.1',
+);
+const macosTestBuild = int.fromEnvironment(
+  'XINGYU_MACOS_BUILD',
+  defaultValue: 6,
+);
+const windowsClientVersion = String.fromEnvironment(
+  'XINGYU_WINDOWS_VERSION',
+  defaultValue: '0.7.1',
+);
+const windowsClientBuild = int.fromEnvironment(
+  'XINGYU_WINDOWS_BUILD',
+  defaultValue: 28,
+);
 String get clientVersion => isAndroid
     ? androidTestVersion
     : isMacOS
     ? macosTestVersion
-    : '0.7.1';
+    : windowsClientVersion;
 int get clientBuild => isAndroid
     ? androidTestBuild
     : isMacOS
     ? macosTestBuild
-    : 28;
+    : windowsClientBuild;
 String? get uiFont => isAndroid || isMacOS ? null : 'Microsoft YaHei UI';
 String get monoFont => isAndroid
     ? 'monospace'
@@ -74,14 +91,43 @@ class AndroidProxyOverrides extends HttpOverrides {
   @override
   HttpClient createHttpClient(SecurityContext? context) {
     final client = super.createHttpClient(context);
-    client.findProxy = (uri) => windowsServer == null
-        ? proxy
-        : windowsProxyDirective(uri, windowsServer!, windowsBypass);
+    client.findProxy = networkProxyFor;
     return client;
   }
 }
 
 final _proxy = AndroidProxyOverrides();
+NetworkProxyConfig networkProxyConfig = const NetworkProxyConfig();
+String _systemDirective(Uri uri) => _proxy.windowsServer == null
+    ? _proxy.proxy
+    : windowsProxyDirective(uri, _proxy.windowsServer!, _proxy.windowsBypass);
+String networkProxyFor(Uri uri) =>
+    networkProxyConfig.directive(uri, _systemDirective);
+Future<void> syncNativeNetworkProxy() async {
+  if (!isAndroid) return;
+  try {
+    await platformChannel.invokeMethod(
+      'configureNetworkProxy',
+      networkProxyConfig.toJson(),
+    );
+  } on MissingPluginException {
+    /* Older bases continue to use system proxy for native background jobs. */
+  }
+}
+
+void configureNetworkProxy(dynamic value) {
+  networkProxyConfig = NetworkProxyConfig.parse(value);
+  _applyPatchProxy();
+}
+
+void _applyPatchProxy() {
+  final directive = networkProxyFor(Uri.parse('https://api.shorebird.dev'));
+  NativeProxyEnvironment.apply(
+    directive.startsWith('PROXY ') ? 'http://${directive.substring(6)}' : null,
+    direct: networkProxyConfig.mode == 'direct',
+  );
+}
+
 Future<void> initializePlatform() async {
   if (!isAndroid && !isMacOS && !Platform.isWindows) return;
   HttpOverrides.global = _proxy;
@@ -99,9 +145,11 @@ Future<void> refreshSystemProxy() async {
       _proxy.windowsServer!,
       _proxy.windowsBypass,
     );
+    _applyPatchProxy();
     return;
   }
   _proxy.proxy = proxyDirective(value?['host'], value?['port']);
+  _applyPatchProxy();
 }
 
 /// Windows manual system proxy, including per-protocol servers and bypass rules.
@@ -151,10 +199,9 @@ String get nativeMediaProxy => _proxy.proxy.startsWith('PROXY ')
 
 /// Respect per-host proxy bypass rules for third-party video CDNs as well.
 String nativeMediaProxyFor(String url) {
-  final uri = Uri.tryParse(url);
-  final directive = _proxy.windowsServer == null || uri == null
-      ? _proxy.proxy
-      : windowsProxyDirective(uri, _proxy.windowsServer!, _proxy.windowsBypass);
+  final directive = networkProxyFor(
+    Uri.tryParse(url) ?? Uri.parse('https://cangku.moe'),
+  );
   return directive.startsWith('PROXY ')
       ? 'http://${directive.substring(6)}'
       : '';

@@ -4,11 +4,12 @@ import {readFile} from 'node:fs/promises';
 import {Miniflare,convertV4MiniflareOptions} from 'miniflare';
 
 test('real Worker fetch receiver: enroll, enable, status, disable',async()=>{
+  const eventModule=await readFile(new URL('../src/checkin-events.mjs',import.meta.url),'utf8');
   const core=await readFile(new URL('../src/checkin-core.mjs',import.meta.url),'utf8');
   const mf=new Miniflare(convertV4MiniflareOptions({workers:[{
     name:'checkin',compatibilityDate:'2026-10-20',modules:[
       {type:'ESModule',path:'worker.js',contents:`import {DurableObject} from 'cloudflare:workers';import {createCheckinHub} from './checkin-core.mjs';export const CheckinHub=createCheckinHub(DurableObject);export default {fetch(req,env){return env.CHECKIN.get(env.CHECKIN.idFromName('test')).fetch(req)}}`},
-      {type:'ESModule',path:'checkin-core.mjs',contents:core}],
+      {type:'ESModule',path:'checkin-core.mjs',contents:core},{type:'ESModule',path:'checkin-events.mjs',contents:eventModule}],
     bindings:{CHECKIN_ENCRYPTION_KEY:'a'.repeat(64)},
     durableObjects:{CHECKIN:{className:'CheckinHub',useSQLite:true}},
     outboundService:'website-fixture'

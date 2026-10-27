@@ -6,6 +6,7 @@ import '../core/in_app_notices.dart';
 import '../ui/shared.dart';
 
 IconData noticeIcon(String kind) => switch (kind) {
+  'checkin' => Icons.task_alt_rounded,
   'dm' => Icons.mail_outline_rounded,
   'chatMention' => Icons.alternate_email_rounded,
   'postReply' => Icons.forum_outlined,
@@ -15,6 +16,7 @@ IconData noticeIcon(String kind) => switch (kind) {
 };
 
 String noticeKind(String kind) => switch (kind) {
+  'checkin' => '签到成功',
   'dm' => '私信',
   'chatMention' => '聊天室艾特',
   'postReply' => '帖子回复',
@@ -24,6 +26,7 @@ String noticeKind(String kind) => switch (kind) {
 };
 
 DeskRoute noticeRoute(AppNotice notice) => switch (notice.kind) {
+  'checkin' => const DeskRoute('checkin', '签到'),
   'dm' => DeskRoute('dm', '私信', id: notice.target),
   'chatMention' => DeskRoute('chat', '聊天室', filter: notice.channel),
   _ when notice.target > 0 => DeskRoute('article', '作品详情', id: notice.target),
@@ -161,6 +164,7 @@ class NotificationSettingsPage extends StatelessWidget {
                     ('postReply', '帖子回复', '有人回复了你的作品或帖子'),
                     ('commentReply', '评论回复', '有人回复了你的评论'),
                     ('like', '点赞', '有人赞了你的作品或评论'),
+                    ('checkin', '签到成功', '显示签到客户端和执行方式，同一天成功只提醒一次'),
                   ])
                     SwitchListTile(
                       contentPadding: const EdgeInsets.symmetric(vertical: 8),
@@ -306,7 +310,7 @@ class NoticeCenterPage extends StatelessWidget {
                     subtitle: Padding(
                       padding: const EdgeInsets.only(top: 5),
                       child: Text(
-                        '${noticeKind(notice.kind)} · ${dateText(notice.time.toIso8601String())}${notices.showPreview && notice.preview.isNotEmpty ? '\n${notice.preview}' : ''}',
+                        '${noticeKind(notice.kind)} · ${dateText(notice.time.toIso8601String())}${(notices.showPreview || notice.kind == 'checkin') && notice.preview.isNotEmpty ? '\n${notice.preview}' : ''}',
                         maxLines: 3,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(fontSize: 12),
@@ -453,7 +457,8 @@ class _NoticeOverlayState extends State<NoticeOverlay> {
                                 ),
                                 const SizedBox(height: 3),
                                 Text(
-                                  widget.notices.showPreview &&
+                                  (widget.notices.showPreview ||
+                                              notice.kind == 'checkin') &&
                                           notice.preview.isNotEmpty
                                       ? notice.preview
                                       : '点击查看 · ${noticeKind(notice.kind)}',

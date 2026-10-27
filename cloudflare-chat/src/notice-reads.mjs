@@ -1,5 +1,5 @@
 const DAY=86400000, RETENTION=14*DAY, MAX_KEYS=512;
-const valid=key=>typeof key==='string'&&/^(?:dm:[1-9][0-9]{0,15}|chat:[12]:[1-9][0-9]{0,15}|(?:reply|vote):[A-Za-z0-9_-]{1,100})$/.test(key);
+const valid=key=>typeof key==='string'&&/^(?:checkin:[1-9][0-9]{0,15}|dm:[1-9][0-9]{0,15}|chat:[12]:[1-9][0-9]{0,15}|(?:reply|vote):[A-Za-z0-9_-]{1,100})$/.test(key);
 const fail=(message,status=400)=>{throw Object.assign(new Error(message),{status});};
 export function initNoticeReads(sql){
   sql.exec('CREATE TABLE IF NOT EXISTS notice_reads(uid INTEGER NOT NULL,key TEXT NOT NULL,read_at INTEGER NOT NULL,PRIMARY KEY(uid,key))');

@@ -504,6 +504,12 @@ class SettingsPage extends StatelessWidget {
               children: [
                 for (final e in [
                   ('编辑个人资料', '昵称、简介、头像与背景', Icons.badge_outlined, 'profile'),
+                  (
+                    '网络与代理',
+                    '系统代理、局域网 Clash 与补丁连接',
+                    Icons.wifi_tethering_rounded,
+                    'networkSettings',
+                  ),
                   ('账号安全', '修改密码、更改绑定邮箱', Icons.shield_outlined, 'security'),
                   (
                     '通知设置',

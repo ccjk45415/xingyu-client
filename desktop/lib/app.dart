@@ -20,6 +20,7 @@ import 'pages/authoring.dart';
 import 'ui/shared.dart';
 import 'pages/diagnostics.dart';
 import 'pages/notification_settings.dart';
+import 'pages/network_settings.dart';
 import 'ui/windows_close.dart';
 
 class XingyuApp extends StatelessWidget {
@@ -354,6 +355,22 @@ class _LoginPageState extends State<LoginPage> {
                     fontSize: 11,
                     height: 1.8,
                   ),
+                ),
+                TextButton.icon(
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => DeskScope(
+                        app: widget.app,
+                        open: (_) {},
+                        child: Scaffold(
+                          appBar: AppBar(title: const Text('网络与代理')),
+                          body: const NetworkSettingsPage(),
+                        ),
+                      ),
+                    ),
+                  ),
+                  icon: const Icon(Icons.wifi_tethering_rounded, size: 17),
+                  label: const Text('网络与代理'),
                 ),
                 TextButton.icon(
                   onPressed: () => showDiagnostics(context),
@@ -759,6 +776,7 @@ class _DesktopShellState extends State<DesktopShell>
       'followingFeed' => FollowingFeedPage(route, key: ValueKey(route.key)),
       'followPeople' => FollowPeoplePage(route, key: ValueKey(route.key)),
       'categories' => CategoryPage(key: ValueKey(route.key)),
+      'networkSettings' => const NetworkSettingsPage(),
       'noticeSettings' => const NotificationSettingsPage(),
       'noticeCenter' => const NoticeCenterPage(),
       'article' => ArticlePage(

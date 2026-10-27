@@ -44,9 +44,7 @@ public final class NoticeJobService extends JobService {
         if(!active())throw new InterruptedException();
         URI uri=new URI(base);
         if(!"https".equals(uri.getScheme()) || uri.getHost()==null || uri.getUserInfo()!=null || uri.getPort()!=-1 || (uri.getPath()!=null && !uri.getPath().isEmpty()))throw new SecurityException();
-        ConnectivityManager manager=getSystemService(ConnectivityManager.class);
-        ProxyInfo info=manager==null?null:manager.getDefaultProxy();
-        Proxy proxy=info!=null && info.getHost()!=null && info.getPort()>0?new Proxy(Proxy.Type.HTTP,new InetSocketAddress(info.getHost(),info.getPort())):Proxy.NO_PROXY;
+        Proxy proxy=NetworkProxy.forUrl(this,new URL(base+path));
         HttpURLConnection conn=(HttpURLConnection)new URL(base+path).openConnection(proxy);connection=conn;
         conn.setConnectTimeout(12000);conn.setReadTimeout(12000);conn.setInstanceFollowRedirects(false);
         conn.setRequestProperty("Accept","application/json");
@@ -128,6 +126,15 @@ public final class NoticeJobService extends JobService {
         }
         state.put(key+":before",before).put(key+":newest",newest);
     }
+    private void checkin(String origin,String token,JSONObject state)throws Exception{
+        JSONArray events=get(origin,"/checkin/v1/events",token,false).optJSONArray("events");if(events==null)throw new IOException();
+        long today=java.time.Instant.now().toEpochMilli()/86400000L;
+        for(int i=events.length()-1;i>=0;i--){JSONObject event=events.getJSONObject(i);String key=event.optString("key");if(!key.equals("checkin:"+today)||event.optBoolean("read",false))continue;
+            String client=switch(event.optString("client")){case "android"->"Android 客户端";case "windows"->"Windows 客户端";case "macos"->"macOS 客户端";case "cloud"->"云端服务";default->"";};
+            String method=switch(event.optString("method")){case "manual"->"手动签到";case "open"->"打开应用自动签到";case "background"->"后台自动签到";case "cloud"->"云端自动签到";default->"";};
+            if(!client.isEmpty()&&!method.isEmpty())deliver(key,"checkin","签到成功",client+" · "+method,0,"");
+        }
+    }
     private void runTask() {
         SharedPreferences p=NoticeBridge.prefs(this);owner=p.getInt("uid",0);epoch=p.getLong("epoch",0);
         if(!active() || !NoticeBridge.granted(this))return;
@@ -135,6 +142,7 @@ public final class NoticeJobService extends JobService {
         try {
             options=new JSONObject(p.getString("preferences","{}"));
             JSONObject state=new JSONObject(p.getString("cursors","{}"));
+            if(options.optBoolean("checkin",true))try{checkin("https://xingyu-chat-ccjk45415.pages.dev",CheckinReceiptBridge.token(this,owner),state);}catch(Exception e){status="partial";}
             StringBuilder cookies=new StringBuilder();
             JSONArray saved=new JSONArray(secret("website.cookies"));
             for(int i=0;i<saved.length();i++)for(HttpCookie cookie:HttpCookie.parse(saved.getJSONObject(i).getString("cookie"))) {

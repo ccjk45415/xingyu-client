@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 import plistlib
+import re
 import shutil
 import subprocess
 import sys
@@ -44,10 +45,17 @@ def main():
     parser.add_argument('--native-check', action='store_true')
     parser.add_argument('--shorebird-test', action='store_true')
     parser.add_argument('--formal', action='store_true', help='Use production installer filenames; does not publish')
+    parser.add_argument('--version')
+    parser.add_argument('--build',type=int)
+    parser.add_argument('--patch-track',default='staging')
     args = parser.parse_args()
     global VERSION, BUILD
     if args.shorebird_test:
         VERSION, BUILD = '0.3.1', '6'
+    if args.version:
+        if not re.fullmatch(r'\d+\.\d+\.\d+',args.version) or not args.build or args.build<1:raise SystemExit('Version and positive build required')
+        VERSION,BUILD=args.version,str(args.build)
+    defines=[f'--dart-define=XINGYU_MACOS_VERSION={VERSION}',f'--dart-define=XINGYU_MACOS_BUILD={BUILD}']
     check_source()
     if args.check_only:
         return
@@ -67,9 +75,9 @@ def main():
         run([flutter, 'test', '--no-pub', 'test/macos_platform_test.dart', 'test/core_test.dart', 'test/updates_test.dart'])
     if args.shorebird_test:
         run(['shorebird', 'release', 'macos', '--flutter-version=3.47.7', f'--build-name={VERSION}', f'--build-number={BUILD}',
-             '--dart-define=XINGYU_PATCH_TRACK=staging', '--dart-define=XINGYU_REQUIRE_CODE_PUSH=true'])
+             f'--dart-define=XINGYU_PATCH_TRACK={args.patch_track}', '--dart-define=XINGYU_REQUIRE_CODE_PUSH=true']+defines)
     else:
-        run([flutter, 'build', 'macos', '--release', f'--build-name={VERSION}', f'--build-number={BUILD}'])
+        run([flutter, 'build', 'macos', '--release', f'--build-name={VERSION}', f'--build-number={BUILD}']+defines)
     bundle = APP / 'build/macos/Build/Products/Release/Xingyu.app'
     binary = bundle / 'Contents/MacOS/Xingyu'
     if not binary.is_file():

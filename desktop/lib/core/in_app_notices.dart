@@ -8,6 +8,7 @@ import 'platform.dart';
 import 'system_notices.dart';
 import 'state.dart';
 import 'notice_read_sync.dart';
+import 'checkin_receipts.dart';
 
 class AppNotice {
   final String key, kind, title, preview, channel;
@@ -21,7 +22,8 @@ class AppNotice {
     required this.preview,
     required this.target,
     this.channel = '',
-  }) : time = DateTime.now();
+    DateTime? time,
+  }) : time = time ?? DateTime.now();
 }
 
 /// Reminders with account-scoped read receipts. Only identifiers and preferences
@@ -112,6 +114,7 @@ class InAppNotices extends ChangeNotifier {
       'postReply',
       'commentReply',
       'like',
+      'checkin',
       'preview',
       'system',
     }.contains(key)) {
@@ -200,6 +203,7 @@ class InAppNotices extends ChangeNotifier {
       _epoch == epoch;
 
   bool _visible(AppNotice notice) => switch (notice.kind) {
+    'checkin' => route == 'checkin',
     'dm' => route == 'dm' && routeId == notice.target,
     'chatMention' => route == 'chat' && channel == notice.channel,
     _ => false,
@@ -221,6 +225,7 @@ class InAppNotices extends ChangeNotifier {
       await app.persist();
       if (_disposed || app.uid != owner || app.generation != generation) return;
       await readSync.sync();
+      await app.checkinReceipts.syncReads();
       if (!_disposed && app.uid == owner && app.generation == generation) {
         _failed.remove('readSync');
       }
@@ -251,7 +256,41 @@ class InAppNotices extends ChangeNotifier {
     unawaited(_sendReads());
   }
 
-  void _add(AppNotice notice) {
+  void acceptCheckin(Json raw) {
+    final event = checkinReceipt(raw);
+    if (event == null || app.uid <= 0 || !enabledAll || !enabled('checkin')) {
+      return;
+    }
+    final state = _state(),
+        seen = (state['checkin'] is List ? state['checkin'] as List : [])
+            .whereType<String>()
+            .toSet();
+    final key = text(event['key']), time = DateTime.parse(text(event['time']));
+    final today =
+        DateTime.now().toUtc().millisecondsSinceEpoch ~/
+        Duration.millisecondsPerDay;
+    _add(
+      AppNotice(
+        key: key,
+        kind: 'checkin',
+        title: '签到成功',
+        preview:
+            '${checkinClientLabel(text(event['client']))} · ${checkinMethodLabel(text(event['method']))}',
+        target: 0,
+        time: time,
+      ),
+      alert: !seen.contains(key) && key == 'checkin:$today',
+    );
+    seen.add(key);
+    while (seen.length > 30) {
+      seen.remove(seen.first);
+    }
+    state['checkin'] = seen.toList();
+    _storeState(state);
+    changed();
+  }
+
+  void _add(AppNotice notice, {bool alert = true}) {
     if (!enabledAll ||
         !enabled(notice.kind) ||
         entries.any((n) => n.key == notice.key)) {
@@ -264,17 +303,22 @@ class InAppNotices extends ChangeNotifier {
       unawaited(_sendReads());
     }
     entries.insert(0, notice);
+    entries.sort((a, b) => b.time.compareTo(a.time));
     if (entries.length > 60) entries.removeRange(60, entries.length);
-    if (!notice.read && _foreground) banner = notice;
-    if (!notice.read && !_foreground && systemEnabled) {
+    if (alert && !notice.read && _foreground) banner = notice;
+    if (alert && !notice.read && !_foreground && systemEnabled) {
       unawaited(
         system
             .show({
               'uid': app.uid,
               'key': notice.key,
               'kind': notice.kind,
-              'title': showPreview ? notice.title : '星屿 · 新消息',
-              'body': showPreview ? notice.preview : '你有一条新的消息，点击查看',
+              'title': showPreview || notice.kind == 'checkin'
+                  ? notice.title
+                  : '星屿 · 新消息',
+              'body': showPreview || notice.kind == 'checkin'
+                  ? notice.preview
+                  : '你有一条新的消息，点击查看',
               'target': notice.target,
               'channel': notice.channel,
             })
@@ -402,6 +446,17 @@ class InAppNotices extends ChangeNotifier {
       await _sendReads();
       if (!_valid(owner, generation, epoch)) return;
       await Future.wait([
+        if (enabled('checkin'))
+          source(
+            'checkin',
+            () async => {'events': await app.checkinReceipts.sync()},
+            (result, state) {
+              for (final event in rows(result['events']).reversed) {
+                acceptCheckin(event);
+              }
+              state['checkin'] = _state()['checkin'];
+            },
+          ),
         if (enabled('postReply') || enabled('commentReply'))
           source(
             'reply',

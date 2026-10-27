@@ -2,7 +2,7 @@ import 'api.dart';
 import 'state.dart';
 
 bool validNoticeKey(String key) => RegExp(
-  r'^(?:dm:[1-9][0-9]{0,15}|chat:[12]:[1-9][0-9]{0,15}|(?:reply|vote):[A-Za-z0-9_-]{1,100})$',
+  r'^(?:checkin:[1-9][0-9]{0,15}|dm:[1-9][0-9]{0,15}|chat:[12]:[1-9][0-9]{0,15}|(?:reply|vote):[A-Za-z0-9_-]{1,100})$',
 ).hasMatch(key);
 
 /// Only notification identifiers are stored/synchronized. Read receipts are

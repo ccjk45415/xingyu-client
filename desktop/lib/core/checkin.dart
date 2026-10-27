@@ -232,10 +232,12 @@ class CheckinController extends ChangeNotifier {
       if (!current(uid, generation)) return;
       final wasUnsigned = user['is_signed'] != true && user['is_signed'] != 1;
       Json reward = {};
+      var confirmedPost = false;
       if (user['is_signed'] != true && user['is_signed'] != 1) {
         try {
           final result = await app.site.post('user/signin', {});
           reward = object(result['data']);
+          confirmedPost = true;
           // Re-read the authoritative state after POST, including a race with a background task.
           user = await account(uid);
         } catch (_) {
@@ -259,6 +261,9 @@ class CheckinController extends ChangeNotifier {
         };
         app.local['checkinLatest'] = all;
         await app.persist();
+      }
+      if (wasUnsigned && confirmedPost) {
+        await app.checkinReceipts.record(source);
       }
       message = '今日已签到';
       _loginRequiredFor = '';

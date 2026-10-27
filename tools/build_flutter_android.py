@@ -63,10 +63,11 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--device-test', help='Run isolated, synthetic integration tests on this ADB device')
     parser.add_argument('--shorebird-test', action='store_true', help='Build/register a private Shorebird test base, never publish an installer')
-    parser.add_argument('--version', choices=['0.13.1', '0.13.2'], default='0.13.2')
+    parser.add_argument('--version', choices=['0.13.1', '0.13.2', '0.13.3'], default='0.13.2')
+    parser.add_argument('--patch-track', default='staging')
     args = parser.parse_args()
-    version, build = args.version, ('38' if args.version == '0.13.2' else '37')
-    version_flags = [f'--dart-define=XINGYU_ANDROID_VERSION={version}', f'--dart-define=XINGYU_ANDROID_BUILD={build}'] if build == '38' else []
+    version, build = args.version, {'0.13.1':'37','0.13.2':'38','0.13.3':'39'}[args.version]
+    version_flags = [f'--dart-define=XINGYU_ANDROID_VERSION={version}', f'--dart-define=XINGYU_ANDROID_BUILD={build}'] if build != '37' else []
     env = prepare()
     command = [str(FLUTTER / 'bin/cache/dart-sdk/bin/dart.exe'), str(FLUTTER / 'bin/cache/flutter_tools.snapshot')]
     def run(arguments):
@@ -86,7 +87,7 @@ def main():
         subprocess.run(['powershell', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File',
             str(TOOL / 'xingyu-shorebird/bin/shorebird.ps1'), 'release', 'android', '--artifact=apk',
             '--target-platform=android-arm64', '--flutter-version=3.47.7', f'--build-name={version}',
-            f'--build-number={build}', '--dart-define=XINGYU_ANDROID_TEST=true', '--dart-define=XINGYU_PATCH_TRACK=staging'] + version_flags,
+            f'--build-number={build}', '--dart-define=XINGYU_ANDROID_TEST=true', f'--dart-define=XINGYU_PATCH_TRACK={args.patch_track}'] + version_flags,
             cwd=STAGE, env=env, check=True)
     else:
         run(['build', 'apk', '--release', '--target-platform=android-arm64',

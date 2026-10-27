@@ -79,6 +79,7 @@ public final class CheckinJobService extends JobService {
             : "schedule_failed".equals(raw) ? "系统暂时无法安排后台签到" : "等待系统调度";
         JobScheduler scheduler=c.getSystemService(JobScheduler.class);
         out.put("status",label);out.put("code",raw);out.put("time",time);out.put("uid",p.getInt("uid",0));
+        try{java.util.List<Map<String,Object>> events=new java.util.ArrayList<>();org.json.JSONArray saved=new org.json.JSONArray(p.getString("events","[]"));for(int i=0;i<saved.length();i++){org.json.JSONObject event=saved.getJSONObject(i);if(event.optInt("uid")==p.getInt("uid",0)){Map<String,Object> item=new java.util.HashMap<>();for(String key:new String[]{"time","client","method"})item.put(key,event.optString(key));events.add(item);}}out.put("events",events);}catch(Exception ignored){}
         out.put("period_minutes",CheckinPolicy.PERIOD/60000);
         out.put("scheduled",scheduler.getPendingJob(CheckinPolicy.PERIODIC_JOB)!=null);
         out.put("phase",p.getString("phase",""));out.put("http_status",p.getInt("http_status",0));
@@ -109,9 +110,7 @@ public final class CheckinJobService extends JobService {
     private JSONObject request(Work work, String path, boolean post, Map<String,HttpCookie> cookies) throws Exception {
         if (!active(work)) throw new InterruptedIOException();
         URL url = new URL("https://cangku.moe/api/v1/"+path);
-        ConnectivityManager cm = (ConnectivityManager)getSystemService(CONNECTIVITY_SERVICE);
-        ProxyInfo info = cm == null ? null : cm.getDefaultProxy();
-        Proxy proxy = info != null && info.getHost()!=null && info.getPort()>0 ? new Proxy(Proxy.Type.HTTP, new InetSocketAddress(info.getHost(),info.getPort())) : Proxy.NO_PROXY;
+        Proxy proxy = NetworkProxy.forUrl(this,url);
         HttpURLConnection connection = (HttpURLConnection)url.openConnection(proxy);
         work.connection = connection;
         if (!active(work)) { connection.disconnect(); throw new InterruptedIOException(); }
@@ -156,6 +155,7 @@ public final class CheckinJobService extends JobService {
         SharedPreferences p=prefs(this), vault=getSharedPreferences("flutter_secure_vault",MODE_PRIVATE);
         if(!active(work))return CheckinPolicy.Outcome.STOPPED;
         final String original=vault.getString(COOKIE_KEY,null);
+        boolean performed=false;JSONObject eventToPublish=null;
         String status="network"; CheckinPolicy.Outcome outcome=CheckinPolicy.Outcome.TRANSIENT;
         try {
             if(original==null)throw new SecurityException();
@@ -177,7 +177,7 @@ public final class CheckinJobService extends JobService {
                     if(!active(work) || !original.equals(vault.getString(COOKIE_KEY,null))) return CheckinPolicy.Outcome.TRANSIENT;
                 }
                 work.phase="signin";
-                try {request(work,"user/signin",true,cookies);} catch(Exception error){ /* Read authoritative state before any retry. */ }
+                try {request(work,"user/signin",true,cookies);performed=true;} catch(Exception error){ /* Read authoritative state before any retry. */ }
                 if(!active(work))return CheckinPolicy.Outcome.STOPPED;
                 work.phase="verify";user=account(work,cookies);
             }
@@ -204,9 +204,19 @@ public final class CheckinJobService extends JobService {
         } catch(Exception error) { /* Never persist session values, upstream bodies or exception messages. */ }
         synchronized(LOCK) {
             if(!active(work))return CheckinPolicy.Outcome.STOPPED;
+            if(outcome==CheckinPolicy.Outcome.SIGNED&&performed){
+                try{
+                    JSONObject event=new JSONObject().put("uid",work.uid).put("time",Instant.now().toString()).put("client","android").put("method","background");
+                    eventToPublish=event;
+                    JSONArray old=new JSONArray(p.getString("events","[]")),events=new JSONArray();
+                    for(int i=Math.max(0,old.length()-9);i<old.length();i++)events.put(old.get(i));events.put(event);p.edit().putString("events",events.toString()).commit();
+                    NoticeBridge.show(this,new JSONObject().put("uid",work.uid).put("key","checkin:"+(Instant.now().toEpochMilli()/86400000L)).put("kind","checkin").put("title","签到成功").put("body","Android 客户端 · 后台自动签到"));
+                }catch(Exception ignored){}
+            }
             p.edit().putString("status",status).putString("time",Instant.now().toString())
                 .putString("phase",work.phase).putInt("http_status",work.httpStatus).apply();
         }
+        if(eventToPublish!=null&&active(work))CheckinReceiptBridge.publish(this,work.uid,eventToPublish,()->active(work));
         return outcome;
     }
     @Override public boolean onStartJob(JobParameters parameters) {
