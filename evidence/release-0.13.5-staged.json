@@ -1,0 +1,36 @@
+{
+  "status": "staged_only",
+  "published": false,
+  "packages": [
+    {
+      "file": "Cangku-Xingyu-0.13.5-arm64.apk",
+      "bytes": 20053867,
+      "sha256": "c19c44f6610ade0782a86c54285b8db4fa88ff4bf673d0039a48ca13eda6f35d",
+      "version": "0.13.5",
+      "code": 41
+    },
+    {
+      "file": "Xingyu-Windows-0.7.4-x64.zip",
+      "bytes": 39443808,
+      "sha256": "bc61a64c746ac21941b3e6ff0af1b1c61ef75a1509bd69ffbc00271263df7152",
+      "version": "0.7.4",
+      "code": 31
+    },
+    {
+      "file": "Xingyu-macOS-0.3.4-arm64.pkg",
+      "bytes": 41184488,
+      "sha256": "68c2a4f645d1a4596f3fa7bcfaf53608e9a9b8599d657cb2956b9bcd66f2ad9c",
+      "version": "0.3.4",
+      "code": 9
+    },
+    {
+      "file": "Xingyu-macOS-0.3.4-arm64.dmg",
+      "bytes": 46874445,
+      "sha256": "b4f7b2f038925d3fc693dc1fa552e6502760698c617d90ed6c2d19b9f0a8be48",
+      "version": "0.3.4",
+      "code": 9
+    }
+  ],
+  "chunk_reconstruction_verified": true,
+  "notes": "修复云端自动签到调度与重试，新增签到成功提醒，可查看签到客户端和执行方式。新增网络与代理设置，支持局域网 Clash，改善网站访问和热补丁连接。"
+}

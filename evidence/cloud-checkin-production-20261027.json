@@ -1,0 +1,22 @@
+{
+  "deployment": "b1381a2a-1cc7-4d45-9027-c66757155f32",
+  "origin": "https://xingyu-chat-ccjk45415.pages.dev",
+  "authentication_routes": [
+    {
+      "route": "/health",
+      "http_status": 200
+    },
+    {
+      "route": "/checkin/v1/events",
+      "http_status": 401
+    },
+    {
+      "route": "/checkin/v1/admin/status",
+      "http_status": 401
+    }
+  ],
+  "case_schedule_verified": true,
+  "case_inspection": "private local record; no user history published",
+  "user_id_published": false,
+  "signed_only_confirmation_compatible": true
+}

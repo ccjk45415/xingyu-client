@@ -1,11 +1,11 @@
 {
   "available": true,
-  "versionName": "0.3.1",
-  "versionCode": 6,
-  "notes": "修复 Windows 下载更新后未完成安装与重启的问题，改善 Windows 系统 HTTP 代理兼容，修复云端签到开启失败与授权状态处理，补全登录及启动异常诊断记录。",
-  "url": "https://xingyu-chat-ccjk45415.pages.dev/releases/Xingyu-macOS-0.3.1-arm64.pkg",
-  "size": 40979294,
-  "sha256": "4e2a659d31b67ad51e223215274cbefc471af91d7880f206bae9b3a354ce8ce3",
+  "versionName": "0.3.4",
+  "versionCode": 9,
+  "notes": "修复云端自动签到调度与重试，新增签到成功提醒，可查看签到客户端和执行方式。新增网络与代理设置，支持局域网 Clash，改善网站访问和热补丁连接。",
+  "url": "https://xingyu-chat-ccjk45415.pages.dev/releases/Xingyu-macOS-0.3.4-arm64.pkg",
+  "size": 41184488,
+  "sha256": "68c2a4f645d1a4596f3fa7bcfaf53608e9a9b8599d657cb2956b9bcd66f2ad9c",
   "platform": "macos-arm64",
   "product": "moe.cangku.xingyu.macos"
 }

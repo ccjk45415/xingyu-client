@@ -1,0 +1,15 @@
+{
+  "native_engine": "original Windows Shorebird engine",
+  "updater_revision": "4fca782d5a6f37cb725226b7bc3b77a2467d744b",
+  "http_connect_targets": [
+    "api.shorebird.dev:443"
+  ],
+  "configured_proxy_used": true,
+  "proxy_applied_after_native_init": true,
+  "proxy_listener_port": 5463,
+  "certificate_validation_disabled": false,
+  "proxy_returns_502_to_stop_before_real_api": true,
+  "patches_downloaded": 0,
+  "user_cache_accessed": false,
+  "process_proxy_only": true
+}

@@ -1,0 +1,48 @@
+{
+  "status": "awaiting_user_test",
+  "installer_container": "XAR component PKG",
+  "disk_image": "Apple UDIF",
+  "installer_scripts": false,
+  "apple_notarized": false,
+  "public_update_unchanged": true,
+  "native_report": {
+    "platform": "macos-arm64",
+    "version": "0.3.4",
+    "build": 9,
+    "signature": "ad-hoc-local-test",
+    "apple_notarized": false,
+    "published": false,
+    "native_self_check": {
+      "code_push_engine": "available",
+      "code_push_initialized": true,
+      "patch_probe": 0,
+      "current_patch": 0,
+      "next_patch": 0,
+      "system_notifications_native": true,
+      "macos_native_engine": "pass",
+      "keychain_round_trip": "pass",
+      "secure_storage": "pass",
+      "app_data_directory": "pass",
+      "public_health": "skipped_offline",
+      "protocol": 3,
+      "website_password_used": false,
+      "messages_sent": 0
+    },
+    "artifacts": [
+      "Xingyu-macOS-0.3.4-arm64.pkg",
+      "Xingyu-macOS-0.3.4-arm64.dmg"
+    ]
+  },
+  "artifacts": [
+    {
+      "file": "Xingyu-macOS-0.3.4-arm64.pkg",
+      "bytes": 41184488,
+      "sha256": "68c2a4f645d1a4596f3fa7bcfaf53608e9a9b8599d657cb2956b9bcd66f2ad9c"
+    },
+    {
+      "file": "Xingyu-macOS-0.3.4-arm64.dmg",
+      "bytes": 46874445,
+      "sha256": "b4f7b2f038925d3fc693dc1fa552e6502760698c617d90ed6c2d19b9f0a8be48"
+    }
+  ]
+}
