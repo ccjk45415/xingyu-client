@@ -1,0 +1,129 @@
+name: Build dynamic-template release bases
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  desktop-release:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            platform: windows
+            version: 0.7.5
+            build: 33
+          - os: macos-15
+            platform: macos
+            version: 0.3.5
+            build: 10
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    env:
+      CI: 'true'
+      FLUTTER_SUPPRESS_ANALYTICS: 'true'
+      GIT_CONFIG_COUNT: '1'
+      GIT_CONFIG_KEY_0: core.longpaths
+      GIT_CONFIG_VALUE_0: 'true'
+      XINGYU_RELEASE_TRACK: template-20261101
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          flutter-version: '3.47.7'
+          channel: stable
+          cache: false
+      - name: Install pinned official Shorebird CLI
+        shell: bash
+        run: |
+          git init "$RUNNER_TEMP/shorebird"
+          git -C "$RUNNER_TEMP/shorebird" remote add origin https://github.com/shorebirdtech/shorebird.git
+          git -C "$RUNNER_TEMP/shorebird" fetch --depth 1 origin 07c191c9448f0b67c5f96253d8832356ba213b06
+          git -C "$RUNNER_TEMP/shorebird" checkout --detach FETCH_HEAD
+          echo "$RUNNER_TEMP/shorebird/bin" >> "$GITHUB_PATH"
+      - name: Restore short-lived official authorization
+        shell: python
+        env:
+          XINGYU_RELEASE_LOGIN: ${{ secrets.SHOREBIRD_RELEASE_LOGIN }}
+        run: |
+          import os,json,pathlib,sys
+          value=json.loads(os.environ['XINGYU_RELEASE_LOGIN'])
+          assert value.get('accessToken') and not value.get('refreshToken') and not value.get('idToken')
+          base=(pathlib.Path(os.environ['APPDATA'])/'shorebird' if sys.platform=='win32'
+                else pathlib.Path.home()/'Library/Application Support/shorebird')
+          base.mkdir(parents=True,exist_ok=True)
+          target=base/'credentials-v2.json'
+          target.write_text(json.dumps(value),encoding='utf-8')
+          target.chmod(0o600)
+      - name: Validate shared code and template persistence
+        shell: bash
+        working-directory: desktop
+        run: |
+          flutter pub get
+          flutter analyze --no-pub
+          flutter test --no-pub test/dynamic_templates_test.dart test/dynamic_template_integration_test.dart test/dynamic_template_widget_test.dart test/quick_feed_test.dart test/quick_feed_widget_test.dart test/browse_navigation_test.dart test/comment_reply_preview_test.dart test/macos_platform_test.dart test/updates_test.dart test/core_test.dart
+      - name: Build and register macOS base and installers
+        if: runner.os == 'macOS'
+        run: python3 tools/build_macos.py --shorebird-test --formal --test-update --native-check --skip-tests --version 0.3.5 --build 10 --patch-track template-20261101
+      - name: Build and register Windows base
+        if: runner.os == 'Windows'
+        shell: pwsh
+        working-directory: desktop
+        run: |
+          & "$env:RUNNER_TEMP/shorebird/bin/shorebird.ps1" release windows --flutter-version=3.47.7 --build-name=0.7.5 --build-number=33 --dart-define=XINGYU_WINDOWS_VERSION=0.7.5 --dart-define=XINGYU_WINDOWS_BUILD=33 --dart-define=XINGYU_PATCH_TRACK=template-20261101 --dart-define=XINGYU_REQUIRE_CODE_PUSH=true
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Verify Windows native engine and package complete bundle
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          python tools/verify_release_windows_base.py --bundle desktop/build/windows/x64/runner/Release --version 0.7.5 --build 33 --report output/windows-release-native.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python tools/prepare_desktop_release.py --test-only --version 0.7.5 --build 33 --bundle desktop/build/windows/x64/runner/Release
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Record release build provenance and artifact hashes
+        shell: python
+        env:
+          XINGYU_RELEASE_PLATFORM: ${{ matrix.platform }}
+          XINGYU_RELEASE_VERSION: ${{ matrix.version }}
+          XINGYU_RELEASE_BUILD: ${{ matrix.build }}
+        run: |
+          import hashlib,json,os,pathlib
+          root=pathlib.Path.cwd()
+          platform=os.environ['XINGYU_RELEASE_PLATFORM']
+          version=os.environ['XINGYU_RELEASE_VERSION']
+          names=([f'Xingyu-Windows-{version}-x64.zip'] if platform=='windows' else
+                 [f'Xingyu-macOS-{version}-arm64.pkg',f'Xingyu-macOS-{version}-arm64.dmg'])
+          artifacts=[]
+          for name in names:
+              p=root/'output'/name
+              assert p.is_file() and p.stat().st_size>1000000,name
+              artifacts.append({'file':name,'bytes':p.stat().st_size,'sha256':hashlib.sha256(p.read_bytes()).hexdigest()})
+          report={'platform':platform,'version':version,'build':int(os.environ['XINGYU_RELEASE_BUILD']),
+                  'patch_track':os.environ['XINGYU_RELEASE_TRACK'],'source_commit':os.environ['GITHUB_SHA'],
+                  'workflow_run':os.environ['GITHUB_RUN_ID'],'installer_published':False,
+                  'registered_code_push_base':True,'test_update':True,'artifacts':artifacts}
+          (root/'output'/f'{platform}-release-build.json').write_text(json.dumps(report,indent=2)+'\n',encoding='utf-8')
+          print(json.dumps(report))
+      - name: Remove temporary authorization
+        if: always()
+        shell: python
+        run: |
+          import os,pathlib,sys
+          base=(pathlib.Path(os.environ['APPDATA'])/'shorebird' if sys.platform=='win32'
+                else pathlib.Path.home()/'Library/Application Support/shorebird')
+          (base/'credentials-v2.json').unlink(missing_ok=True)
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: Xingyu-dynamic-template-release-${{ matrix.platform }}
+          if-no-files-found: error
+          retention-days: 14
+          path: |
+            output/Xingyu-macOS-0.3.5-arm64.pkg
+            output/Xingyu-macOS-0.3.5-arm64.dmg
+            output/Xingyu-Windows-0.7.5-x64.zip
+            output/*-release-build.json
+            output/windows-release-native.json
+            output/macOS-build-report.json
+            output/macOS-SHA256SUMS.txt

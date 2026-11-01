@@ -12,14 +12,19 @@ from build_flutter_android import ROOT, TOOL
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--dry-run', action='store_true')
-parser.add_argument('--release-version', choices=['0.13.1+37', '0.13.2+38', '0.13.3+39', '0.13.5+41'], default='0.13.5+41')
+parser.add_argument('--release-version', choices=['0.13.1+37', '0.13.2+38', '0.13.3+39', '0.13.5+41', '0.13.6+43'], default='0.13.6+43')
 args = parser.parse_args()
-sdk = TOOL / 'xingyu-shorebird/bin/cache/flutter/7dbbfb1fc6d89d11974ff5a770610d0937d27206'
+current = args.release_version == '0.13.6+43'
+sdk_revision = '01aea2ee0626578b6b30ebbb2605f195833464fa' if current else '7dbbfb1fc6d89d11974ff5a770610d0937d27206'
+sdk = TOOL / ('xingyu-shorebird/bin/cache/flutter/' + sdk_revision)
+track = 'template-20261101' if current else 'qa-20261027' if args.release_version == '0.13.5+41' else 'staging'
 os.environ['FLUTTER_ROOT'] = str(sdk)
 # prepare() uses the module-level Flutter path when writing local.properties.
 import build_flutter_android
 build_flutter_android.FLUTTER = sdk
-baseline = {'0.13.1+37':'0a46c0c','0.13.2+38':'10511ca','0.13.5+41':'92153ec'}.get(args.release_version)
+baseline = {'0.13.1+37':'0a46c0c','0.13.2+38':'10511ca','0.13.5+41':'92153ec','0.13.6+43':'40792d8'}.get(args.release_version)
+if not baseline:
+    raise SystemExit('No trusted installed native baseline is recorded for this release; do not build a patch from current native inputs.')
 legacy = args.release_version == '0.13.1+37'
 build_flutter_android.STAGE = TOOL / ('xingyu-android-patch'+args.release_version.split('+')[1] if baseline else 'xingyu-android-build')
 STAGE = build_flutter_android.STAGE
@@ -46,7 +51,7 @@ command = ['powershell', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File',
            str(TOOL / 'xingyu-shorebird/bin/shorebird.ps1'), 'patch', 'android',
            f'--release-version={args.release_version}', f'--build-name={name}', f'--build-number={build}',
            '--dart-define=XINGYU_ANDROID_TEST=true',
-           f'--dart-define=XINGYU_PATCH_TRACK={"qa-20261027" if args.release_version=="0.13.5+41" else "staging"}', f'--track={"qa-20261027" if args.release_version=="0.13.5+41" else "staging"}']
+           f'--dart-define=XINGYU_PATCH_TRACK={track}', f'--track={track}']
 if not legacy:
     command += [f'--dart-define=XINGYU_ANDROID_VERSION={name}', f'--dart-define=XINGYU_ANDROID_BUILD={build}']
 if args.dry_run:

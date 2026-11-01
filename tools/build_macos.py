@@ -45,6 +45,7 @@ def main():
     parser.add_argument('--native-check', action='store_true')
     parser.add_argument('--shorebird-test', action='store_true')
     parser.add_argument('--formal', action='store_true', help='Use production installer filenames; does not publish')
+    parser.add_argument('--test-update', action='store_true', help='Mark installer documentation as an untested public test update')
     parser.add_argument('--version')
     parser.add_argument('--build',type=int)
     parser.add_argument('--patch-track',default='staging')
@@ -97,14 +98,23 @@ def main():
          APP / 'macos/Runner/Release.entitlements', bundle])
     run(['codesign', '--verify', '--deep', '--strict', bundle])
     report = {'platform': 'macos-arm64', 'version': VERSION, 'build': int(BUILD),
-              'signature': 'ad-hoc-local-test', 'apple_notarized': False, 'published': False}
+              'signature': 'ad-hoc-local-test', 'apple_notarized': False, 'published': False,
+              'test_update': args.test_update,
+              'registered_code_push_base': args.shorebird_test,
+              'patch_track': args.patch_track if args.shorebird_test else None}
     if args.native_check:
         result = run([binary, '--self-check', '--offline'], capture_output=True, text=True, timeout=60)
         native = next((json.loads(line) for line in result.stdout.splitlines()
                        if line.startswith('{') and 'macos_native_engine' in line), None)
         assert native and native['macos_native_engine'] == 'pass' and native['keychain_round_trip'] == 'pass'
+        assert native['dynamic_templates_sqlite_fts5'] == 'pass'
+        assert native['system_notifications_native'] is True
         if args.shorebird_test:
-            assert native['code_push_engine'] == 'available'
+            assert native['code_push_engine'] == 'available' and native['code_push_initialized'] is True
+        assert native['current_patch'] == 0 and native['next_patch'] == 0
+        assert native['public_health'] == 'skipped_offline'
+        # GitHub-hosted jobs run in a fresh VM, separated from any user cache.
+        report['isolated_ci_runner'] = os.environ.get('GITHUB_ACTIONS') == 'true'
         report['native_self_check'] = native
     out = ROOT / 'output'
     out.mkdir(exist_ok=True)
@@ -118,7 +128,9 @@ def main():
         run(['ditto', bundle, stage / 'Xingyu.app'])
         (stage / 'Applications').symlink_to('/Applications', target_is_directory=True)
         (stage / '安装说明.txt').write_text(
-            '星屿 macOS Apple Silicon\n\n拖动 Xingyu.app 到 Applications 安装。'
+            '星屿 macOS Apple Silicon\n\n' +
+            ('本次为测试更新，尚未进行用户实测。遇到问题请反馈。\n\n' if args.test_update else '') +
+            '拖动 Xingyu.app 到 Applications 安装。'
             '也可使用同版本 PKG 安装器。\n本包为本机测试签名，尚未做 Apple Developer ID 签名与公证；'
             '首次打开时 macOS 可能要求在“系统设置 → 隐私与安全性”确认。\n'
             '不需要关闭 Gatekeeper、关闭系统保护或提供 Apple ID 密码。\n', encoding='utf-8')

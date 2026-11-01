@@ -16,14 +16,16 @@ parser.add_argument('platform', choices=['windows', 'macos'])
 parser.add_argument('--dry-run', action='store_true')
 parser.add_argument('--release-version')
 args = parser.parse_args()
-active={'windows':('0.7.4','31'),'macos':('0.3.4','9')}
+active={'windows':('0.7.5','33'),'macos':('0.3.5','10')}
+previous={'windows':('0.7.4','31'),'macos':('0.3.4','9')}
 legacy={'windows':('0.7.1','28'),'macos':('0.3.1','6')}
 name,build=active[args.platform]
 if args.release_version:
-    if args.release_version not in {n+'+'+b for n,b in [active[args.platform],legacy[args.platform]]}:raise SystemExit('Unsupported installed base')
+    if args.release_version not in {n+'+'+b for n,b in [active[args.platform],previous[args.platform],legacy[args.platform]]}:raise SystemExit('Unsupported installed base')
     name,build=args.release_version.split('+')
 is_current=(name,build)==active[args.platform]
-track='qa-20261027' if is_current else 'staging'
+is_previous=(name,build)==previous[args.platform]
+track='template-20261101' if is_current else 'qa-20261027' if is_previous else 'staging'
 if sys.platform == 'win32':
     cli = Path(os.environ['RUNNER_TEMP']) / 'shorebird/bin/shorebird.ps1'
     command = ['powershell', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', str(cli)]
@@ -33,7 +35,7 @@ command += ['patch', args.platform, f'--release-version={name}+{build}',
             f'--build-name={name}', f'--build-number={build}',
             f'--dart-define=XINGYU_PATCH_TRACK={track}',
             '--dart-define=XINGYU_REQUIRE_CODE_PUSH=true', f'--track={track}']
-if is_current:
+if is_current or is_previous:
     key='WINDOWS' if args.platform=='windows' else 'MACOS'
     command += [f'--dart-define=XINGYU_{key}_VERSION={name}',f'--dart-define=XINGYU_{key}_BUILD={build}']
 if args.dry_run:
