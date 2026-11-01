@@ -167,9 +167,10 @@ class AccountOverview extends StatelessWidget {
           items: [
             ('我的投稿', Icons.edit_note_rounded, 'manage'),
             ('本机草稿', Icons.drafts_outlined, 'drafts'),
+            ('动态模板', Icons.auto_awesome_motion_rounded, 'dynamicTemplates'),
             ('等级与积分', Icons.military_tech_outlined, 'logs'),
           ],
-          columns: 3,
+          columns: 4,
           color: _rose,
         ),
       ],

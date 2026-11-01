@@ -1,4 +1,5 @@
 import {submissionTaskInput, submissionTaskResult, SUBMISSION_TASK_SYSTEM} from './submission-tools.mjs';
+import {TEMPLATE_REFINE_SYSTEM} from './dynamic-template-ai.mjs';
 import {TRANSLATION_LIMITS,TRANSLATION_SYSTEM,translationInput,translationPlan,translatedSegments,translatedDraft} from './translation.mjs';
 // No public-page fetching, website cookies, user-supplied model, tools or chat history here.
 // Native clients extract public pages locally. All submitted material remains untrusted data.
@@ -68,7 +69,7 @@ export function createAiHub(Base,{clock=()=>Date.now(),infer}={}){return class e
     try{
       let result;
       if(tasking){
-        const args={messages:[{role:'system',content:SUBMISSION_TASK_SYSTEM},{role:'user',content:JSON.stringify({task:b.task,title:b.title,instruction:b.instruction,segments:b.segments,sources:b.sources})}],max_tokens:3000,temperature:0,stream:false,response_format:{type:'json_object'}};
+        const args={messages:[{role:'system',content:b.task==='template_refine'?TEMPLATE_REFINE_SYSTEM:SUBMISSION_TASK_SYSTEM},{role:'user',content:JSON.stringify({task:b.task,title:b.title,instruction:b.instruction,segments:b.segments,sources:b.sources})}],max_tokens:3000,temperature:0,stream:false,response_format:{type:'json_object'}};
         const out=await (infer?infer(args):this.env.AI.run(AI_POLICY.model,args));
         result=submissionTaskResult(out?.choices?.[0]?.message?.content??out?.response,b);
       }else if(translating){

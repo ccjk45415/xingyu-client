@@ -65,7 +65,7 @@ void main() {
           'channel': '1',
           'sender': {'id': 77, 'nickname': '测试同好'},
           'text': '头像操作测试',
-          'created_at': '2026-10-24T12:00:00Z',
+          'created_at': DateTime.now().toUtc().toIso8601String(),
         };
         chat.room.draft = '保留的草稿 ';
         chat.update();

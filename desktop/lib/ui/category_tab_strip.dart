@@ -4,7 +4,12 @@ import 'package:flutter/material.dart';
 /// Each category level owns its scroll position and a draggable desktop thumb.
 class CategoryTabStrip extends StatefulWidget {
   final List<Widget> children;
-  const CategoryTabStrip({super.key, required this.children});
+  final EdgeInsets padding;
+  const CategoryTabStrip({
+    super.key,
+    required this.children,
+    this.padding = const EdgeInsets.fromLTRB(24, 0, 24, 14),
+  });
   @override
   State<CategoryTabStrip> createState() => _CategoryTabStripState();
 }
@@ -55,7 +60,7 @@ class _CategoryTabStripState extends State<CategoryTabStrip> {
         child: SingleChildScrollView(
           controller: controller,
           scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.fromLTRB(24, 0, 24, 14),
+          padding: widget.padding,
           child: Row(children: widget.children),
         ),
       ),

@@ -8,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 import 'api.dart';
 import 'browse_cache.dart';
 import 'following_feed.dart';
+import 'quick_feed.dart';
 import 'client_config.dart';
 import 'checkin.dart';
 import 'checkin_receipts.dart';
@@ -49,6 +50,13 @@ class AppState extends ChangeNotifier {
     get: get,
     social: (path) => social(path),
     active: () => verified && uid > 0,
+  );
+  late final QuickFeedStore quickFeed = QuickFeedStore(
+    get: get,
+    history: () => history,
+    categories: () => categories,
+    account: () => uid,
+    rememberCategories: rememberHistoryCategories,
   );
   VoidCallback? onLogout;
   bool _syncing = false;
@@ -132,6 +140,7 @@ class AppState extends ChangeNotifier {
     await notices.stopSystem();
     notices.clear();
     followingFeed.clear();
+    quickFeed.clear();
     user = result;
     generation++;
     await loadIdentity();
@@ -378,6 +387,7 @@ class AppState extends ChangeNotifier {
     notices.clear();
     await checkin.stopForLogout();
     followingFeed.clear();
+    quickFeed.clear();
     onLogout?.call();
     final owner = uid, secret = token;
     generation++;
@@ -475,6 +485,24 @@ class AppState extends ChangeNotifier {
     await persist();
   }
 
+  Future<void> rememberHistoryCategories(int owner, List<Json> enriched) async {
+    if (owner <= 0 || uid != owner || enriched.isEmpty) return;
+    final byId = {
+      for (final post in enriched) number(post['id']): rows(post['categories']),
+    };
+    final all = object(local['history']);
+    all['$owner'] = [
+      for (final post in rows(all['$owner']))
+        if (rows(post['categories']).isEmpty &&
+            (byId[number(post['id'])]?.isNotEmpty ?? false))
+          {...post, 'categories': byId[number(post['id'])]}
+        else
+          post,
+    ];
+    local['history'] = all;
+    await persist();
+  }
+
   Future<void> addHistory(Json post) async {
     final all = object(local['history']), list = rows(all['$uid']);
     list.removeWhere((v) => v['id'] == post['id']);
@@ -486,6 +514,7 @@ class AppState extends ChangeNotifier {
         'user',
         'created_at',
         'view_count',
+        'categories',
       ])
         key: post[key],
       'read_at': DateTime.now().toIso8601String(),
@@ -510,6 +539,7 @@ class AppState extends ChangeNotifier {
 
   @override
   void dispose() {
+    quickFeed.dispose();
     notices.dispose();
     patches.removeListener(notifyListeners);
     patches.dispose();

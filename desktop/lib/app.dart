@@ -11,6 +11,8 @@ import 'core/chat.dart';
 import 'core/platform.dart';
 import 'core/error_diagnostics.dart';
 import 'pages/discovery.dart';
+import 'pages/quick_feed.dart';
+import 'pages/dynamic_templates.dart';
 import 'pages/reading.dart';
 import 'pages/account.dart';
 import 'pages/following.dart';
@@ -591,6 +593,7 @@ class _DesktopShellState extends State<DesktopShell>
 
   static const navigation = [
     (Icons.explore_outlined, '首页', 'home'),
+    (Icons.bolt_rounded, '快撸', 'quickFeed'),
     (Icons.interests_outlined, '分类', 'categories'),
     (Icons.local_fire_department_outlined, '排行', 'rank'),
     (Icons.forum_outlined, '聊天室', 'chat'),
@@ -774,6 +777,50 @@ class _DesktopShellState extends State<DesktopShell>
       'favorites' ||
       'authorPosts' => PostListPage(route, key: ValueKey(route.key)),
       'followingFeed' => FollowingFeedPage(route, key: ValueKey(route.key)),
+      'quickFeed' => QuickFeedPage(
+        widget.app.quickFeed,
+        key: ValueKey(route.key),
+      ),
+      'dynamicTemplates' => DynamicTemplatesPage(
+        widget.app,
+        key: ValueKey(route.key),
+        onOpenDraft: (taskId, snapshot, postId) async {
+          final owner = widget.app.uid;
+          final generation = widget.app.generation;
+          final data = <String, dynamic>{...snapshot};
+          if (postId > 0) {
+            final latest = object(
+              (await widget.app.get('post/info', {
+                'id': postId,
+                'include': 'user,categories:simple,tags',
+                'exclude_view': 1,
+              }))['data'],
+            );
+            if (number(latest['user_id']) != owner) {
+              throw ApiFailure(403, '只能修改自己的投稿');
+            }
+            data['baseline'] = text(snapshot['baseline']).isNotEmpty
+                ? snapshot['baseline']
+                : postFingerprint(latest);
+            data['version'] = text(snapshot['version']).isNotEmpty
+                ? snapshot['version']
+                : latest['updated_at'];
+            data['oldStatus'] = latest['status'];
+          }
+          if (!mounted ||
+              widget.app.uid != owner ||
+              widget.app.generation != generation) {
+            return;
+          }
+          final key = 'dynamic-$taskId';
+          await widget.app.saveDraft(key, data, owner: owner);
+          if (mounted &&
+              widget.app.uid == owner &&
+              widget.app.generation == generation) {
+            open(DeskRoute('editor', '模板投稿预览', id: postId, query: key));
+          }
+        },
+      ),
       'followPeople' => FollowPeoplePage(route, key: ValueKey(route.key)),
       'categories' => CategoryPage(key: ValueKey(route.key)),
       'networkSettings' => const NetworkSettingsPage(),
@@ -859,6 +906,7 @@ class _DesktopShellState extends State<DesktopShell>
                           'manage',
                           'editor',
                           'drafts',
+                          'dynamicTemplates',
                           'logs',
                         ].contains(route.kind)
                       ? 'mine'
@@ -933,6 +981,7 @@ class _DesktopShellState extends State<DesktopShell>
                               ),
                             for (final nav in [
                               (Icons.grid_view_rounded, '发现', 'home'),
+                              (Icons.bolt_rounded, '快撸', 'quickFeed'),
                               (Icons.interests_outlined, '分类', 'categories'),
                               (
                                 Icons.local_fire_department_outlined,

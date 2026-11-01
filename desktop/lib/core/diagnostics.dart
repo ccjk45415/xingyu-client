@@ -11,6 +11,7 @@ import 'package:path_provider/path_provider.dart';
 import 'api.dart';
 
 import 'package:shorebird_code_push/shorebird_code_push.dart';
+import 'package:sqlite3/sqlite3.dart';
 
 /// Explicit command-line diagnostics; touches only a random temporary key/file and public health.
 Future<void> runSelfCheck({
@@ -41,6 +42,24 @@ Future<void> runSelfCheck({
   File? file;
   final service = ServiceApi();
   try {
+    final database = sqlite3.openInMemory();
+    try {
+      database.execute(
+        "CREATE VIRTUAL TABLE template_probe USING fts5(content, tokenize='trigram')",
+      );
+      database.execute('INSERT INTO template_probe(content) VALUES(?)', [
+        '模板检索 RJ123456',
+      ]);
+      if (database.select(
+            'SELECT content FROM template_probe WHERE template_probe MATCH ?',
+            ['RJ123456'],
+          ).length !=
+          1) {
+        throw StateError('Template SQLite FTS5 is unavailable');
+      }
+    } finally {
+      database.close();
+    }
     await storage.write(key: key, value: value);
     if (await storage.read(key: key) != value) {
       throw StateError('Secure storage round trip failed');
@@ -103,6 +122,7 @@ Future<void> runSelfCheck({
         'secure_storage': 'pass',
         if (Platform.isWindows) 'encrypted_file_and_tamper_rejection': 'pass',
         'app_data_directory': 'pass',
+        'dynamic_templates_sqlite_fts5': 'pass',
         'public_health': offline ? 'skipped_offline' : 'pass',
         'protocol': 3,
         'website_password_used': false,

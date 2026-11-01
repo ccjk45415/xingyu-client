@@ -1,4 +1,5 @@
 import '../core/submission_workbench.dart';
+import '../core/dynamic_template_store.dart';
 import 'submission_workbench.dart';
 import '../ui/submission_categories.dart';
 
@@ -366,6 +367,7 @@ class _PostEditorState extends State<PostEditor> {
   String guideKind = 'other';
   bool guideAiImages = false;
   List<Json> sourceMaterials = [];
+  Json dynamicMetadata = {};
   String status = 'draft',
       oldStatus = 'draft',
       version = '',
@@ -445,6 +447,14 @@ class _PostEditorState extends State<PostEditor> {
       guideKind = text(source['guide_kind'], 'other');
       guideAiImages = source['guide_ai_images'] == true;
       sourceMaterials = rows(source['source_materials']);
+      dynamicMetadata = {
+        for (final key in [
+          'dynamic_task_id',
+          'dynamic_template_id',
+          'dynamic_template_version',
+        ])
+          if (source[key] != null) key: source[key],
+      };
       visual.load(content.text);
       visual.onSourceChanged = visualChanged;
       visual.onEditError = (error) {
@@ -480,6 +490,7 @@ class _PostEditorState extends State<PostEditor> {
   }
 
   Json snapshot() => {
+    ...dynamicMetadata,
     'id': widget.route.id,
     'owner': owner,
     'title': title.text,
@@ -2325,7 +2336,7 @@ class _PostEditorState extends State<PostEditor> {
         if (oldStatus != 'rejected') 'status': status,
         if (status == 'future') 'created_at': schedule.text.trim(),
       };
-      await app!.post(
+      final submitted = await app!.post(
         widget.route.id == 0
             ? 'post/create'
             : oldStatus == 'rejected'
@@ -2333,9 +2344,38 @@ class _PostEditorState extends State<PostEditor> {
             : 'post/update',
         payload,
       );
+      final taskId = text(dynamicMetadata['dynamic_task_id']);
+      if (taskId.isNotEmpty) {
+        try {
+          final store = await DynamicTemplateStore.open(
+            owner,
+            directory: app!.directory,
+          );
+          try {
+            store.markSubmitted(
+              taskId,
+              postId: widget.route.id > 0
+                  ? widget.route.id
+                  : number(object(submitted['data'])['id']),
+              status: status,
+              snapshot: {...snapshot(), 'content': bodyHtml()},
+            );
+          } finally {
+            store.close();
+          }
+        } catch (_) {
+          // A successful website submission must never be reported as failed
+          // merely because the independent local task journal is unavailable.
+        }
+      }
       completed = true;
       dirty = false;
-      await app!.saveDraft(draftKey, null, owner: owner);
+      try {
+        await app!.saveDraft(draftKey, null, owner: owner);
+      } catch (_) {
+        // The website has already accepted this submission. A local cleanup
+        // failure must not encourage a second website POST.
+      }
       if (mounted) {
         message(context, '投稿已同步到网站');
         openRoute(

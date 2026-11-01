@@ -9,6 +9,7 @@ import '../core/api.dart';
 import '../core/category_preferences.dart';
 import '../ui/category_filter.dart';
 import '../ui/category_tab_strip.dart';
+import '../ui/browse_pagination.dart';
 import '../core/home_content.dart';
 import '../core/reader.dart';
 import '../core/pinned_content.dart';
@@ -149,19 +150,29 @@ class PostListPage extends StatelessWidget {
                 const SizedBox(height: 20),
                 const HomeFilterBar(),
               ],
-              Heading(
-                route.kind == 'home' ? '发现新的心动' : route.title,
-                route.kind == 'search'
-                    ? '“${route.query}”的搜索结果'
-                    : route.kind == 'home'
-                    ? '把值得珍藏的作品，留在你的宇宙里。'
-                    : '封面、故事与灵感，都在这里。',
-                trailing: IconButton(
-                  onPressed: reload,
-                  tooltip: '刷新作品',
-                  icon: const Icon(Icons.refresh_rounded),
+              if (route.kind == 'posts')
+                _CategorySectionHeader(
+                  title: route.title,
+                  trailing: IconButton(
+                    onPressed: reload,
+                    tooltip: '刷新作品',
+                    icon: const Icon(Icons.refresh_rounded, size: 20),
+                  ),
+                )
+              else
+                Heading(
+                  route.kind == 'home' ? '发现新的心动' : route.title,
+                  route.kind == 'search'
+                      ? '“${route.query}”的搜索结果'
+                      : route.kind == 'home'
+                      ? '把值得珍藏的作品，留在你的宇宙里。'
+                      : '封面、故事与灵感，都在这里。',
+                  trailing: IconButton(
+                    onPressed: reload,
+                    tooltip: '刷新作品',
+                    icon: const Icon(Icons.refresh_rounded),
+                  ),
                 ),
-              ),
               if (route.kind == 'rank')
                 Padding(
                   padding: const EdgeInsets.only(bottom: 24),
@@ -210,7 +221,7 @@ class PostListPage extends StatelessWidget {
                   ),
               ] else
                 PostGrid(posts),
-              Pagination(
+              BrowsePagination(
                 data,
                 route.page,
                 (page) => openRoute(context, route.at(page)),
@@ -390,6 +401,31 @@ class _PostCardState extends State<PostCard> {
   }
 }
 
+class _CategorySectionHeader extends StatelessWidget {
+  final String title;
+  final Widget? trailing;
+  const _CategorySectionHeader({required this.title, this.trailing});
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: 12),
+    child: Row(
+      children: [
+        const IconBadge(Icons.grid_view_rounded, size: 30),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            title,
+            style: Theme.of(context).textTheme.titleMedium
+                ?.copyWith(fontSize: 18, fontWeight: FontWeight.w700),
+          ),
+        ),
+        ?trailing,
+      ],
+    ),
+  );
+}
+
 class CategoryPage extends StatelessWidget {
   const CategoryPage({super.key});
   @override
@@ -403,9 +439,8 @@ class CategoryPage extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Heading(
-                  '按兴趣漫游',
-                  '从喜欢的分类出发，寻找下一份心动。',
+                _CategorySectionHeader(
+                  title: '兴趣分类',
                   trailing: IconButton(
                     tooltip: '刷新内容',
                     onPressed: reload,
@@ -414,22 +449,25 @@ class CategoryPage extends StatelessWidget {
                 ),
                 for (final category in rows(data['data']))
                   Padding(
-                    padding: const EdgeInsets.only(bottom: 20),
+                    padding: const EdgeInsets.only(bottom: 12),
                     child: Surface(
+                      padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
                             children: [
-                              const Icon(
+                              const IconBadge(
                                 Icons.interests_outlined,
-                                color: violet,
+                                size: 28,
                               ),
-                              const SizedBox(width: 12),
+                              const SizedBox(width: 10),
                               Expanded(
                                 child: Text(
                                   text(category['name']),
-                                  style: Theme.of(context).textTheme.titleLarge,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleMedium,
                                 ),
                               ),
                               TextButton(
@@ -441,11 +479,11 @@ class CategoryPage extends StatelessWidget {
                                     id: number(category['id']),
                                   ),
                                 ),
-                                child: const Text('浏览全部  →'),
+                                child: const Text('全部 ›'),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 18),
+                          const SizedBox(height: 8),
                           Wrap(
                             spacing: 10,
                             runSpacing: 10,
@@ -922,33 +960,38 @@ class _CategoryTabsPageState extends State<CategoryTabsPage> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(24, 18, 24, 10),
+              key: const Key('category.compact-header'),
+              padding: const EdgeInsets.fromLTRB(16, 4, 12, 2),
               child: Row(
                 children: [
-                  const Icon(Icons.interests_rounded, color: violet),
-                  const SizedBox(width: 10),
+                  const IconBadge(Icons.interests_rounded, size: 28),
+                  const SizedBox(width: 8),
                   const Expanded(
                     child: Text(
                       '兴趣频道',
                       style: TextStyle(
-                        fontSize: 21,
-                        fontWeight: FontWeight.w800,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ),
                   IconButton(
+                    visualDensity: VisualDensity.compact,
                     tooltip: '排版设置',
                     onPressed: () => openRoute(
                       context,
                       const DeskRoute('appearance', '阅读与外观'),
                     ),
-                    icon: const Icon(Icons.dashboard_customize_outlined),
+                    icon: const Icon(
+                      Icons.dashboard_customize_outlined,
+                      size: 20,
+                    ),
                   ),
                 ],
               ),
             ),
             Container(
-              padding: const EdgeInsets.symmetric(vertical: 10),
+              padding: const EdgeInsets.only(top: 4, bottom: 2),
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.surface,
               ),
@@ -957,11 +1000,20 @@ class _CategoryTabsPageState extends State<CategoryTabsPage> {
                 children: [
                   CategoryTabStrip(
                     key: const ValueKey('category-root-tabs'),
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
                     children: [
                       for (final node in roots)
                         Padding(
                           padding: const EdgeInsets.only(right: 8),
                           child: ChoiceChip(
+                            showCheckmark: false,
+                            visualDensity: VisualDensity.compact,
+                            materialTapTargetSize:
+                                MaterialTapTargetSize.shrinkWrap,
+                            labelPadding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                            ),
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
                             label: Text(text(node['name'])),
                             selected: number(node['id']) == rootId,
                             onSelected: (_) => setState(() {
@@ -975,9 +1027,10 @@ class _CategoryTabsPageState extends State<CategoryTabsPage> {
                     ],
                   ),
                   if (subs.isNotEmpty) ...[
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 2),
                     CategoryTabStrip(
                       key: ValueKey('category-child-tabs:$rootId'),
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
                       children: [
                         for (final node in [
                           {'id': rootId, 'name': '全部'},
@@ -986,6 +1039,17 @@ class _CategoryTabsPageState extends State<CategoryTabsPage> {
                           Padding(
                             padding: const EdgeInsets.only(right: 6),
                             child: ChoiceChip(
+                              showCheckmark: false,
+                              visualDensity: VisualDensity.compact,
+                              materialTapTargetSize:
+                                  MaterialTapTargetSize.shrinkWrap,
+                              labelStyle: const TextStyle(fontSize: 12),
+                              labelPadding: const EdgeInsets.symmetric(
+                                horizontal: 5,
+                              ),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 3,
+                              ),
                               label: Text(text(node['name'])),
                               selected: number(node['id']) == active,
                               onSelected: (_) => setState(() {

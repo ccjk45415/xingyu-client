@@ -7,7 +7,10 @@ from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1];APP=ROOT/'desktop'
 alias=Path('C:/codex-tools/xingyu-desktop')
 if os.name=='nt' and alias.is_dir() and alias.resolve()==APP.resolve():APP=alias
-parser=argparse.ArgumentParser();parser.add_argument('--configure-only',action='store_true');args=parser.parse_args()
+parser=argparse.ArgumentParser();parser.add_argument('--configure-only',action='store_true')
+parser.add_argument('--build-name');parser.add_argument('--build-number',type=int)
+parser.add_argument('--dart-define',action='append',default=[]);args=parser.parse_args()
+build_flags=([f'--build-name={args.build_name}'] if args.build_name else [])+([f'--build-number={args.build_number}'] if args.build_number else [])+[f'--dart-define={v}' for v in args.dart_define]
 FLUTTER=Path(os.environ.get('FLUTTER_ROOT','C:/codex-tools/flutter'))
 DART=FLUTTER/'bin/cache/dart-sdk/bin/dart.exe';SNAPSHOT=FLUTTER/'bin/cache/flutter_tools.snapshot'
 if not DART.is_file():raise SystemExit('Install Flutter and set FLUTTER_ROOT first. See desktop/README.md')
@@ -17,13 +20,13 @@ def run(argv,**kwargs):
 env=os.environ.copy();env['FLUTTER_ROOT']=str(FLUTTER);env['FLUTTER_SUPPRESS_ANALYTICS']='true';env['CI']='true'
 env['VSLANG']='1033'
 # Flutter writes ephemeral configuration and plugin symlinks before probing Visual Studio.
-configured=run([DART,SNAPSHOT,'build','windows','--release','--config-only'],env=env)
+configured=run([DART,SNAPSHOT,'build','windows','--release','--config-only']+build_flags,env=env)
 portable=Path(os.environ.get('XINGYU_BUILD_TOOLS','C:/codex-tools'))
 cmake=portable/'python-build/cmake/data/bin/cmake.exe';ninja=portable/'python-build/bin/ninja.exe'
 vswhere=Path('C:/Program Files (x86)/Microsoft Visual Studio/Installer/vswhere.exe')
 if not cmake.is_file() or not ninja.is_file():
     if configured.returncode:raise SystemExit(configured.returncode)
-    if not args.configure_only:run([DART,SNAPSHOT,'build','windows','--release'],env=env,check=True)
+    if not args.configure_only:run([DART,SNAPSHOT,'build','windows','--release']+build_flags,env=env,check=True)
     raise SystemExit(0)
 vs=Path(subprocess.check_output([str(vswhere),'-latest','-requires','Microsoft.VisualStudio.Component.VC.Tools.x86.x64','-property','installationPath'],text=True).strip())
 msvc=sorted((vs/'VC/Tools/MSVC').iterdir())[-1]

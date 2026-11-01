@@ -1,0 +1,15 @@
+{
+  "date": "2026-11-01",
+  "status": "local_test_packages_ready",
+  "installer_uploaded": false,
+  "hot_patch_published": false,
+  "formal_update_feeds_changed": false,
+  "flutter": {"passed": 325, "conditional_skipped": 3, "analyze": "clean"},
+  "backend": {"passed": 75, "worker_version": "c511bb86-ee7f-459c-8bc2-cc4cac0f07ce", "existing_ai_tasks_preserved": true},
+  "android": {"version": "0.13.6-template-test", "build": 42, "bytes": 21083224, "sha256": "1ba20980d7f5f07fbe320bec67dff9e8af0b8868051f85317dcb563761a80a09", "original_signer": "matches", "native_alignment": "pass", "device_tested": false},
+  "windows": {"version": "0.7.5-template-test", "build": 32, "bytes": 40484077, "sha256": "f685fe3e2384ebdd43c189e1f405ac903eb917ceedadf065d40befdf9a915d72", "native_runtime_sqlite_fts5": "pass", "native_notifications_and_patch_initialization": "pass"},
+  "macos": {"shared_code_updated": true, "installer_built": false},
+  "live_ai_model_probe": {"status": "not_verified", "reason": "Cloudflare remote binding internal error", "synthetic_data_only": true, "production_user_data_used": false},
+  "output_directory": "output/2026年10月24日/20261101-动态模板测试",
+  "limits": ["local memory only", "official scheduling requires publish_posts permission", "no external MCP or Skill in this iteration", "real AI generation needs signed-in acceptance testing"]
+}

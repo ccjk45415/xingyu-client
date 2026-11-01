@@ -8,6 +8,7 @@ import '../core/pinned_content.dart';
 import '../ui/pin_badge.dart';
 import '../core/comment_content.dart';
 import '../ui/comment_composer.dart';
+import '../ui/comment_reply_preview.dart';
 import '../ui/shared.dart';
 
 class ArticlePage extends StatelessWidget {
@@ -606,9 +607,14 @@ class CommentTile extends StatelessWidget {
             ? number(comment['parent_id'])
             : number(comment['id']);
     return Padding(
-      padding: EdgeInsets.only(bottom: 16, left: child ? 24 : 0),
+      padding: EdgeInsets.only(
+        bottom: 16,
+        left: child ? (MediaQuery.sizeOf(context).width < 600 ? 10 : 24) : 0,
+      ),
       child: Surface(
-        padding: const EdgeInsets.all(20),
+        padding: EdgeInsets.all(
+          MediaQuery.sizeOf(context).width < 600 ? (child ? 12 : 16) : 20,
+        ),
         color: isPinned(comment) || child
             ? violet.withValues(alpha: .04)
             : null,
@@ -745,29 +751,29 @@ class CommentTile extends StatelessWidget {
                   ),
               ],
             ),
-            if (!child) ...[
-              for (final reply in rows(object(comment['children'])['data']))
-                CommentTile(
-                  reply,
-                  post,
-                  liked: liked,
-                  onChange: onChange,
+            if (!child)
+              CommentReplyPreview(
+                key: ValueKey('replies:${app.uid}:$post:$root'),
+                replies: [
+                  for (final reply in rows(object(comment['children'])['data']))
+                    CommentTile(
+                      reply,
+                      post,
+                      liked: liked,
+                      onChange: onChange,
+                      locked: locked,
+                      child: true,
+                    ),
+                ],
+                total: commentReplyCount(comment),
+                onViewAll: () => showDiscussionReplies(
+                  context,
+                  post: post,
+                  root: root,
                   locked: locked,
-                  child: true,
+                  onChanged: onChange,
                 ),
-              if (commentReplyCount(comment) > 0)
-                TextButton.icon(
-                  onPressed: () => showDiscussionReplies(
-                    context,
-                    post: post,
-                    root: root,
-                    locked: locked,
-                    onChanged: onChange,
-                  ),
-                  icon: const Icon(Icons.forum_outlined, size: 17),
-                  label: Text('查看全部回复 · ${commentReplyCount(comment)}'),
-                ),
-            ],
+              ),
           ],
         ),
       ),

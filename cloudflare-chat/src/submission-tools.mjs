@@ -1,5 +1,7 @@
+import {templateRefineInput, templateRefineResult} from './dynamic-template-ai.mjs';
+
 const fail = (message, status = 400) => { throw Object.assign(new Error(message), {status}); };
-const tasks = ['metadata', 'preflight', 'command', 'selection', 'review', 'layout', 'proofread'];
+const tasks = ['metadata', 'preflight', 'command', 'selection', 'review', 'layout', 'proofread', 'template_refine'];
 export function submissionTaskInput(value) {
   if (!value || Array.isArray(value) || Object.keys(value).some(k => !['request_id', 'task', 'title', 'instruction', 'segments', 'sources'].includes(k))) fail('只接受当前投稿资料');
   if (!/^[a-f0-9-]{24,64}$/.test(value.request_id || '') || !tasks.includes(value.task)) fail('投稿任务无效');
@@ -18,7 +20,8 @@ export function submissionTaskInput(value) {
   if (['metadata', 'proofread'].includes(value.task) && !sources.some(s => s.text.trim())) fail('请提供来源原文');
   if (['command', 'selection', 'review'].includes(value.task) && !value.instruction.trim()) fail('请填写投稿修改要求');
   if (/(?:角色扮演|陪我聊天|系统提示词|system prompt|忽略(?:上述|之前|所有)规则|越狱|jailbreak)/i.test(value.instruction)) fail('内置工具仅处理当前投稿，不支持聊天或更改系统规则', 422);
-  return {request_id: value.request_id, task: value.task, title: value.title, instruction: value.instruction, segments, sources};
+  const result = {request_id: value.request_id, task: value.task, title: value.title, instruction: value.instruction, segments, sources};
+  return value.task === 'template_refine' ? templateRefineInput(result) : result;
 }
 export const SUBMISSION_TASK_SYSTEM = `/no_think
 你是限定用途的投稿编辑工具，只处理当前作品资料，不提供聊天、角色扮演、代码执行或通用问答。
@@ -34,6 +37,7 @@ layout：只建议段落kind为p/h2/h3/li/quote，text必须与原段落逐字�
 最多20处修改、15项资料、12条说明，总输出不超过2500字。`;
 
 export function submissionTaskResult(raw, request) {
+  if (request.task === 'template_refine') return templateRefineResult(raw);
   if (typeof raw === 'string') {
     try { raw = JSON.parse(raw.trim().replace(/^```(?:json)?\s*|\s*```$/g, '')); }
     catch { fail('工具未返回有效结果，原稿已保留', 502); }
