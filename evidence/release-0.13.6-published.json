@@ -1,0 +1,164 @@
+{
+  "status": "published",
+  "verified_at": "2026-11-02T02:52:32.826582+00:00",
+  "release_url": "https://github.com/ccjk45415/xingyu-client/releases/tag/v0.13.6",
+  "formal_channel": true,
+  "test_update": true,
+  "warning": "本次为测试更新，尚未进行用户实机测试。遇到问题请反馈。",
+  "versions": {
+    "android": {
+      "version": "0.13.6",
+      "build": 43
+    },
+    "windows": {
+      "version": "0.7.5",
+      "build": 33
+    },
+    "macos": {
+      "version": "0.3.5",
+      "build": 10
+    }
+  },
+  "release_target_commit": "296e23672d8ccd90c3353271d6d22bd35509dd82",
+  "desktop_build_source_commits": {
+    "windows": "98d64cb32e53baed9b341b2bd96f182119f33943",
+    "macos": "061e814b41b71e760baa5b3737b2469decde6ed5"
+  },
+  "github": {
+    "latest": true,
+    "draft": false,
+    "prerelease": false,
+    "asset_count": 6,
+    "all_published_assets_match_local_sha256": true,
+    "published_at": "2026-11-02T02:47:50Z"
+  },
+  "deployments": {
+    "pages": "4feb8a57",
+    "worker": "7fc3ff37-9757-4cfd-a8ab-3e8b06473c35"
+  },
+  "public_manifests": [
+    {
+      "url": "https://xingyu-chat-ccjk45415.pages.dev/updates/android.json",
+      "status": 200,
+      "matches_staged_manifest": true,
+      "test_warning_present": true,
+      "version": "0.13.6",
+      "build": 43
+    },
+    {
+      "url": "https://xingyu-chat-ccjk45415.pages.dev/updates/windows.json",
+      "status": 200,
+      "matches_staged_manifest": true,
+      "test_warning_present": true,
+      "version": "0.7.5",
+      "build": 33
+    },
+    {
+      "url": "https://xingyu-chat-ccjk45415.pages.dev/updates/macos.json",
+      "status": 200,
+      "matches_staged_manifest": true,
+      "test_warning_present": true,
+      "version": "0.3.5",
+      "build": 10
+    },
+    {
+      "url": "https://xingyu-chat.ccjk45415.workers.dev/updates/android.json",
+      "status": 200,
+      "matches_staged_manifest": true,
+      "test_warning_present": true,
+      "version": "0.13.6",
+      "build": 43
+    },
+    {
+      "url": "https://xingyu-chat.ccjk45415.workers.dev/updates/windows.json",
+      "status": 200,
+      "matches_staged_manifest": true,
+      "test_warning_present": true,
+      "version": "0.7.5",
+      "build": 33
+    },
+    {
+      "url": "https://xingyu-chat.ccjk45415.workers.dev/updates/macos.json",
+      "status": 200,
+      "matches_staged_manifest": true,
+      "test_warning_present": true,
+      "version": "0.3.5",
+      "build": 10
+    }
+  ],
+  "landing_page": {
+    "url": "https://xingyu-chat-ccjk45415.pages.dev/",
+    "status": 200,
+    "test_warning_present": true
+  },
+  "public_installer_downloads": [
+    {
+      "file": "Cangku-Xingyu-0.13.6-arm64.apk",
+      "size": 21083344,
+      "sha256": "e16051041853153f8851cf878772f619d1dedc0c072e03ff9a44d932bddf6fe6",
+      "status": 200
+    },
+    {
+      "file": "Xingyu-Windows-0.7.5-x64.zip",
+      "size": 40544977,
+      "sha256": "9891dc5de7cd4aaa81d9fcc2704a82e1741648c5d4be57db0f2653afd84540d7",
+      "status": 200
+    },
+    {
+      "file": "Xingyu-macOS-0.3.5-arm64.pkg",
+      "size": 43232502,
+      "sha256": "226ac41d6a29ef2d583852307a2b251c4056894177eccbd331d6516151c98f39",
+      "status": 200
+    },
+    {
+      "file": "Xingyu-macOS-0.3.5-arm64.dmg",
+      "size": 48993716,
+      "sha256": "64448c2aa2e6ed69d1a35e4953908964d8533edf7056d649d5165be7fe8501b2",
+      "status": 200
+    }
+  ],
+  "announcement": {
+    "revision": 4,
+    "id": "release-20261101-template-test",
+    "existing_checkin_notice_preserved": true,
+    "optimistic_revision_used": true
+  },
+  "shorebird": {
+    "track": "template-20261101",
+    "release_registry": "evidence/template-release-registry.json",
+    "new_registered_bases": true,
+    "hot_patch_published_this_round": false
+  },
+  "validation": {
+    "flutter_passed": 325,
+    "flutter_conditionally_skipped": 3,
+    "flutter_analyze": "pass",
+    "backend_passed": 75,
+    "offline_patch_contract_checks": 14,
+    "android_original_signer_and_16kb_alignment": "pass",
+    "windows_native_runtime": "pass",
+    "macos_arm64_ci_codesign_and_native_runtime": "pass",
+    "credential_scan": "pass",
+    "temporary_ci_secret_removed": true,
+    "local_delivery_hashes": "pass"
+  },
+  "runtime_acceptance_pending": [
+    "User Android physical-device use",
+    "User Windows and macOS interactive flows and actual in-app upgrade",
+    "Real built-in AI generation"
+  ],
+  "scope_limits": [
+    "Templates, tasks and memories remain account-isolated on this device",
+    "Website scheduling requires existing publish_posts permission",
+    "No external MCP or Skill interface in this iteration",
+    "macOS package uses ad-hoc signing and is not notarized"
+  ],
+  "local_delivery_dir": "output/2026年10月24日",
+  "related_evidence": [
+    "release-0.13.6-github-assets.json",
+    "release-0.13.6-public-downloads.json",
+    "release-0.13.6-assets.json",
+    "release-0.13.6-announcement.json",
+    "template-release-registry.json"
+  ]
+}

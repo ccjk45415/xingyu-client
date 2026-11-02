@@ -1,0 +1,63 @@
+{
+  "stage": "published_verified",
+  "status": "pass",
+  "tag": "v0.13.6",
+  "is_draft": false,
+  "is_prerelease": false,
+  "is_latest": true,
+  "published_at": "2026-11-02T02:47:50Z",
+  "url": "https://github.com/ccjk45415/xingyu-client/releases/tag/v0.13.6",
+  "target_commit": "296e23672d8ccd90c3353271d6d22bd35509dd82",
+  "warning": "本次为测试更新，尚未进行用户实机测试。遇到问题请反馈。",
+  "assets": [
+    {
+      "file": "Cangku-Xingyu-0.13.6-arm64.apk",
+      "bytes": 21083344,
+      "sha256": "e16051041853153f8851cf878772f619d1dedc0c072e03ff9a44d932bddf6fe6",
+      "version": "0.13.6",
+      "code": 43,
+      "url": "https://github.com/ccjk45415/xingyu-client/releases/download/v0.13.6/Cangku-Xingyu-0.13.6-arm64.apk",
+      "local_delivery_verified": true
+    },
+    {
+      "file": "Xingyu-Windows-0.7.5-x64.zip",
+      "bytes": 40544977,
+      "sha256": "9891dc5de7cd4aaa81d9fcc2704a82e1741648c5d4be57db0f2653afd84540d7",
+      "version": "0.7.5",
+      "code": 33,
+      "url": "https://github.com/ccjk45415/xingyu-client/releases/download/v0.13.6/Xingyu-Windows-0.7.5-x64.zip",
+      "local_delivery_verified": true
+    },
+    {
+      "file": "Xingyu-macOS-0.3.5-arm64.pkg",
+      "bytes": 43232502,
+      "sha256": "226ac41d6a29ef2d583852307a2b251c4056894177eccbd331d6516151c98f39",
+      "version": "0.3.5",
+      "code": 10,
+      "url": "https://github.com/ccjk45415/xingyu-client/releases/download/v0.13.6/Xingyu-macOS-0.3.5-arm64.pkg",
+      "local_delivery_verified": true
+    },
+    {
+      "file": "Xingyu-macOS-0.3.5-arm64.dmg",
+      "bytes": 48993716,
+      "sha256": "64448c2aa2e6ed69d1a35e4953908964d8533edf7056d649d5165be7fe8501b2",
+      "version": "0.3.5",
+      "code": 10,
+      "url": "https://github.com/ccjk45415/xingyu-client/releases/download/v0.13.6/Xingyu-macOS-0.3.5-arm64.dmg",
+      "local_delivery_verified": true
+    },
+    {
+      "file": "Cangku-Xingyu-0.13.6-source.zip",
+      "bytes": 1561209,
+      "sha256": "c5a6ac90b3b3353e6db3ccac8bcc67e348081c9459ad3243120a2ca647b85e32",
+      "url": "https://github.com/ccjk45415/xingyu-client/releases/download/v0.13.6/Cangku-Xingyu-0.13.6-source.zip",
+      "local_delivery_verified": true
+    }
+  ],
+  "checksum_file": {
+    "name": "Release-0.13.6-SHA256SUMS.txt",
+    "bytes": 485,
+    "sha256": "f0ba484bb9b2b8e13fc76f6d8fc0516a2f8f48e68eeb4f66081e09e255a316cd"
+  },
+  "temporary_ci_secret_absent": true
+}

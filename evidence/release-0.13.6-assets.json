@@ -1,0 +1,48 @@
+{
+  "stage": "pre_publication",
+  "status": "pass",
+  "published": false,
+  "test_update_warning_present": true,
+  "packages": [
+    {
+      "file": "Cangku-Xingyu-0.13.6-arm64.apk",
+      "bytes": 21083344,
+      "sha256": "e16051041853153f8851cf878772f619d1dedc0c072e03ff9a44d932bddf6fe6",
+      "version": "0.13.6",
+      "code": 43
+    },
+    {
+      "file": "Xingyu-Windows-0.7.5-x64.zip",
+      "bytes": 40544977,
+      "sha256": "9891dc5de7cd4aaa81d9fcc2704a82e1741648c5d4be57db0f2653afd84540d7",
+      "version": "0.7.5",
+      "code": 33
+    },
+    {
+      "file": "Xingyu-macOS-0.3.5-arm64.pkg",
+      "bytes": 43232502,
+      "sha256": "226ac41d6a29ef2d583852307a2b251c4056894177eccbd331d6516151c98f39",
+      "version": "0.3.5",
+      "code": 10
+    },
+    {
+      "file": "Xingyu-macOS-0.3.5-arm64.dmg",
+      "bytes": 48993716,
+      "sha256": "64448c2aa2e6ed69d1a35e4953908964d8533edf7056d649d5165be7fe8501b2",
+      "version": "0.3.5",
+      "code": 10
+    },
+    {
+      "file": "Cangku-Xingyu-0.13.6-source.zip",
+      "bytes": 1561209,
+      "sha256": "c5a6ac90b3b3353e6db3ccac8bcc67e348081c9459ad3243120a2ca647b85e32"
+    }
+  ],
+  "chunk_reconstruction_verified": true,
+  "source_private_paths_excluded": true,
+  "credential_values_scanned": true,
+  "source_commit": "296e23672d8ccd90c3353271d6d22bd35509dd82",
+  "patch_track": "template-20261101",
+  "credential_scan_scope": "All artifact raw bytes and decompressed ZIP/APK members; macOS installers originate from controlled isolated CI inputs.",
+  "original_android_signer_preserved": true
+}
