@@ -5,7 +5,6 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:xingyu_desktop/app.dart';
 import 'package:xingyu_desktop/core/api.dart';
@@ -16,6 +15,8 @@ import 'package:xingyu_desktop/core/state.dart';
 import 'package:xingyu_desktop/pages/discovery.dart';
 import 'package:xingyu_desktop/pages/quick_feed.dart';
 import 'package:xingyu_desktop/ui/shared.dart';
+
+import 'support/system_test_fonts.dart';
 
 const quickTree = <Json>[
   {'id': 10, 'name': '游戏'},
@@ -137,19 +138,7 @@ Future<void> quickCapture(
 
 void main() {
   setUpAll(() async {
-    for (final (family, path) in [
-      ('Microsoft YaHei UI', 'C:/Windows/Fonts/msyh.ttc'),
-      (
-        'MaterialIcons',
-        'C:/codex-tools/flutter/bin/cache/artifacts/material_fonts/materialicons-regular.otf',
-      ),
-    ]) {
-      if (File(path).existsSync()) {
-        await (FontLoader(
-          family,
-        )..addFont(File(path).readAsBytes().then(ByteData.sublistView))).load();
-      }
-    }
+    await loadSystemTestFonts();
   });
   setUp(() async {
     SecureVault.setMockInitialValues({});

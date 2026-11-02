@@ -1,11 +1,34 @@
 """Verify a registered Windows base without downloading a patch or publishing."""
 import argparse
+import ctypes
+from ctypes import wintypes
 import json
 from pathlib import Path
 import re
 import struct
 import subprocess
 import uuid
+
+
+def file_version(path):
+    api = ctypes.WinDLL('version', use_last_error=True)
+    api.GetFileVersionInfoSizeW.argtypes = [wintypes.LPCWSTR, ctypes.POINTER(wintypes.DWORD)]
+    api.GetFileVersionInfoSizeW.restype = wintypes.DWORD
+    api.GetFileVersionInfoW.argtypes = [wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD, wintypes.LPVOID]
+    api.GetFileVersionInfoW.restype = wintypes.BOOL
+    api.VerQueryValueW.argtypes = [wintypes.LPCVOID, wintypes.LPCWSTR, ctypes.POINTER(ctypes.c_void_p), ctypes.POINTER(wintypes.UINT)]
+    api.VerQueryValueW.restype = wintypes.BOOL
+    size = api.GetFileVersionInfoSizeW(str(path), None)
+    assert size, 'Missing executable version resource'
+    buffer = ctypes.create_string_buffer(size)
+    assert api.GetFileVersionInfoW(str(path), 0, size, buffer)
+    pointer, length = ctypes.c_void_p(), wintypes.UINT()
+    assert api.VerQueryValueW(buffer, '\\', ctypes.byref(pointer), ctypes.byref(length))
+    assert length.value >= 52
+    words = ctypes.cast(pointer, ctypes.POINTER(wintypes.DWORD))
+    assert words[0] == 0xFEEF04BD
+    ms, ls = words[2], words[3]
+    return ms >> 16, ms & 65535, ls >> 16, ls & 65535
 
 
 def main():
@@ -25,6 +48,9 @@ def main():
     offset = struct.unpack_from('<I', exe, 0x3c)[0]
     assert exe[:2] == b'MZ' and exe[offset:offset+4] == b'PE\0\0'
     assert struct.unpack_from('<H', exe, offset+4)[0] == 0x8664
+    assert re.fullmatch(r'\d+\.\d+\.\d+', args.version)
+    expected = tuple(int(part) for part in args.version.split('.')) + (args.build,)
+    assert file_version(bundle/'Xingyu.exe') == expected, 'Executable version does not match requested base'
     config = bundle/'data/flutter_assets/shorebird.yaml'
     original = config.read_bytes()
     isolated = re.sub(rb'(?m)^app_id:\s*[a-f0-9-]+',

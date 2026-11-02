@@ -16,6 +16,8 @@ import 'package:xingyu_desktop/pages/account_overview.dart';
 import 'package:xingyu_desktop/pages/dynamic_templates.dart';
 import 'package:xingyu_desktop/ui/shared.dart';
 
+import 'support/system_test_fonts.dart';
+
 const templateWidgetTree = <Json>[
   {
     'id': 100,
@@ -118,19 +120,7 @@ Future<void> openTemplateLibrary(WidgetTester tester, double width) async {
 void main() {
   setUpAll(() async {
     await rootBundle.loadString('assets/submission-guidance.json');
-    for (final (family, path) in [
-      ('Microsoft YaHei UI', 'C:/Windows/Fonts/msyh.ttc'),
-      (
-        'MaterialIcons',
-        'C:/codex-tools/flutter/bin/cache/artifacts/material_fonts/materialicons-regular.otf',
-      ),
-    ]) {
-      if (File(path).existsSync()) {
-        await (FontLoader(
-          family,
-        )..addFont(File(path).readAsBytes().then(ByteData.sublistView))).load();
-      }
-    }
+    await loadSystemTestFonts();
   });
   setUp(() async {
     SecureVault.setMockInitialValues({});
@@ -282,6 +272,8 @@ void main() {
       await selectTemplateTab(tester, '预览');
       final confirmButton = find.byKey(const Key('dynamic.preview.confirm'));
       await tester.ensureVisible(confirmButton);
+      await tester.pumpAndSettle();
+      expect(confirmButton.hitTestable(), findsOneWidget);
       await tester.tap(confirmButton);
       await tester.pumpAndSettle();
       expect(opened?['status'], expectedStatus);

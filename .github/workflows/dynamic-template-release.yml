@@ -1,6 +1,15 @@
 name: Build dynamic-template release bases
 on:
   workflow_dispatch:
+    inputs:
+      platform:
+        description: Base to register (already registered versions must not be rebuilt)
+        type: choice
+        default: macos
+        options:
+          - macos
+          - windows
+          - all
 permissions:
   contents: read
 jobs:
@@ -8,15 +17,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - os: windows-latest
-            platform: windows
-            version: 0.7.5
-            build: 33
-          - os: macos-15
-            platform: macos
-            version: 0.3.5
-            build: 10
+        include: ${{ fromJSON(inputs.platform == 'all' && '[{"os":"windows-latest","platform":"windows","version":"0.7.5","build":33},{"os":"macos-15","platform":"macos","version":"0.3.5","build":10}]' || inputs.platform == 'windows' && '[{"os":"windows-latest","platform":"windows","version":"0.7.5","build":33}]' || '[{"os":"macos-15","platform":"macos","version":"0.3.5","build":10}]') }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
     env:
