@@ -36,7 +36,12 @@ PRIVATE_SUFFIXES = {'.jks', '.keystore', '.sqlite', '.sqlite3', '.db', '.db3',
 def safe_path(name, *, source=False):
     path = PurePosixPath(name.replace('\\', '/'))
     assert not path.is_absolute() and '..' not in path.parts and ':' not in name, 'Invalid archive path'
-    assert not set(path.parts) & SKIP_DIRS, 'Private/cache directory in archive'
+    blocked = set(path.parts) & SKIP_DIRS
+    # AGP embeds this public version metadata in every APK; it is not a
+    # workspace build directory. Keep source delivery exclusions unchanged.
+    if not source and path.as_posix() == 'META-INF/com/android/build/gradle/app-metadata.properties':
+        blocked.discard('build')
+    assert not blocked, 'Private/cache directory in archive'
     filename = path.name
     assert filename not in PRIVATE_NAMES, 'Private/generated file in archive'
     assert not filename.startswith(('.env', '.dev.vars', '.secrets')), 'Private environment file in archive'
