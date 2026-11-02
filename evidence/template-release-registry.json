@@ -1,0 +1,38 @@
+[
+  {
+    "requested": "0.13.6+43",
+    "release": {
+      "id": 942670,
+      "version": "0.13.6+43",
+      "flutter_revision": "01aea2ee0626578b6b30ebbb2605f195833464fa",
+      "flutter_version": "3.47.7",
+      "platform_statuses": {
+        "android": "active"
+      }
+    }
+  },
+  {
+    "requested": "0.7.5+33",
+    "release": {
+      "id": 942686,
+      "version": "0.7.5+33",
+      "flutter_revision": "01aea2ee0626578b6b30ebbb2605f195833464fa",
+      "flutter_version": "3.47.7",
+      "platform_statuses": {
+        "windows": "active"
+      }
+    }
+  },
+  {
+    "requested": "0.3.5+10",
+    "release": {
+      "id": 943609,
+      "version": "0.3.5+10",
+      "flutter_revision": "01aea2ee0626578b6b30ebbb2605f195833464fa",
+      "flutter_version": "3.47.7",
+      "platform_statuses": {
+        "macos": "active"
+      }
+    }
+  }
+]

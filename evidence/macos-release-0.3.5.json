@@ -1,0 +1,58 @@
+{
+  "build": {
+    "platform": "macos",
+    "version": "0.3.5",
+    "build": 10,
+    "patch_track": "template-20261101",
+    "source_commit": "061e814b41b71e760baa5b3737b2469decde6ed5",
+    "workflow_run": "41377442516",
+    "installer_published": false,
+    "registered_code_push_base": true,
+    "test_update": true,
+    "artifacts": [
+      {
+        "file": "Xingyu-macOS-0.3.5-arm64.pkg",
+        "bytes": 43232502,
+        "sha256": "226ac41d6a29ef2d583852307a2b251c4056894177eccbd331d6516151c98f39"
+      },
+      {
+        "file": "Xingyu-macOS-0.3.5-arm64.dmg",
+        "bytes": 48993716,
+        "sha256": "64448c2aa2e6ed69d1a35e4953908964d8533edf7056d649d5165be7fe8501b2"
+      }
+    ]
+  },
+  "native_report": {
+    "platform": "macos-arm64",
+    "version": "0.3.5",
+    "build": 10,
+    "signature": "ad-hoc-local-test",
+    "apple_notarized": false,
+    "published": false,
+    "test_update": true,
+    "registered_code_push_base": true,
+    "patch_track": "template-20261101",
+    "isolated_ci_runner": true,
+    "native_self_check": {
+      "code_push_engine": "available",
+      "code_push_initialized": true,
+      "patch_probe": 0,
+      "current_patch": 0,
+      "next_patch": 0,
+      "system_notifications_native": true,
+      "macos_native_engine": "pass",
+      "keychain_round_trip": "pass",
+      "secure_storage": "pass",
+      "app_data_directory": "pass",
+      "dynamic_templates_sqlite_fts5": "pass",
+      "public_health": "skipped_offline",
+      "protocol": 3,
+      "website_password_used": false,
+      "messages_sent": 0
+    },
+    "artifacts": [
+      "Xingyu-macOS-0.3.5-arm64.pkg",
+      "Xingyu-macOS-0.3.5-arm64.dmg"
+    ]
+  }
+}

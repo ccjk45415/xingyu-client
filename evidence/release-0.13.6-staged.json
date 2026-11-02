@@ -1,0 +1,36 @@
+{
+  "status": "staged_only",
+  "published": false,
+  "packages": [
+    {
+      "file": "Cangku-Xingyu-0.13.6-arm64.apk",
+      "bytes": 21083344,
+      "sha256": "e16051041853153f8851cf878772f619d1dedc0c072e03ff9a44d932bddf6fe6",
+      "version": "0.13.6",
+      "code": 43
+    },
+    {
+      "file": "Xingyu-Windows-0.7.5-x64.zip",
+      "bytes": 40544977,
+      "sha256": "9891dc5de7cd4aaa81d9fcc2704a82e1741648c5d4be57db0f2653afd84540d7",
+      "version": "0.7.5",
+      "code": 33
+    },
+    {
+      "file": "Xingyu-macOS-0.3.5-arm64.pkg",
+      "bytes": 43232502,
+      "sha256": "226ac41d6a29ef2d583852307a2b251c4056894177eccbd331d6516151c98f39",
+      "version": "0.3.5",
+      "code": 10
+    },
+    {
+      "file": "Xingyu-macOS-0.3.5-arm64.dmg",
+      "bytes": 48993716,
+      "sha256": "64448c2aa2e6ed69d1a35e4953908964d8533edf7056d649d5165be7fe8501b2",
+      "version": "0.3.5",
+      "code": 10
+    }
+  ],
+  "chunk_reconstruction_verified": true,
+  "notes": "本次为测试更新，尚未进行用户实机测试。遇到问题请反馈。\n\n可通过 GitHub Issues（https://github.com/ccjk45415/xingyu-client/issues）反馈，并附客户端版本和诊断信息。\n\n新增独立「动态模板」功能：支持从投稿范例或须知提取模板、调整规则、补充资料、自然语言改稿，并在本机保存对话和任务进度。入口：我的 → 创作中心 → 动态模板。原有 AI 投稿助手、工具箱和投稿编辑器保留。\n\n首页、分类、排行底部新增页码跳转；压缩分类顶部图标和布局；楼中楼默认显示 3 条已加载回复，可展开、收起或查看全部回复。\n\n新增「快撸」页面，位于首页和分类之间，根据本机阅读足迹随机推荐相似分类，支持下拉换一批、滑到底部继续加载，进入作品后返回保留位置。\n\n本次已完成自动化测试和构建检查，但手机真机使用、macOS 实际交互及内置 AI 的真实生成效果仍待用户测试。任务和记忆暂保存在本机；官网定时发布沿用账号权限。"
+}
