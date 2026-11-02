@@ -1,0 +1,79 @@
+name: Retry validated macOS Dart patch
+on:
+  workflow_dispatch:
+    inputs:
+      validation_run:
+        description: 'Successful all-platform compatibility run for identical app sources'
+        type: string
+        required: true
+permissions:
+  contents: read
+jobs:
+  desktop-patch:
+    runs-on: macos-15
+    timeout-minutes: 40
+    env:
+      CI: 'true'
+      FLUTTER_SUPPRESS_ANALYTICS: 'true'
+      GIT_CONFIG_COUNT: '1'
+      GIT_CONFIG_KEY_0: core.longpaths
+      GIT_CONFIG_VALUE_0: 'true'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          flutter-version: '3.47.7'
+          channel: stable
+          cache: false
+      - name: Install pinned official Shorebird CLI
+        shell: bash
+        run: |
+          git init "$RUNNER_TEMP/shorebird"
+          git -C "$RUNNER_TEMP/shorebird" remote add origin https://github.com/shorebirdtech/shorebird.git
+          git -C "$RUNNER_TEMP/shorebird" fetch --depth 1 origin 07c191c9448f0b67c5f96253d8832356ba213b06
+          git -C "$RUNNER_TEMP/shorebird" checkout --detach FETCH_HEAD
+          echo "$RUNNER_TEMP/shorebird/bin" >> "$GITHUB_PATH"
+      - name: Restore short-lived official authorization
+        shell: python
+        env:
+          XINGYU_PATCH_LOGIN: ${{ secrets.SHOREBIRD_PATCH_LOGIN }}
+        run: |
+          import os,json,pathlib,sys
+          value=json.loads(os.environ['XINGYU_PATCH_LOGIN'])
+          assert not value.get('refreshToken') and not value.get('idToken')
+          base=pathlib.Path(os.environ['APPDATA'])/'shorebird' if sys.platform=='win32' else pathlib.Path.home()/'Library/Application Support/shorebird'
+          base.mkdir(parents=True,exist_ok=True)
+          target=base/'credentials-v2.json'
+          target.write_text(json.dumps(value))
+          target.chmod(0o600)
+      - name: Verify prior compatibility and unchanged application inputs
+        shell: python
+        env:
+          VALIDATION_RUN: ${{ inputs.validation_run }}
+        run: |
+          import os,json,subprocess,urllib.request
+          run=os.environ['VALIDATION_RUN']
+          assert run.isdigit()
+          url='https://api.github.com/repos/ccjk45415/xingyu-client/actions/runs/'+run
+          req=urllib.request.Request(url,headers={'User-Agent':'XingyuPatchRetryVerifier/1'})
+          with urllib.request.urlopen(req,timeout=30) as r: proof=json.load(r)
+          assert proof['path']=='.github/workflows/shorebird-patch.yml'
+          assert proof['status']=='completed' and proof['conclusion']=='success'
+          assert proof['head_branch']=='dynamic-templates-20261101'
+          base=proof['head_sha']
+          subprocess.run(['git','merge-base','--is-ancestor',base,'HEAD'],check=True)
+          changes=subprocess.check_output(['git','diff','--name-only',base,'HEAD'],text=True).splitlines()
+          assert set(changes)<= {'.github/workflows/shorebird-macos-patch-retry.yml'}, changes
+          print('Prior compatibility verified; application/native/asset inputs are identical.')
+      - name: Publish authorized macOS patch
+        run: python tools/run_desktop_patch.py macos --release-version=0.3.5+10
+      - name: Remove temporary authorization
+        if: always()
+        shell: python
+        run: |
+          import os,pathlib,sys
+          base=pathlib.Path(os.environ['APPDATA'])/'shorebird' if sys.platform=='win32' else pathlib.Path.home()/'Library/Application Support/shorebird'
+          (base/'credentials-v2.json').unlink(missing_ok=True)
