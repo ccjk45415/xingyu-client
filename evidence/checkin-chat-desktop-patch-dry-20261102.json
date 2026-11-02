@@ -1,0 +1,11 @@
+{
+  "status": "pass",
+  "run": 41382979054,
+  "source_commit": "bb36b4e22f51deb574c033b32f7d01e24c812a63",
+  "platforms": [
+    "windows",
+    "macos"
+  ],
+  "official_compatibility_confirmations": 2,
+  "native_asset_validation_bypassed": false
+}

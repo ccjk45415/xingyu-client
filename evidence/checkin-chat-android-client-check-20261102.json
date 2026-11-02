@@ -1,0 +1,10 @@
+{
+  "platform": "android",
+  "release": "0.13.6+43",
+  "arch": "aarch64",
+  "track": "template-20261101",
+  "patch_available": true,
+  "number": 1,
+  "artifact_hash": "73277b1f68636436c50709bd90f19df887e223079e5dc88bf402677e6580a97b",
+  "rollback_numbers": []
+}

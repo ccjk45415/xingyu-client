@@ -1,0 +1,74 @@
+{
+  "status": "published",
+  "verified_at": "2026-11-02T04:14:24.059258+00:00",
+  "track": "template-20261101",
+  "patches": [
+    {
+      "platform": "android",
+      "release": "0.13.6+43",
+      "arch": "aarch64",
+      "patch": {
+        "id": 769144,
+        "number": 1,
+        "channel": "template-20261101",
+        "is_rolled_back": false
+      },
+      "anonymous_client_update_check": {
+        "patch_available": true,
+        "number": 1,
+        "artifact_hash": "73277b1f68636436c50709bd90f19df887e223079e5dc88bf402677e6580a97b",
+        "rolled_back_patch_numbers": []
+      }
+    },
+    {
+      "platform": "windows",
+      "release": "0.7.5+33",
+      "arch": "x86_64",
+      "patch": {
+        "id": 769162,
+        "number": 1,
+        "channel": "template-20261101",
+        "is_rolled_back": false
+      },
+      "anonymous_client_update_check": {
+        "patch_available": true,
+        "number": 1,
+        "artifact_hash": "93da3dee82ac3e3f8a11610c7f109b43d87d9f553cecbb1ddaa3dea3c8636ca8",
+        "rolled_back_patch_numbers": []
+      }
+    },
+    {
+      "platform": "macos",
+      "release": "0.3.5+10",
+      "arch": "aarch64",
+      "patch": {
+        "id": 769198,
+        "number": 1,
+        "channel": "template-20261101",
+        "is_rolled_back": false
+      },
+      "anonymous_client_update_check": {
+        "patch_available": true,
+        "number": 1,
+        "artifact_hash": "dbdcbc9dc492818a3c2a4ce9d55724f43921ba68d97f7c3e03272ae609ef2bf3",
+        "rolled_back_patch_numbers": []
+      }
+    }
+  ],
+  "application_commit": "b823ea3",
+  "desktop_validation_run": 41382979054,
+  "windows_publish_run": 41384220251,
+  "macos_retry_publish_run": 41386151233,
+  "desktop_validation_source": "bb36b4e22f51deb574c033b32f7d01e24c812a63",
+  "macos_retry_source": "570aa5d0055e7e422972c5e63b0fd7c947941e7f",
+  "all_three_official_compatibility_checks_passed": true,
+  "native_asset_validation_bypassed": false,
+  "macos_retry_reason": "Short-lived authorization expired before creating patch; confirmed no patch existed, refreshed authorization, verified unchanged application/native/asset inputs, published macOS only",
+  "local_related_tests_passed": 41,
+  "analyze": "pass",
+  "native_inputs_changed": false,
+  "installer_manifests_changed": false,
+  "temporary_ci_authorization_removed": true,
+  "activation": "Current base users download silently online; completely exit and reopen after download",
+  "user_device_acceptance": "pending"
+}

@@ -1,0 +1,9 @@
+{
+  "status": "pass",
+  "platform": "android",
+  "release": "0.13.6+43",
+  "track": "template-20261101",
+  "native_baseline": "40792d8",
+  "official_cli_confirmation": "No issues detected.",
+  "native_asset_validation_bypassed": false
+}

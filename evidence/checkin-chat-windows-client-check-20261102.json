@@ -1,0 +1,10 @@
+{
+  "platform": "windows",
+  "release": "0.7.5+33",
+  "arch": "x86_64",
+  "track": "template-20261101",
+  "patch_available": true,
+  "number": 1,
+  "artifact_hash": "93da3dee82ac3e3f8a11610c7f109b43d87d9f553cecbb1ddaa3dea3c8636ca8",
+  "rollback_numbers": []
+}

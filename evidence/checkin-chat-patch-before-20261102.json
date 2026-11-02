@@ -1,0 +1,17 @@
+[
+  {
+    "platform": "android",
+    "release": "0.13.6+43",
+    "patches": []
+  },
+  {
+    "platform": "windows",
+    "release": "0.7.5+33",
+    "patches": []
+  },
+  {
+    "platform": "macos",
+    "release": "0.3.5+10",
+    "patches": []
+  }
+]
