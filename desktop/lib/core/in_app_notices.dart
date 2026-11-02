@@ -258,7 +258,11 @@ class InAppNotices extends ChangeNotifier {
 
   void acceptCheckin(Json raw) {
     final event = checkinReceipt(raw);
-    if (event == null || app.uid <= 0 || !enabledAll || !enabled('checkin')) {
+    if (_disposed ||
+        event == null ||
+        app.uid <= 0 ||
+        !enabledAll ||
+        !enabled('checkin')) {
       return;
     }
     final state = _state(),

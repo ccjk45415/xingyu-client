@@ -3,10 +3,26 @@ import 'package:xingyu_desktop/core/api.dart';
 import 'package:xingyu_desktop/core/native_storage.dart';
 
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:xingyu_desktop/core/state.dart';
 import 'package:xingyu_desktop/core/checkin_receipts.dart';
 import 'package:xingyu_desktop/pages/notification_settings.dart';
+import 'package:xingyu_desktop/core/checkin.dart';
+
+import 'checkin_patch_test.dart' show CheckinFixture;
+
+class OfflineReceiptService extends ReceiptService {
+  @override
+  Future<Json> request(
+    String path, {
+    String? token,
+    Json? body,
+    String? method,
+  }) async {
+    throw const SocketException('synthetic offline');
+  }
+}
 
 class ReceiptService extends ServiceApi {
   String expectedToken = 'a' * 64;
@@ -87,6 +103,57 @@ void main() {
     await state.checkinReceipts.accept(event());
     expect(state.notices.entries, isEmpty);
   });
+  for (final background in [false, true]) {
+    test(
+      'automatic success produces a local notice, background=$background',
+      () async {
+        final site = CheckinFixture();
+        final state = AppState(siteApi: site)..user = {'id': 47};
+        state.local['checkinPreferences'] = {
+          '47': {background ? 'background' : 'on_open': true},
+        };
+        final controller = CheckinController(state, windows: true);
+        controller.setWindowVisible(!background);
+        await controller.automatic(force: true);
+        expect(site.posts, 1);
+        expect(
+          state.notices.entries.single.preview,
+          contains(background ? '后台自动签到' : '打开应用自动签到'),
+        );
+        await controller.automatic(force: true);
+        expect(state.notices.entries, hasLength(1));
+        controller.dispose();
+        state.dispose();
+      },
+    );
+  }
+  test('saved success restores after restart even when receipt delivery is offline', () async {
+    final first = app(ReceiptService());
+    await first.checkinReceipts.accept(event(method: 'open'));
+    final restarted = app(OfflineReceiptService())..local = first.local;
+    await expectLater(
+      restarted.checkinReceipts.sync(),
+      throwsA(isA<SocketException>()),
+    );
+    expect(restarted.notices.entries.single.preview, 'Android 客户端 · 打开应用自动签到');
+    expect(restarted.notices.banner, isNull);
+    expect(restarted.checkinReceipts.pending, isNotEmpty);
+    first.dispose();
+    restarted.dispose();
+  });
+  test(
+    'reimporting saved Android background success rebuilds cleared notices',
+    () async {
+      final state = app(ReceiptService());
+      final raw = event(method: 'background');
+      await state.checkinReceipts.accept(raw);
+      state.notices.clear();
+      await state.checkinReceipts.accept(raw);
+      expect(state.notices.entries.single.preview, 'Android 客户端 · 后台自动签到');
+      expect(state.notices.banner, isNull);
+      state.dispose();
+    },
+  );
   test('receipts sync without website credentials, preserve read confirmations and do not leak to another uid', () async {
     final service = ReceiptService(), one = app(service);
     await one.checkinReceipts.accept(

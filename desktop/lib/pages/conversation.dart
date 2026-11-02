@@ -164,24 +164,49 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     focus.requestFocus();
   }
 
-  Future<void> addImage() async {
-    if (uploading || !chat!.ready) return;
+  Future<void> addImage({bool clipboard = false}) async {
+    if (uploading || !chat!.ready || chat!.room.sending) return;
     final c = chat!,
         app = stateOf(context),
         room = c.room,
         selected = c.channel,
-        owner = app.uid;
+        owner = app.uid,
+        generation = app.generation,
+        original = input.value;
+    bool current() =>
+        mounted &&
+        selected == c.channel &&
+        owner == app.uid &&
+        generation == app.generation;
     setState(() => uploading = true);
     await action(context, () async {
-      final bytes = await pickJpeg(context);
-      if (bytes == null ||
-          !mounted ||
-          selected != c.channel ||
-          owner != app.uid) {
+      final bytes = clipboard ? await clipboardJpeg() : await pickJpeg(context);
+      if (!current()) return;
+      if (bytes == null) {
+        if (clipboard) {
+          final data = await Clipboard.getData(Clipboard.kTextPlain);
+          if (!current() || data?.text == null || input.value != original) {
+            return;
+          }
+          final selection = original.selection;
+          final start = selection.isValid
+              ? selection.start
+              : original.text.length;
+          final end = selection.isValid ? selection.end : start;
+          final value = original.text.replaceRange(start, end, data!.text!);
+          if (value.length > 600) throw ApiFailure(400, '每条消息最多600字');
+          input.value = TextEditingValue(
+            text: value,
+            selection: TextSelection.collapsed(
+              offset: start + data.text!.length,
+            ),
+          );
+          room.draft = value;
+        }
         return;
       }
       final image = await uploadChatImage(app, bytes, 'chat', selected);
-      if (mounted && selected == c.channel && owner == app.uid) {
+      if (current()) {
         room.image = image;
         c.update();
       }
@@ -584,36 +609,88 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Expanded(
-                            child: CallbackShortcuts(
-                              bindings: {
-                                const SingleActivator(
-                                  LogicalKeyboardKey.enter,
-                                ): () {
-                                  if (!input.value.composing.isValid) c.send();
-                                },
-                                primaryShortcut(LogicalKeyboardKey.enter):
-                                    c.send,
+                            child: Actions(
+                              actions: {
+                                if (!isAndroid)
+                                  PasteTextIntent:
+                                      CallbackAction<PasteTextIntent>(
+                                        onInvoke: (_) {
+                                          unawaited(addImage(clipboard: true));
+                                          return null;
+                                        },
+                                      ),
                               },
-                              child: TextField(
-                                controller: input,
-                                focusNode: focus,
-                                enabled: !room.sending,
-                                minLines: compact ? 1 : 2,
-                                maxLines: 5,
-                                maxLength: 600,
-                                onChanged: (v) {
-                                  room.draft = v;
+                              child: CallbackShortcuts(
+                                bindings: {
+                                  const SingleActivator(
+                                    LogicalKeyboardKey.enter,
+                                  ): () {
+                                    if (!uploading &&
+                                        !input.value.composing.isValid) {
+                                      c.send();
+                                    }
+                                  },
+                                  primaryShortcut(
+                                    LogicalKeyboardKey.enter,
+                                  ): () {
+                                    if (!uploading) c.send();
+                                  },
                                 },
-                                decoration: const InputDecoration(
-                                  hintText: '分享此刻的心情…',
-                                  counterText: '',
+                                child: TextField(
+                                  controller: input,
+                                  focusNode: focus,
+                                  enabled: !room.sending,
+                                  readOnly: uploading,
+                                  contextMenuBuilder: (context, editable) {
+                                    if (isAndroid) {
+                                      return AdaptiveTextSelectionToolbar.buttonItems(
+                                        anchors: editable.contextMenuAnchors,
+                                        buttonItems:
+                                            editable.contextMenuButtonItems,
+                                      );
+                                    }
+                                    final items = editable
+                                        .contextMenuButtonItems
+                                        .where(
+                                          (item) =>
+                                              item.type !=
+                                              ContextMenuButtonType.paste,
+                                        )
+                                        .toList();
+                                    items.add(
+                                      ContextMenuButtonItem(
+                                        type: ContextMenuButtonType.paste,
+                                        label: '粘贴',
+                                        onPressed: () {
+                                          editable.hideToolbar();
+                                          unawaited(addImage(clipboard: true));
+                                        },
+                                      ),
+                                    );
+                                    return AdaptiveTextSelectionToolbar.buttonItems(
+                                      anchors: editable.contextMenuAnchors,
+                                      buttonItems: items,
+                                    );
+                                  },
+                                  minLines: compact ? 1 : 2,
+                                  maxLines: 5,
+                                  maxLength: 600,
+                                  onChanged: (v) {
+                                    room.draft = v;
+                                  },
+                                  decoration: const InputDecoration(
+                                    hintText: '分享此刻的心情…',
+                                    counterText: '',
+                                  ),
                                 ),
                               ),
                             ),
                           ),
                           const SizedBox(width: 15),
                           FilledButton(
-                            onPressed: c.ready && !room.sending ? c.send : null,
+                            onPressed: c.ready && !room.sending && !uploading
+                                ? c.send
+                                : null,
                             child: Text(
                               room.sending
                                   ? '发送中…'

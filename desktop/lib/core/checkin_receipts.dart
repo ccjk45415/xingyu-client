@@ -73,7 +73,14 @@ class CheckinReceipts {
     final event = checkinReceipt(raw);
     if (event == null || app.uid <= 0) return;
     final values = events;
-    if (values.any((v) => v['key'] == event['key'])) return;
+    for (final saved in values) {
+      if (saved['key'] == event['key']) {
+        // The message list is in memory and may have been cleared on restart.
+        // Restore it even when the durable receipt was already imported.
+        app.notices.acceptCheckin(saved);
+        return;
+      }
+    }
     final outbox = pending;
     if (upload) outbox.add(text(event['key']));
     values.add(event);
@@ -117,6 +124,11 @@ class CheckinReceipts {
     final uid = app.uid, generation = app.generation;
     bool current() => app.uid == uid && app.generation == generation;
     if (uid <= 0) return [];
+    // Local success must remain visible when authentication or receipt delivery
+    // is unavailable. Network failures must not gate rebuilding the message list.
+    for (final event in events.reversed) {
+      app.notices.acceptCheckin(event);
+    }
     if (isAndroid) {
       try {
         final status = object(

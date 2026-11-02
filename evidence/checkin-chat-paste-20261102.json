@@ -1,0 +1,34 @@
+{
+  "status": "implemented_locally",
+  "verified_at": "2026-11-02T03:23:03.096439+00:00",
+  "published": false,
+  "release_base_commit": "c20694edfe16b1caebcd772a63d1fa52d7ab94af",
+  "changes": [
+    "Restore local check-in success messages before remote receipt delivery, even offline",
+    "Reimporting a saved background receipt restores the in-memory message list without repeating its banner",
+    "Desktop chat PasteTextIntent and context-menu paste read native image clipboard, compress and stage existing chat attachments; plain text fallback remains available",
+    "Prevent upload completions crossing accounts and prevent send while uploading"
+  ],
+  "unchanged": [
+    "Existing daily receipt deduplication, notification preferences and cross-device read receipts",
+    "Chat descriptions and existing native clipboard size limits",
+    "Published installers and update channels"
+  ],
+  "validation": {
+    "related_flutter_tests_passed": 41,
+    "flutter_analyze": "No issues found",
+    "test_suites": [
+      "checkin_receipts_test",
+      "chat_clipboard_test",
+      "windows_checkin_monitor_test",
+      "in_app_notices_test",
+      "notice_read_sync_test",
+      "system_notices_test",
+      "chat_avatar_actions_test"
+    ]
+  },
+  "limits": [
+    "Clipboard/native platform calls and network are simulated in automated tests",
+    "Physical-device acceptance and installer or hot-patch publication are not performed in this turn"
+  ]
+}

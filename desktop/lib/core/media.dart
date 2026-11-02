@@ -3,11 +3,27 @@ import 'dart:convert';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image/image.dart' as img;
 
 import '../ui/shared.dart';
 import 'api.dart';
 import 'state.dart';
+
+Future<Uint8List?> clipboardJpeg() async {
+  Uint8List? bytes;
+  try {
+    bytes = await const MethodChannel('moe.cangku.xingyu/image_clipboard')
+        .invokeMethod<Uint8List>('readImage');
+  } on MissingPluginException {
+    return null;
+  }
+  if (bytes == null) return null;
+  if (bytes.length > 20 * 1024 * 1024) {
+    throw ApiFailure(413, '请选择20MB以内的图片');
+  }
+  return compute(compressImage, bytes);
+}
 
 Uint8List compressImage(Uint8List data) {
   final decoder = img.findDecoderForData(data),
