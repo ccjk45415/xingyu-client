@@ -1,0 +1,9 @@
+{
+  "items": [
+    {
+      "id": "release-20261101-template-test",
+      "title": "测试更新：动态模板与快撸",
+      "content": "本次为测试更新，尚未进行用户实机测试。遇到问题请反馈。\n\n本次通过正式更新通道提供，新增独立「动态模板」（我的 → 创作中心 → 动态模板），原有 AI 投稿助手和投稿工具保留；首页、分类、排行增加页码跳转，分类顶部布局收紧，楼中楼超过 3 条可折叠。新增「快撸」，根据本机阅读足迹推荐相似分类，支持下拉换一批和滑到底部继续加载。\n\n已完成自动化测试与构建检查，但手机真机使用、macOS 实际交互及内置 AI 的真实生成效果仍待测试。\n\n反馈时请附客户端版本、复现步骤和诊断信息。GitHub Issues：https://github.com/ccjk45415/xingyu-client/issues\n\n旧版自动更新失败时，可到 GitHub 发布页手动下载安装：https://github.com/ccjk45415/xingyu-client/releases/tag/v0.13.6"
+    }
+  ]
+}

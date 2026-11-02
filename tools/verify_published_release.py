@@ -12,6 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 parser = argparse.ArgumentParser()
 parser.add_argument('--origin', required=True)
 parser.add_argument('--report', required=True)
+parser.add_argument('--release', choices=['0.13.1', '0.13.5', '0.13.6'], default='0.13.1')
 args = parser.parse_args()
 origin = args.origin.rstrip('/')
 assert urllib.parse.urlparse(origin).scheme == 'https'
@@ -34,7 +35,13 @@ with fetch('/updates/android') as response:
 with fetch('/health') as response:
     health = json.load(response)
     assert health.get('protocol') == 3 and health.get('channel_count') == 2
-records = json.loads((ROOT / 'evidence/release-0.13.1-assets.json').read_text('utf-8'))['packages']
+record_path = ROOT / f'evidence/release-{args.release}-staged.json'
+if not record_path.exists():
+    record_path = ROOT / f'evidence/release-{args.release}-assets.json'
+# The source ZIP is a GitHub asset, while the first-party ingress serves the
+# platform installers. Staged records contain exactly those installer files.
+records = [record for record in json.loads(record_path.read_text('utf-8'))['packages']
+           if not record['file'].endswith('-source.zip')]
 def download(record):
     size, digest = 0, hashlib.sha256()
     name = record['file']

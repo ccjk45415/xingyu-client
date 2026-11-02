@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 PUBLIC = ROOT / 'cloudflare-chat/public'
 ORIGIN = 'https://xingyu-chat-ccjk45415.pages.dev'
 parser=argparse.ArgumentParser(description=__doc__)
-parser.add_argument('--release',choices=['0.13.1','0.13.5'],default='0.13.5')
+parser.add_argument('--release',choices=['0.13.1','0.13.5','0.13.6'],default='0.13.5')
 release=parser.parse_args().release
 notes = (ROOT / f'docs/RELEASE-{release}.md').read_text('utf-8').strip()
 artifacts = [
@@ -25,6 +25,19 @@ if release=='0.13.5':
       ('macos','Xingyu-macOS-0.3.4-arm64.pkg','0.3.4',9,'application/octet-stream'),
       (None,'Xingyu-macOS-0.3.4-arm64.dmg','0.3.4',9,'application/x-apple-diskimage'),
     ]
+if release=='0.13.6':
+    artifacts=[
+      ('android','Cangku-Xingyu-0.13.6-arm64.apk','0.13.6',43,'application/vnd.android.package-archive'),
+      ('windows','Xingyu-Windows-0.7.5-x64.zip','0.7.5',33,'application/zip'),
+      ('macos','Xingyu-macOS-0.3.5-arm64.pkg','0.3.5',10,'application/octet-stream'),
+      (None,'Xingyu-macOS-0.3.5-arm64.dmg','0.3.5',10,'application/x-apple-diskimage'),
+    ]
+# Preflight every input before touching manifests or release assets. In
+# particular, an unfinished Mac build must not leave Android/Windows half-staged.
+for platform, name, version, code, content_type in artifacts:
+    file = ROOT / 'output' / name
+    assert file.is_file() and file.stat().st_size > 0, 'Build the installer first: ' + name
+    if platform == 'android': assert file.stat().st_size <= 24 * 1024 * 1024, 'Original updater cannot accept this APK'
 previous = ROOT / 'cloudflare-entry/release-index.mjs'
 index = json.loads(previous.read_text('utf-8').split('export default ', 1)[1].strip().rstrip(';')) if previous.exists() else {}
 records = []

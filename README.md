@@ -4,15 +4,17 @@ cangku.moe 的非官方 Flutter Android、Windows 与 macOS 客户端，三个�
 
 Android 0.6.1修复改名后聊天室资料不同步，并为作品详情页增加右侧滚动条。0.6.0加入统一设置、作者UID复制、首页实时公告轮播，以及仓库认证聊天室、聊天室/私信图片、@和引用回复；详细说明见[0.6.0修改说明](docs/PENDING_CHANGES.md)。
 
-当前版本：**Android 0.13.5 / Windows 0.7.4 / macOS 0.3.4**。修复云端签到调度，新增签到成功提醒与局域网代理设置，改善补丁连接。见[更新记录](CHANGELOG.md)与[安装说明](docs/RELEASE-INSTALLATION.md)。
+当前版本：**Android 0.13.6 / Windows 0.7.5 / macOS 0.3.5**。**本次为测试更新，尚未进行用户实机测试。遇到问题请反馈。** 新增独立动态模板、快撸推荐、页码跳转，优化分类布局与楼中楼折叠。见[更新记录](CHANGELOG.md)与[安装说明](docs/RELEASE-INSTALLATION.md)。
 
 ## 下载
 
+本次通过正式更新通道提供测试更新。已有自动化检查，手机真机使用、macOS 实际交互及内置 AI 真实生成效果仍待测试。遇到问题请到 [GitHub Issues](https://github.com/ccjk45415/xingyu-client/issues) 反馈，并附版本、复现步骤及诊断信息。
+
 | 平台 | 版本 | GitHub下载 |
 | --- | --- | --- |
-| Android 8.0及以上 | 0.13.5 | [APK安装包](https://github.com/ccjk45415/xingyu-client/releases/download/v0.13.5/Cangku-Xingyu-0.13.5-arm64.apk) |
-| Windows x64 | 0.7.4 | [完整免安装ZIP](https://github.com/ccjk45415/xingyu-client/releases/download/v0.13.5/Xingyu-Windows-0.7.4-x64.zip) |
-| macOS 12+ M 系列 | 0.3.4 | [PKG 安装包](https://github.com/ccjk45415/xingyu-client/releases/download/v0.13.5/Xingyu-macOS-0.3.4-arm64.pkg) / [DMG](https://github.com/ccjk45415/xingyu-client/releases/download/v0.13.5/Xingyu-macOS-0.3.4-arm64.dmg) |
+| Android 8.0及以上 | 0.13.6 | [APK安装包](https://github.com/ccjk45415/xingyu-client/releases/download/v0.13.6/Cangku-Xingyu-0.13.6-arm64.apk) |
+| Windows x64 | 0.7.5 | [完整免安装ZIP](https://github.com/ccjk45415/xingyu-client/releases/download/v0.13.6/Xingyu-Windows-0.7.5-x64.zip) |
+| macOS 12+ M 系列 | 0.3.5 | [PKG 安装包](https://github.com/ccjk45415/xingyu-client/releases/download/v0.13.6/Xingyu-macOS-0.3.5-arm64.pkg) / [DMG](https://github.com/ccjk45415/xingyu-client/releases/download/v0.13.6/Xingyu-macOS-0.3.5-arm64.dmg) |
 
 [全部发布记录与校验文件](https://github.com/ccjk45415/xingyu-client/releases)。Android可覆盖前一版本；Windows完整解压后运行 `Xingyu.exe`，保留全部DLL和data文件夹。Android 沿用原签名；Windows 尚未进行代码签名，macOS 使用 ad-hoc 签名且尚未公证，首次安装可能需要系统安全确认。
 
@@ -28,13 +30,13 @@ Android 0.6.1修复改名后聊天室资料不同步，并为作品详情页增�
 
 ## Windows 桌面版
 
-Flutter Desktop **0.7.4 / Windows x64** 已制作，采用原生 Windows 引擎与重新设计的侧栏、封面网格和宽屏阅读/聊天布局。完整解压 `output/Xingyu-Windows-0.7.4-x64.zip` 后运行 `Xingyu.exe`。复用现有网站账号和认证聊天服务，支持评论通知、投稿管理、图片、艾特和引用回复。详见 [Windows 使用与构建说明](desktop/README.md)。Windows 版本及更新清单与安卓独立。
+Flutter Desktop **0.7.5 / Windows x64** 已制作，采用原生 Windows 引擎与重新设计的侧栏、封面网格和宽屏阅读/聊天布局。完整解压 `output/Xingyu-Windows-0.7.5-x64.zip` 后运行 `Xingyu.exe`。复用现有网站账号和认证聊天服务，支持评论通知、投稿管理、图片、艾特和引用回复。详见 [Windows 使用与构建说明](desktop/README.md)。Windows 版本及更新清单与安卓独立。
 
-[下载 Windows 0.7.4 x64 免安装包](https://xingyu-chat-ccjk45415.pages.dev/releases/Xingyu-Windows-0.7.4-x64.zip)（完整 ZIP）。
+[下载 Windows 0.7.5 x64 免安装包](https://xingyu-chat-ccjk45415.pages.dev/releases/Xingyu-Windows-0.7.5-x64.zip)（完整 ZIP）。
 
 ## Android 安装
 
-安装包：`output/Cangku-Xingyu-0.13.5-arm64.apk`。使用与上一版相同的测试签名，可覆盖升级。
+安装包：`output/Cangku-Xingyu-0.13.6-arm64.apk`。使用与上一版相同的测试签名，可覆盖升级。
 
 安装后输入自己的仓库账号密码。项目、安装包与交付压缩包不包含预置账号、密码或登录 Cookie。默认仅在本次进程内保持会话；勾选“保持登录”后，会话通过 Android Keystore 的 AES-GCM 密钥加密保存。密码始终不写入磁盘。
 
