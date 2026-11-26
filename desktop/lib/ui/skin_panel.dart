@@ -335,7 +335,7 @@ class _BrightnessSwitch extends StatelessWidget {
           option(
             key: const Key('skin.mode.light'),
             selected: !dark,
-            icon: Icons.wb_sunny_outlined,
+            icon: Icons.light_mode_outlined,
             title: '浅色模式',
             subtitle: '明亮通透',
             onTap: () => onChanged(false),
@@ -558,13 +558,24 @@ class _SkinPreviewCard extends StatelessWidget {
               const SizedBox(height: 10),
               Row(
                 children: [
-                  Icon(
-                    selected
-                        ? Icons.check_circle_rounded
-                        : Icons.radio_button_unchecked_rounded,
-                    size: 17,
-                    color: selected ? scheme.primary : scheme.onSurfaceVariant,
-                  ),
+                  if (selected)
+                    Icon(
+                      Icons.check_circle_outline_rounded,
+                      size: 17,
+                      color: scheme.primary,
+                    )
+                  else
+                    Container(
+                      width: 15,
+                      height: 15,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: scheme.onSurfaceVariant.withValues(alpha: .55),
+                          width: 1.5,
+                        ),
+                      ),
+                    ),
                   const SizedBox(width: 6),
                   Text(
                     selected ? '当前使用中' : '点击切换',

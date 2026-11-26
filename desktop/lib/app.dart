@@ -896,7 +896,7 @@ class _DesktopShellState extends State<DesktopShell>
                                 ),
                                 child: Icon(
                                   liquid
-                                      ? Icons.water_drop_rounded
+                                      ? Icons.bubble_chart_outlined
                                       : Icons.auto_awesome_rounded,
                                   size: 21,
                                   color: Colors.white,
@@ -1118,9 +1118,9 @@ class _DesktopShellState extends State<DesktopShell>
                               children: [
                                 Icon(
                                   liquid
-                                      ? Icons.water_drop_outlined
+                                      ? Icons.bubble_chart_outlined
                                       : glass
-                                      ? Icons.blur_on_rounded
+                                      ? Icons.auto_awesome_mosaic_rounded
                                       : Icons.nightlight_round,
                                   color: accent,
                                   size: 19,
