@@ -16,6 +16,7 @@ import 'platform.dart';
 import 'patch_updates.dart';
 import 'in_app_notices.dart';
 import 'error_diagnostics.dart';
+import 'skin.dart';
 
 class AppState extends ChangeNotifier {
   final SiteApi site;
@@ -25,6 +26,7 @@ class AppState extends ChangeNotifier {
   Json local = {};
   List<Json> categories = [];
   bool starting = true, dark = false;
+  AppSkin skin = AppSkin.classic;
   double fontSize = 17;
   String? startupError;
   String get windowsCloseAction =>
@@ -102,6 +104,7 @@ class AppState extends ChangeNotifier {
       await syncNativeNetworkProxy();
       BrowseCache.shared.enabled = local['cacheEnabled'] != false;
       dark = local['dark'] == true;
+      skin = AppSkin.parse(local['skin']);
       fontSize = (local['fontSize'] as num?)?.toDouble().clamp(13, 26) ?? 17;
       if (await site.restore()) {
         try {
@@ -415,6 +418,7 @@ class AppState extends ChangeNotifier {
   Future<void> persist() async {
     if (directory == null) return;
     local['dark'] = dark;
+    local['skin'] = skin.id;
     local['fontSize'] = fontSize;
     final file = File('${directory!.path}/library.json');
     // Serialize writes so rapid theme/draft updates cannot corrupt the local library.
@@ -445,6 +449,13 @@ class AppState extends ChangeNotifier {
 
   Future<void> setDark(bool value) async {
     dark = value;
+    notifyListeners();
+    await persist();
+  }
+
+  Future<void> setSkin(AppSkin value) async {
+    if (skin == value) return;
+    skin = value;
     notifyListeners();
     await persist();
   }

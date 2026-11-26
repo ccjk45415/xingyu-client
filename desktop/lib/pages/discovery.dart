@@ -15,6 +15,7 @@ import '../core/reader.dart';
 import '../core/pinned_content.dart';
 import '../ui/pin_badge.dart';
 import '../core/state.dart';
+import '../core/skin.dart';
 import '../ui/shared.dart';
 
 class PostListPage extends StatelessWidget {
@@ -273,21 +274,44 @@ class _PostCardState extends State<PostCard> {
   @override
   Widget build(BuildContext context) {
     final p = widget.post, author = object(p['user']);
+    final skin = XingyuSkinTheme.of(context);
+    final glass = skin.usesGlassChrome;
+    final liquid = skin.isLiquid;
     return MouseRegion(
       onEnter: (_) => setState(() => hover = true),
       onExit: (_) => setState(() => hover = false),
       cursor: SystemMouseCursors.click,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
-        transform: Matrix4.translationValues(0, hover ? -4 : 0, 0),
+        transform: Matrix4.translationValues(0, hover ? (glass ? -5 : -4) : 0, 0),
         decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
-          borderRadius: BorderRadius.circular(20),
+          color: glass ? null : Theme.of(context).colorScheme.surface,
+          gradient: glass
+              ? LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [skin.glassFillTop, skin.glassFillBottom],
+                )
+              : null,
+          borderRadius: BorderRadius.circular(glass ? skin.cardRadius : 20),
+          border: glass
+              ? Border.all(
+                  color: hover
+                      ? skin.accent.withValues(alpha: skin.isDark ? .68 : .58)
+                      : skin.glassBorder,
+                  width: hover ? 1.35 : (liquid ? 1.15 : 1.0),
+                )
+              : null,
           boxShadow: [
             BoxShadow(
-              color: violet.withValues(alpha: hover ? .12 : .035),
-              blurRadius: 24,
+              color: glass
+                  ? (hover
+                        ? skin.accent.withValues(alpha: skin.isDark ? .26 : .18)
+                        : skin.glassShadow)
+                  : violet.withValues(alpha: hover ? .12 : .035),
+              blurRadius: glass ? (hover ? 28 : 20) : 24,
               offset: const Offset(0, 8),
+              spreadRadius: glass ? -4 : 0,
             ),
           ],
         ),

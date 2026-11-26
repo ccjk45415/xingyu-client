@@ -19,6 +19,8 @@ import '../core/state.dart';
 import '../core/qr.dart';
 import '../core/error_diagnostics.dart';
 import '../core/platform.dart';
+import '../core/skin.dart';
+import 'glass.dart';
 
 const violet = Color(0xff8a6adb),
     pink = Color(0xffe797b7),
@@ -58,25 +60,68 @@ class IconBadge extends StatelessWidget {
   final double size;
   const IconBadge(this.icon, {super.key, this.size = 44});
   @override
-  Widget build(BuildContext context) => Container(
-    width: size,
-    height: size,
-    decoration: BoxDecoration(
-      borderRadius: BorderRadius.circular(size * .31),
-      gradient: LinearGradient(
-        colors: [violet.withValues(alpha: .14), pink.withValues(alpha: .13)],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
+  Widget build(BuildContext context) {
+    final skin = XingyuSkinTheme.of(context);
+    if (skin.usesGlassChrome) {
+      return Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(
+            skin.isLiquid ? size * .48 : size * .34,
+          ),
+          gradient: LinearGradient(
+            colors: [
+              skin.accent.withValues(alpha: skin.isDark ? .30 : .18),
+              skin.accentSecondary.withValues(alpha: skin.isDark ? .24 : .15),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          border: Border.all(
+            color: skin.isLiquid
+                ? skin.glassBorder
+                : (skin.isDark
+                      ? Colors.white.withValues(alpha: .20)
+                      : Colors.white.withValues(alpha: .85)),
+            width: skin.isLiquid ? 1.2 : 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: skin.accent.withValues(alpha: skin.isDark ? .20 : .12),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        alignment: Alignment.center,
+        child: Icon(
+          icon,
+          size: size * .5,
+          color: Theme.of(context).colorScheme.primary,
+        ),
+      );
+    }
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(size * .31),
+        gradient: LinearGradient(
+          colors: [violet.withValues(alpha: .14), pink.withValues(alpha: .13)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        border: Border.all(color: violet.withValues(alpha: .1)),
       ),
-      border: Border.all(color: violet.withValues(alpha: .1)),
-    ),
-    alignment: Alignment.center,
-    child: Icon(
-      icon,
-      size: size * .5,
-      color: Theme.of(context).colorScheme.primary,
-    ),
-  );
+      alignment: Alignment.center,
+      child: Icon(
+        icon,
+        size: size * .5,
+        color: Theme.of(context).colorScheme.primary,
+      ),
+    );
+  }
 }
 
 class DeskRoute {
@@ -297,26 +342,34 @@ class Surface extends StatelessWidget {
     this.color,
   });
   @override
-  Widget build(BuildContext context) => Material(
-    color: color ?? Theme.of(context).colorScheme.surface,
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(20),
-      side: BorderSide(
-        color: Theme.of(context).colorScheme.outlineVariant
-            .withValues(alpha: .3),
+  Widget build(BuildContext context) {
+    final resolvedPadding =
+        MediaQuery.sizeOf(context).width < 700 &&
+            padding == const EdgeInsets.all(24)
+        ? const EdgeInsets.all(16)
+        : padding;
+    final skin = XingyuSkinTheme.of(context);
+    if (skin.usesGlassChrome) {
+      return GlassSurfaceBox(
+        padding: resolvedPadding,
+        color: color,
+        child: child,
+      );
+    }
+    return Material(
+      color: color ?? Theme.of(context).colorScheme.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(
+          color: Theme.of(context).colorScheme.outlineVariant
+              .withValues(alpha: .3),
+        ),
       ),
-    ),
-    elevation: 1,
-    shadowColor: violet.withValues(alpha: .09),
-    child: Padding(
-      padding:
-          MediaQuery.sizeOf(context).width < 700 &&
-              padding == const EdgeInsets.all(24)
-          ? const EdgeInsets.all(16)
-          : padding,
-      child: child,
-    ),
-  );
+      elevation: 1,
+      shadowColor: violet.withValues(alpha: .09),
+      child: Padding(padding: resolvedPadding, child: child),
+    );
+  }
 }
 
 class PageBody extends StatefulWidget {

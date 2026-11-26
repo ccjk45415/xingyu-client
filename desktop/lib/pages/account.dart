@@ -11,6 +11,7 @@ import '../core/media.dart';
 import '../core/updates.dart';
 import '../core/platform.dart';
 import '../ui/shared.dart';
+import '../ui/skin_panel.dart';
 import 'discovery.dart';
 import 'account_overview.dart';
 import 'diagnostics.dart';
@@ -356,6 +357,20 @@ class SettingsPage extends StatelessWidget {
                     subtitle: const Text('适合夜间阅读的柔和深色背景'),
                     value: app.dark,
                     onChanged: app.setDark,
+                  ),
+                  const Divider(height: 24),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(
+                      Icons.palette_outlined,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    title: const Text('界面皮肤'),
+                    subtitle: const Text('在星屿经典、琉璃毛玻璃与液态玻璃之间自由切换'),
+                  ),
+                  SkinSelectorGrid(
+                    app: app,
+                    compact: MediaQuery.sizeOf(context).width < 700,
                   ),
                   const Divider(height: 24),
                   ListTile(

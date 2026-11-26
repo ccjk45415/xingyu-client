@@ -10,6 +10,7 @@ import 'core/updates.dart';
 import 'core/chat.dart';
 import 'core/platform.dart';
 import 'core/error_diagnostics.dart';
+import 'core/skin.dart';
 import 'pages/discovery.dart';
 import 'pages/quick_feed.dart';
 import 'pages/dynamic_templates.dart';
@@ -19,7 +20,9 @@ import 'pages/following.dart';
 import 'pages/conversation.dart';
 import 'pages/private.dart';
 import 'pages/authoring.dart';
+import 'ui/glass.dart';
 import 'ui/shared.dart';
+import 'ui/skin_panel.dart';
 import 'pages/diagnostics.dart';
 import 'pages/notification_settings.dart';
 import 'pages/network_settings.dart';
@@ -29,126 +32,8 @@ class XingyuApp extends StatelessWidget {
   final AppState app;
   XingyuApp({super.key, required this.app});
   final navigatorKey = GlobalKey<NavigatorState>();
-  ThemeData theme(Brightness brightness) {
-    final dark = brightness == Brightness.dark;
-    final scheme =
-        ColorScheme.fromSeed(
-          seedColor: violet,
-          brightness: brightness,
-        ).copyWith(
-          primary: violet,
-          secondary: pink,
-          surface: dark ? const Color(0xff252232) : Colors.white,
-          onSurface: dark ? const Color(0xffeee8fb) : ink,
-        );
-    return ThemeData(
-      useMaterial3: true,
-      colorScheme: scheme,
-      fontFamily: uiFont,
-      fontFamilyFallback: const ['Segoe UI', 'Microsoft YaHei'],
-      scaffoldBackgroundColor: dark
-          ? const Color(0xff1b1926)
-          : const Color(0xfff8f7fc),
-      visualDensity: VisualDensity.standard,
-      iconTheme: IconThemeData(color: scheme.onSurfaceVariant, size: 21),
-      textTheme: const TextTheme(
-        titleLarge: TextStyle(
-          fontSize: 21,
-          fontWeight: FontWeight.w700,
-          height: 1.35,
-        ),
-        titleMedium: TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w600,
-          height: 1.45,
-        ),
-        bodyLarge: TextStyle(fontSize: 15, height: 1.65),
-        bodyMedium: TextStyle(fontSize: 14, height: 1.6),
-        bodySmall: TextStyle(fontSize: 12, height: 1.5),
-        labelLarge: TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.w600,
-          letterSpacing: .1,
-        ),
-      ),
-      tooltipTheme: TooltipThemeData(
-        waitDuration: const Duration(milliseconds: 350),
-        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
-        decoration: BoxDecoration(
-          color: dark ? const Color(0xffeee7fc) : const Color(0xff3e3458),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        textStyle: TextStyle(color: dark ? ink : Colors.white, fontSize: 12),
-      ),
-      iconButtonTheme: IconButtonThemeData(
-        style: IconButton.styleFrom(
-          minimumSize: const Size(42, 42),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(13),
-          ),
-          foregroundColor: scheme.onSurfaceVariant,
-        ),
-      ),
-      textButtonTheme: TextButtonThemeData(
-        style: TextButton.styleFrom(
-          minimumSize: const Size(44, 42),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          textStyle: TextStyle(
-            fontFamily: uiFont,
-            fontFamilyFallback: ['Segoe UI', 'Microsoft YaHei'],
-            fontWeight: FontWeight.w600,
-            fontSize: 13,
-          ),
-        ),
-      ),
-      dialogTheme: DialogThemeData(
-        backgroundColor: scheme.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        surfaceTintColor: Colors.transparent,
-      ),
-      inputDecorationTheme: InputDecorationTheme(
-        filled: true,
-        fillColor: dark ? const Color(0xff302b40) : const Color(0xfff5f2fb),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide.none,
-        ),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 18,
-          vertical: 17,
-        ),
-      ),
-      filledButtonTheme: FilledButtonThemeData(
-        style: FilledButton.styleFrom(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 17),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(13),
-          ),
-        ),
-      ),
-      outlinedButtonTheme: OutlinedButtonThemeData(
-        style: OutlinedButton.styleFrom(
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 17),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(13),
-          ),
-        ),
-      ),
-      chipTheme: ChipThemeData(
-        side: BorderSide.none,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(11)),
-        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
-      ),
-      scrollbarTheme: ScrollbarThemeData(
-        thumbColor: WidgetStatePropertyAll(violet.withValues(alpha: .45)),
-        radius: const Radius.circular(8),
-        thickness: const WidgetStatePropertyAll(7),
-      ),
-      dividerColor: scheme.outlineVariant.withValues(alpha: .35),
-    );
-  }
+  ThemeData theme(Brightness brightness) =>
+      buildXingyuTheme(app.skin, brightness, fontFamily: uiFont);
 
   @override
   Widget build(BuildContext context) => WindowsCloseHost(
@@ -173,7 +58,7 @@ class XingyuApp extends StatelessWidget {
           value: app.dark
               ? SystemUiOverlayStyle.light
               : SystemUiOverlayStyle.dark,
-          child: child ?? const SizedBox.shrink(),
+          child: GlassBackdrop(child: child ?? const SizedBox.shrink()),
         ),
         home: app.starting
             ? const Scaffold(
@@ -492,10 +377,23 @@ class _LoginPageState extends State<LoginPage> {
                 flex: 5,
                 child: SingleChildScrollView(
                   padding: EdgeInsets.symmetric(
-                    horizontal: wide ? 55 : 35,
+                    horizontal: wide ? 55 : 24,
                     vertical: 32,
                   ),
-                  child: Center(child: AutofillGroup(child: form)),
+                  child: Center(
+                    child: AutofillGroup(
+                      child: XingyuSkinTheme.of(c).usesGlassChrome
+                          ? GlassPanel(
+                              borderRadius: XingyuSkinTheme.of(c).isLiquid
+                                  ? 32
+                                  : 28,
+                              blurSigma: XingyuSkinTheme.of(c).blurSigma,
+                              padding: EdgeInsets.all(wide ? 32 : 22),
+                              child: form,
+                            )
+                          : form,
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -630,8 +528,132 @@ class _DesktopShellState extends State<DesktopShell>
     }
   }
 
+  void _openSkinPanel(BuildContext c) {
+    unawaited(
+      showSkinPanel(
+        c,
+        widget.app,
+        onOpenMoreAppearance: () => open(const DeskRoute('appearance', '阅读与外观')),
+      ),
+    );
+  }
+
   Widget mobile(BuildContext c) {
     final root = navigation.any((n) => n.$3 == route.kind) && history.isEmpty;
+    final skin = XingyuSkinTheme.of(c);
+    final glass = skin.usesGlassChrome;
+    final liquid = skin.isLiquid;
+    final accent = Theme.of(c).colorScheme.primary;
+    final headerContent = SizedBox(
+      height: 58,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        child: Row(
+          children: [
+            if (!root)
+              IconButton(
+                tooltip: '返回',
+                onPressed: back,
+                icon: const Icon(Icons.arrow_back_rounded),
+              )
+            else
+              Padding(
+                padding: const EdgeInsets.only(left: 6, right: 10),
+                child: Icon(Icons.auto_awesome_rounded, color: accent),
+              ),
+            Expanded(
+              child: Text(
+                root && route.kind == 'home' ? '星屿' : route.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 19,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+            if (route.kind != 'editor')
+              IconButton(
+                tooltip: '搜索作品与作者',
+                onPressed: mobileSearch,
+                icon: const Icon(Icons.search_rounded),
+              ),
+            IconButton(
+              key: const Key('shell.skinButton'),
+              tooltip: '皮肤与外观',
+              onPressed: () => _openSkinPanel(c),
+              icon: const Icon(Icons.palette_outlined),
+            ),
+            NoticeBell(
+              notices: widget.app.notices,
+              onPressed: () =>
+                  open(const DeskRoute('noticeCenter', '消息提醒')),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    final navRow = Row(
+      children: [
+        for (final n in navigation)
+          Expanded(
+            child: Semantics(
+              selected: route.kind == n.$3,
+              button: true,
+              child: InkWell(
+                key: ValueKey('mobile.nav.${n.$3}'),
+                borderRadius: BorderRadius.circular(glass ? 16 : 0),
+                onTap: () => tab(DeskRoute(n.$3, n.$2)),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 9),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 180),
+                        width: 46,
+                        height: 30,
+                        decoration: BoxDecoration(
+                          gradient: route.kind == n.$3 && glass
+                              ? LinearGradient(colors: skin.accentGradient)
+                              : null,
+                          color: route.kind == n.$3
+                              ? (glass ? null : accent.withValues(alpha: .14))
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(
+                          n.$1,
+                          size: 22,
+                          color: route.kind == n.$3
+                              ? (glass ? Colors.white : accent)
+                              : Theme.of(c).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        n.$2,
+                        maxLines: 1,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: route.kind == n.$3
+                              ? FontWeight.w700
+                              : FontWeight.w500,
+                          color: route.kind == n.$3
+                              ? accent
+                              : Theme.of(c).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+
     return PopScope(
       canPop: history.isEmpty && route.kind == 'home',
       onPopInvokedWithResult: (didPop, _) {
@@ -646,121 +668,46 @@ class _DesktopShellState extends State<DesktopShell>
       child: SafeArea(
         child: Column(
           children: [
-            Container(
-              height: 58,
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              decoration: BoxDecoration(
-                border: Border(
-                  bottom: BorderSide(color: Theme.of(c).dividerColor),
+            if (glass)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+                child: GlassPanel(
+                  borderRadius: liquid ? 28 : 20,
+                  blurSigma: skin.blurSigma,
+                  child: headerContent,
                 ),
-              ),
-              child: Row(
-                children: [
-                  if (!root)
-                    IconButton(
-                      tooltip: '返回',
-                      onPressed: back,
-                      icon: const Icon(Icons.arrow_back_rounded),
-                    )
-                  else
-                    const Padding(
-                      padding: EdgeInsets.only(left: 6, right: 10),
-                      child: Icon(Icons.auto_awesome_rounded, color: violet),
-                    ),
-                  Expanded(
-                    child: Text(
-                      root && route.kind == 'home' ? '星屿' : route.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 19,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                  if (route.kind != 'editor')
-                    IconButton(
-                      tooltip: '搜索作品与作者',
-                      onPressed: mobileSearch,
-                      icon: const Icon(Icons.search_rounded),
-                    ),
-                  NoticeBell(
-                    notices: widget.app.notices,
-                    onPressed: () =>
-                        open(const DeskRoute('noticeCenter', '消息提醒')),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(child: page()),
-            if (root && MediaQuery.viewInsetsOf(c).bottom == 0)
+              )
+            else
               DecoratedBox(
                 decoration: BoxDecoration(
-                  color: Theme.of(c).colorScheme.surface,
                   border: Border(
-                    top: BorderSide(color: Theme.of(c).dividerColor),
+                    bottom: BorderSide(color: Theme.of(c).dividerColor),
                   ),
                 ),
-                child: Row(
-                  children: [
-                    for (final n in navigation)
-                      Expanded(
-                        child: Semantics(
-                          selected: route.kind == n.$3,
-                          button: true,
-                          child: InkWell(
-                            key: ValueKey('mobile.nav.${n.$3}'),
-                            onTap: () => tab(DeskRoute(n.$3, n.$2)),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 9),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  AnimatedContainer(
-                                    duration: const Duration(milliseconds: 180),
-                                    width: 46,
-                                    height: 30,
-                                    decoration: BoxDecoration(
-                                      color: route.kind == n.$3
-                                          ? violet.withValues(alpha: .14)
-                                          : Colors.transparent,
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: Icon(
-                                      n.$1,
-                                      size: 23,
-                                      color: route.kind == n.$3
-                                          ? violet
-                                          : Theme.of(c)
-                                                .colorScheme
-                                                .onSurfaceVariant,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 3),
-                                  Text(
-                                    n.$2,
-                                    maxLines: 1,
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: route.kind == n.$3
-                                          ? FontWeight.w700
-                                          : FontWeight.w500,
-                                      color: route.kind == n.$3
-                                          ? violet
-                                          : Theme.of(c)
-                                                .colorScheme
-                                                .onSurfaceVariant,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
+                child: headerContent,
               ),
+            Expanded(child: page()),
+            if (root && MediaQuery.viewInsetsOf(c).bottom == 0)
+              if (glass)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 4, 12, 10),
+                  child: GlassPanel(
+                    borderRadius: liquid ? 30 : 24,
+                    blurSigma: skin.blurSigma,
+                    strong: true,
+                    child: navRow,
+                  ),
+                )
+              else
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: Theme.of(c).colorScheme.surface,
+                    border: Border(
+                      top: BorderSide(color: Theme.of(c).dividerColor),
+                    ),
+                  ),
+                  child: navRow,
+                ),
           ],
         ),
       ),
@@ -911,349 +858,524 @@ class _DesktopShellState extends State<DesktopShell>
                         ].contains(route.kind)
                       ? 'mine'
                       : route.kind;
-                  return Row(
+                  final skin = XingyuSkinTheme.of(c);
+                  final glass = skin.usesGlassChrome;
+                  final liquid = skin.isLiquid;
+                  final accent = Theme.of(c).colorScheme.primary;
+                  final sidebarInner = Column(
                     children: [
-                      Container(
-                        width: full ? 222 : 86,
-                        decoration: BoxDecoration(
-                          color: Theme.of(c).colorScheme.surface,
-                          border: Border(
-                            right: BorderSide(color: Theme.of(c).dividerColor),
-                          ),
+                      Padding(
+                        padding: EdgeInsets.fromLTRB(
+                          full ? 24 : 16,
+                          short ? 18 : 28,
+                          16,
+                          short ? 18 : 30,
                         ),
-                        child: Column(
+                        child: Row(
                           children: [
-                            Padding(
-                              padding: EdgeInsets.fromLTRB(
-                                full ? 27 : 16,
-                                short ? 18 : 35,
-                                16,
-                                short ? 20 : 40,
-                              ),
-                              child: Row(
-                                children: [
-                                  const Icon(
-                                    Icons.auto_awesome_rounded,
-                                    size: 31,
-                                    color: violet,
+                            if (glass)
+                              Container(
+                                width: 38,
+                                height: 38,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(
+                                    liquid ? 19 : 13,
                                   ),
-                                  if (full) ...[
-                                    const SizedBox(width: 14),
-                                    const Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          '星屿',
-                                          style: TextStyle(
-                                            fontSize: 25,
-                                            fontWeight: FontWeight.w800,
-                                          ),
-                                        ),
-                                        Text(
-                                          'YOUR LITTLE UNIVERSE',
-                                          style: TextStyle(
-                                            fontSize: 7,
-                                            letterSpacing: 1,
-                                            color: violet,
-                                          ),
-                                        ),
-                                      ],
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                    colors: skin.accentGradient,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: skin.accent.withValues(alpha: .35),
+                                      blurRadius: 14,
+                                      offset: const Offset(0, 4),
                                     ),
                                   ],
-                                ],
-                              ),
-                            ),
-                            if (full)
-                              const Align(
-                                alignment: Alignment.centerLeft,
-                                child: Padding(
-                                  padding: EdgeInsets.fromLTRB(29, 0, 0, 13),
-                                  child: Text(
-                                    '探索你的喜欢',
-                                    style: TextStyle(
-                                      color: Colors.grey,
-                                      fontSize: 10,
-                                      letterSpacing: 1,
-                                    ),
-                                  ),
                                 ),
-                              ),
-                            for (final nav in [
-                              (Icons.grid_view_rounded, '发现', 'home'),
-                              (Icons.bolt_rounded, '快撸', 'quickFeed'),
-                              (Icons.interests_outlined, '分类', 'categories'),
-                              (
-                                Icons.local_fire_department_outlined,
-                                '排行',
-                                'rank',
-                              ),
-                              (Icons.forum_outlined, '聊天室', 'chat'),
-                              (Icons.rss_feed_rounded, '动态', 'followingFeed'),
-                              (Icons.person_outline_rounded, '我的', 'mine'),
-                            ])
-                              Padding(
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: full ? 17 : 12,
-                                  vertical: 5,
+                                child: Icon(
+                                  liquid
+                                      ? Icons.water_drop_rounded
+                                      : Icons.auto_awesome_rounded,
+                                  size: 21,
+                                  color: Colors.white,
                                 ),
-                                child: Tooltip(
-                                  message: nav.$2,
-                                  child: Material(
-                                    color: selected == nav.$3
-                                        ? violet.withValues(alpha: .12)
-                                        : Colors.transparent,
-                                    borderRadius: BorderRadius.circular(14),
-                                    child: InkWell(
-                                      borderRadius: BorderRadius.circular(14),
-                                      onTap: () =>
-                                          tab(DeskRoute(nav.$3, nav.$2)),
-                                      child: Padding(
-                                        padding: EdgeInsets.symmetric(
-                                          horizontal: full ? 16 : 14,
-                                          vertical: 12,
-                                        ),
-                                        child: Row(
-                                          children: [
-                                            SizedBox(
-                                              width: 30,
-                                              height: 30,
-                                              child: selected == nav.$3
-                                                  ? IconBadge(nav.$1, size: 30)
-                                                  : Icon(
-                                                      nav.$1,
-                                                      size: 22,
-                                                      color: Theme.of(c)
-                                                          .colorScheme
-                                                          .onSurfaceVariant,
-                                                    ),
-                                            ),
-                                            if (full) ...[
-                                              const SizedBox(width: 15),
-                                              Text(
-                                                nav.$2,
-                                                style: TextStyle(
-                                                  fontSize: 14,
-                                                  fontWeight: selected == nav.$3
-                                                      ? FontWeight.w700
-                                                      : FontWeight.w500,
-                                                  color: selected == nav.$3
-                                                      ? violet
-                                                      : null,
-                                                ),
-                                              ),
-                                              const Spacer(),
-                                              if (selected == nav.$3)
-                                                const Icon(
-                                                  Icons.circle,
-                                                  size: 5,
-                                                  color: violet,
-                                                ),
-                                            ],
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
+                              )
+                            else
+                              const Icon(
+                                Icons.auto_awesome_rounded,
+                                size: 31,
+                                color: violet,
                               ),
-                            const Spacer(),
-                            if (full && !short)
-                              Padding(
-                                padding: const EdgeInsets.all(18),
-                                child: Surface(
-                                  padding: const EdgeInsets.all(15),
-                                  color: violet.withValues(alpha: .065),
-                                  child: const Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Icon(
-                                        Icons.nightlight_round,
-                                        color: violet,
-                                        size: 19,
-                                      ),
-                                      SizedBox(height: 10),
-                                      Text(
-                                        '留一点时间给热爱',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                      SizedBox(height: 7),
-                                      Text(
-                                        '慢慢探索，自在阅读。',
-                                        style: TextStyle(
-                                          fontSize: 10,
-                                          color: Colors.grey,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            const Divider(height: 1),
-                            Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: InkWell(
-                                onTap: () =>
-                                    tab(const DeskRoute('mine', '我的星屿')),
-                                borderRadius: BorderRadius.circular(12),
-                                child: Row(
+                            if (full) ...[
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Avatar(widget.app.user ?? {}, radius: 19),
-                                    if (full) ...[
-                                      const SizedBox(width: 11),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              text(
-                                                widget.app.user?['nickname'],
-                                              ),
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: const TextStyle(
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.w700,
-                                              ),
-                                            ),
-                                            Text(
-                                              'UID ${widget.app.uid}',
-                                              style: const TextStyle(
-                                                fontSize: 10,
-                                                color: Colors.grey,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
+                                    const Text(
+                                      '星屿',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 23,
+                                        fontWeight: FontWeight.w800,
                                       ),
-                                      const Icon(
-                                        Icons.unfold_more,
-                                        size: 16,
-                                        color: Colors.grey,
+                                    ),
+                                    Text(
+                                      liquid
+                                          ? 'LIQUID GLASS'
+                                          : glass
+                                          ? 'FROST GLASS'
+                                          : 'YOUR LITTLE UNIVERSE',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 7.5,
+                                        letterSpacing: 1.0,
+                                        fontWeight: glass
+                                            ? FontWeight.w700
+                                            : FontWeight.w500,
+                                        color: accent,
                                       ),
-                                    ],
+                                    ),
                                   ],
                                 ),
                               ),
-                            ),
+                            ],
                           ],
                         ),
                       ),
-                      Expanded(
-                        child: Column(
-                          children: [
-                            Container(
-                              height: 83,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 26,
+                      if (full)
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(26, 0, 0, 12),
+                            child: Text(
+                              liquid
+                                  ? '液态水镜 · 灵动折射'
+                                  : glass
+                                  ? '星光琉璃 · 探索所爱'
+                                  : '探索你的喜欢',
+                              style: TextStyle(
+                                color: Theme.of(c).colorScheme.onSurfaceVariant,
+                                fontSize: 10,
+                                letterSpacing: 1,
                               ),
+                            ),
+                          ),
+                        ),
+                      for (final nav in [
+                        (Icons.grid_view_rounded, '发现', 'home'),
+                        (Icons.bolt_rounded, '快撸', 'quickFeed'),
+                        (Icons.interests_outlined, '分类', 'categories'),
+                        (
+                          Icons.local_fire_department_outlined,
+                          '排行',
+                          'rank',
+                        ),
+                        (Icons.forum_outlined, '聊天室', 'chat'),
+                        (Icons.rss_feed_rounded, '动态', 'followingFeed'),
+                        (Icons.person_outline_rounded, '我的', 'mine'),
+                      ])
+                        Padding(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: full ? 14 : 11,
+                            vertical: 4,
+                          ),
+                          child: Tooltip(
+                            message: nav.$2,
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 180),
                               decoration: BoxDecoration(
-                                border: Border(
-                                  bottom: BorderSide(
-                                    color: Theme.of(c).dividerColor,
+                                borderRadius: BorderRadius.circular(
+                                  liquid ? 999 : (glass ? 16 : 14),
+                                ),
+                                gradient: selected == nav.$3 && glass
+                                    ? LinearGradient(
+                                        colors: [
+                                          skin.accent.withValues(
+                                            alpha: skin.isDark ? .34 : .18,
+                                          ),
+                                          skin.accentSecondary.withValues(
+                                            alpha: skin.isDark ? .24 : .14,
+                                          ),
+                                        ],
+                                      )
+                                    : null,
+                                color: selected == nav.$3
+                                    ? (glass
+                                          ? null
+                                          : violet.withValues(alpha: .12))
+                                    : Colors.transparent,
+                                border: selected == nav.$3 && glass
+                                    ? Border.all(
+                                        color: liquid
+                                            ? skin.glassBorder
+                                            : skin.accent.withValues(
+                                                alpha: skin.isDark ? .45 : .35,
+                                              ),
+                                      )
+                                    : null,
+                              ),
+                              child: Material(
+                                color: Colors.transparent,
+                                borderRadius: BorderRadius.circular(
+                                  liquid ? 999 : (glass ? 16 : 14),
+                                ),
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(
+                                    liquid ? 999 : (glass ? 16 : 14),
+                                  ),
+                                  onTap: () => tab(DeskRoute(nav.$3, nav.$2)),
+                                  child: Padding(
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: full ? 14 : 13,
+                                      vertical: 11,
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        SizedBox(
+                                          width: 30,
+                                          height: 30,
+                                          child: selected == nav.$3
+                                              ? (glass
+                                                    ? Container(
+                                                        decoration:
+                                                            BoxDecoration(
+                                                              borderRadius:
+                                                                  BorderRadius.circular(
+                                                                    10,
+                                                                  ),
+                                                              gradient:
+                                                                  LinearGradient(
+                                                                    colors: skin
+                                                                        .accentGradient,
+                                                                  ),
+                                                            ),
+                                                        child: Icon(
+                                                          nav.$1,
+                                                          size: 17,
+                                                          color: Colors.white,
+                                                        ),
+                                                      )
+                                                    : IconBadge(
+                                                        nav.$1,
+                                                        size: 30,
+                                                      ))
+                                              : Icon(
+                                                  nav.$1,
+                                                  size: 22,
+                                                  color: Theme.of(c)
+                                                      .colorScheme
+                                                      .onSurfaceVariant,
+                                                ),
+                                        ),
+                                        if (full) ...[
+                                          const SizedBox(width: 14),
+                                          Text(
+                                            nav.$2,
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: selected == nav.$3
+                                                  ? FontWeight.w700
+                                                  : FontWeight.w500,
+                                              color: selected == nav.$3
+                                                  ? accent
+                                                  : null,
+                                            ),
+                                          ),
+                                          const Spacer(),
+                                          if (selected == nav.$3)
+                                            Icon(
+                                              Icons.circle,
+                                              size: 6,
+                                              color: accent,
+                                            ),
+                                        ],
+                                      ],
+                                    ),
                                   ),
                                 ),
                               ),
+                            ),
+                          ),
+                        ),
+                      const Spacer(),
+                      if (full && !short)
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 14),
+                          child: Surface(
+                            padding: const EdgeInsets.all(14),
+                            color: glass
+                                ? (skin.isDark
+                                      ? Colors.white.withValues(alpha: .06)
+                                      : Colors.white.withValues(alpha: .55))
+                                : violet.withValues(alpha: .065),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Icon(
+                                  liquid
+                                      ? Icons.water_drop_outlined
+                                      : glass
+                                      ? Icons.blur_on_rounded
+                                      : Icons.nightlight_round,
+                                  color: accent,
+                                  size: 19,
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  liquid
+                                      ? '水光流转 · 晶莹视界'
+                                      : glass
+                                      ? '琉璃光影 · 轻盈沉浸'
+                                      : '留一点时间给热爱',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                const SizedBox(height: 5),
+                                Text(
+                                  liquid
+                                      ? '清澈折射，灵动随心漫游。'
+                                      : glass
+                                      ? '通透视界，自在漫游星屿。'
+                                      : '慢慢探索，自在阅读。',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: Theme.of(c)
+                                        .colorScheme
+                                        .onSurfaceVariant,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      if (!glass) const Divider(height: 1),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(14, 8, 14, 14),
+                        child: Container(
+                          decoration: glass
+                              ? BoxDecoration(
+                                  borderRadius: BorderRadius.circular(16),
+                                  color: skin.isDark
+                                      ? Colors.white.withValues(alpha: .06)
+                                      : Colors.white.withValues(alpha: .52),
+                                  border: Border.all(
+                                    color: skin.glassBorder,
+                                    width: .9,
+                                  ),
+                                )
+                              : null,
+                          child: InkWell(
+                            onTap: () =>
+                                tab(const DeskRoute('mine', '我的星屿')),
+                            borderRadius: BorderRadius.circular(
+                              glass ? 16 : 12,
+                            ),
+                            child: Padding(
+                              padding: EdgeInsets.all(glass ? 8 : 2),
                               child: Row(
                                 children: [
-                                  if (history.isNotEmpty)
-                                    IconButton(
-                                      onPressed: back,
-                                      tooltip: '返回 $backShortcutLabel',
-                                      icon: const Icon(
-                                        Icons.arrow_back,
-                                        size: 20,
-                                      ),
-                                    ),
-                                  if (constraints.maxWidth > 1000)
-                                    Padding(
-                                      padding: const EdgeInsets.only(right: 24),
-                                      child: Text(
-                                        route.title,
-                                        style: const TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                    ),
-                                  Expanded(
-                                    child: ConstrainedBox(
-                                      constraints: const BoxConstraints(
-                                        maxWidth: 490,
-                                      ),
-                                      child: TextField(
-                                        controller: search,
-                                        focusNode: searchFocus,
-                                        onSubmitted: (v) {
-                                          if (v.trim().isNotEmpty) {
-                                            open(
-                                              DeskRoute(
-                                                'search',
-                                                '搜索',
-                                                query: v.trim(),
-                                              ),
-                                            );
-                                          }
-                                        },
-                                        decoration: InputDecoration(
-                                          hintText: '搜索作品、关键词…',
-                                          prefixIcon: Icon(
-                                            Icons.search_rounded,
-                                            size: 20,
-                                          ),
-                                          suffixIcon: Padding(
-                                            padding: EdgeInsets.only(top: 16),
-                                            child: Text(
-                                              '$primaryModifierLabel K',
-                                              style: TextStyle(
-                                                fontSize: 10,
-                                                color: Colors.grey,
-                                              ),
+                                  Avatar(widget.app.user ?? {}, radius: 19),
+                                  if (full) ...[
+                                    const SizedBox(width: 11),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            text(widget.app.user?['nickname']),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w700,
                                             ),
                                           ),
-                                          isDense: true,
-                                          contentPadding: EdgeInsets.symmetric(
-                                            horizontal: 15,
-                                            vertical: 15,
+                                          Text(
+                                            'UID ${widget.app.uid}',
+                                            style: TextStyle(
+                                              fontSize: 10,
+                                              color: Theme.of(c)
+                                                  .colorScheme
+                                                  .onSurfaceVariant,
+                                            ),
                                           ),
-                                        ),
+                                        ],
                                       ),
                                     ),
-                                  ),
-                                  const SizedBox(width: 18),
-                                  NoticeBell(
-                                    notices: widget.app.notices,
-                                    onPressed: () => open(
-                                      const DeskRoute('noticeCenter', '消息提醒'),
+                                    Icon(
+                                      Icons.unfold_more,
+                                      size: 16,
+                                      color: Theme.of(c)
+                                          .colorScheme
+                                          .onSurfaceVariant,
                                     ),
-                                  ),
-                                  IconButton(
-                                    onPressed: () =>
-                                        widget.app.setDark(!widget.app.dark),
-                                    tooltip: widget.app.dark ? '切换浅色' : '切换深色',
-                                    icon: Icon(
-                                      widget.app.dark
-                                          ? Icons.light_mode_outlined
-                                          : Icons.dark_mode_outlined,
-                                    ),
-                                  ),
-                                  IconButton(
-                                    onPressed: () =>
-                                        open(const DeskRoute('settings', '设置')),
-                                    tooltip: '设置',
-                                    icon: const Icon(
-                                      Icons.settings_outlined,
-                                      size: 21,
-                                    ),
-                                  ),
+                                  ],
                                 ],
                               ),
                             ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+
+                  final headerRow = Row(
+                    children: [
+                      if (history.isNotEmpty)
+                        IconButton(
+                          onPressed: back,
+                          tooltip: '返回 $backShortcutLabel',
+                          icon: const Icon(Icons.arrow_back, size: 20),
+                        ),
+                      if (constraints.maxWidth > 1000)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 24),
+                          child: Text(
+                            route.title,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      Expanded(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 490),
+                          child: TextField(
+                            controller: search,
+                            focusNode: searchFocus,
+                            onSubmitted: (v) {
+                              if (v.trim().isNotEmpty) {
+                                open(
+                                  DeskRoute(
+                                    'search',
+                                    '搜索',
+                                    query: v.trim(),
+                                  ),
+                                );
+                              }
+                            },
+                            decoration: InputDecoration(
+                              hintText: '搜索作品、关键词…',
+                              prefixIcon: const Icon(
+                                Icons.search_rounded,
+                                size: 20,
+                              ),
+                              suffixIcon: Padding(
+                                padding: const EdgeInsets.only(top: 16),
+                                child: Text(
+                                  '$primaryModifierLabel K',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: Theme.of(c)
+                                        .colorScheme
+                                        .onSurfaceVariant,
+                                  ),
+                                ),
+                              ),
+                              isDense: true,
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 15,
+                                vertical: 15,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 18),
+                      NoticeBell(
+                        notices: widget.app.notices,
+                        onPressed: () =>
+                            open(const DeskRoute('noticeCenter', '消息提醒')),
+                      ),
+                      IconButton(
+                        key: const Key('shell.skinButton'),
+                        onPressed: () => _openSkinPanel(c),
+                        tooltip: '皮肤与外观',
+                        icon: const Icon(Icons.palette_outlined),
+                      ),
+                      IconButton(
+                        onPressed: () =>
+                            open(const DeskRoute('settings', '设置')),
+                        tooltip: '设置',
+                        icon: const Icon(Icons.settings_outlined, size: 21),
+                      ),
+                    ],
+                  );
+
+                  return Row(
+                    children: [
+                      if (glass)
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(14, 14, 0, 14),
+                          child: SizedBox(
+                            width: full ? 228 : 84,
+                            child: GlassPanel(
+                              borderRadius: liquid ? 30 : 26,
+                              blurSigma: skin.blurSigma,
+                              child: sidebarInner,
+                            ),
+                          ),
+                        )
+                      else
+                        Container(
+                          width: full ? 222 : 86,
+                          decoration: BoxDecoration(
+                            color: Theme.of(c).colorScheme.surface,
+                            border: Border(
+                              right: BorderSide(
+                                color: Theme.of(c).dividerColor,
+                              ),
+                            ),
+                          ),
+                          child: sidebarInner,
+                        ),
+                      Expanded(
+                        child: Column(
+                          children: [
+                            if (glass)
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(
+                                  14,
+                                  14,
+                                  14,
+                                  6,
+                                ),
+                                child: GlassPanel(
+                                  borderRadius: liquid ? 28 : 22,
+                                  blurSigma: skin.blurSigma,
+                                  child: Container(
+                                    height: 74,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 22,
+                                    ),
+                                    child: headerRow,
+                                  ),
+                                ),
+                              )
+                            else
+                              Container(
+                                height: 83,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 26,
+                                ),
+                                decoration: BoxDecoration(
+                                  border: Border(
+                                    bottom: BorderSide(
+                                      color: Theme.of(c).dividerColor,
+                                    ),
+                                  ),
+                                ),
+                                child: headerRow,
+                              ),
                             Expanded(child: page()),
                           ],
                         ),
